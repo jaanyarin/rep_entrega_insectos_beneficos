@@ -268,8 +268,12 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RF-177 | Requerimientos | Descuento automático de stock al enviar | El sistema deberá descontar automáticamente la cantidad del requerimiento del stock disponible al confirmar el envío, evitando que se pueda superar el stock restante | System | Alta |
 | RF-178 | Requerimientos | Bloqueo de requerimientos por stock cero | El sistema deberá impedir el registro de nuevos requerimientos cuando el stock disponible llegue a cero, mostrando un mensaje de stock agotado | System | Alta |
 | RF-179 | Requerimientos | Screen 12 — Historial de Requerimientos | El sistema deberá mostrar una pantalla (Screen 12) al hacer clic en Historial de Requerimiento desde Screen 9, con un filtro de rango de fechas en la parte superior y una galería vertical con los requerimientos registrados por el usuario | User | Alta |
-| RF-180 | Requerimientos | Galería de Screen 12 con botones Ver y Editar | El sistema deberá mostrar en la galería de Screen 12 registros con: fecha de requerimiento, especie, estado (como etiqueta), botón Ver y botón Editar (pendiente de definir) | User | Alta |
+| RF-180 | Requerimientos | Galería de Screen 12 con botones Ver y Editar | El sistema deberá mostrar en la galería de Screen 12 registros con: fecha de requerimiento, especie, estado (como etiqueta), botón Ver y botón Editar (navega a Screen 13) | User | Alta |
 | RF-181 | Requerimientos | Popup Ver detalle de requerimiento en Screen 12 | El sistema deberá mostrar un popup al hacer clic en Ver, con los datos del requerimiento: fecha, fundo, lote, especie, cantidad, plaga objetivo, fecha liberación y observaciones, más un botón para ocultar el popup | User | Alta |
+| RF-182 | Requerimientos | Screen 13 — Edición de Requerimiento | El sistema deberá mostrar un formulario (Screen 13) al hacer clic en Editar desde Screen 12, con los mismos campos de Screen 10 pre-cargados con los datos del requerimiento, más los campos fecha y hora de liberación (auto-completados al tomar foto), un botón Foto habilitado y un botón Actualizar | User | Alta |
+| RF-183 | Requerimientos | Botón Foto en Screen 13 | El sistema deberá habilitar el botón Foto en Screen 13 que al tomar la fotografía complete automáticamente los campos fecha de liberación y hora de liberación con los metadatos del sistema | User | Alta |
+| RF-184 | Requerimientos | Botón Actualizar en Screen 13 | El sistema deberá mostrar un botón Actualizar en Screen 13 que al hacer clic guarde los cambios (incluyendo foto, fecha y hora de liberación), muestre una notificación de confirmación y redirija a Screen 12 | User | Alta |
+| RF-185 | Requerimientos | Alerta de 30 horas sin foto de liberación | El sistema deberá mostrar una alerta permanente en Screen 13 si han transcurrido más de 30 horas desde que el estado cambió a Recibido sin haberse tomado la foto de liberación, con el texto: "Alerta: No se ingresó la información de la liberación, fecha de solicitud: [fecha]" | User | Alta |
 
 ## MOD-06 — DESPACHOS
 
@@ -479,6 +483,8 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RN-032 | Cuando el stock disponible llegue a cero, el sistema debe bloquear el registro de nuevos requerimientos y mostrar mensaje "Stock agotado" | Requerimientos |
 | RN-033 | El botón Foto en Screen 10 debe permitir capturar hasta 2 fotografías por requerimiento, mostrando vista previa en miniatura de cada una | Requerimientos |
 | RN-034 | Las fotografías capturadas desde Screen 10 deben quedar asociadas al requerimiento como evidencia | Requerimientos |
+| RN-035 | Si han transcurrido más de 30 horas desde que el estado de un requerimiento cambió a Recibido sin haberse tomado la foto de liberación, Screen 13 debe mostrar una alerta permanente | Requerimientos |
+| RN-036 | La fecha y hora de liberación en Screen 13 deben auto-completarse con los metadatos del sistema al momento de tomar la fotografía de liberación | Requerimientos |
 
 ---
 
@@ -995,6 +1001,72 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 
 **Notificaciones:**
 - Cuando Admin registre un cambio de estado en la solicitud (desde Screens 7→8), el sistema debe enviar un correo electrónico al usuario (Sanidad) que realizó el requerimiento original, informando el nuevo estado
+
+---
+
+### Screen 13 — Edición de Requerimiento (User)
+
+**Acceso:** desde botón Editar en Screen 12 (galería de Historial de Requerimientos)
+
+**Estructura:**
+
+```
+┌──────────────────────────────────────────────────┐
+│              Editar Requerimiento                  │
+│                                                    │
+│  ⚠ Alerta: No se ingresó la información de la     │
+│    liberación, fecha de solicitud: 22/05/2026      │
+│  (visible solo si >30h desde estado Recibido       │
+│   sin foto de liberación)                          │
+│                                                    │
+│  Fecha              [ 22/05/2026          📅 ]   │
+│  Fundo              [ Fundo Los Pinos      ▼ ]   │
+│  Lote               [ Lote A-12            ▼ ]   │
+│  Especie            [ Chrysopa sp.         ▼ ]   │
+│  Etapa fenológica   [ Floración            ▼ ]   │
+│  Cantidad           [ 500                ⬜ ]   │
+│  Stock              [ 4,500 millares disponibles ]│
+│  Plaga objetivo     [ Pulgón               ▼ ]   │
+│  Fecha liberación   [ 25/05/2026     (auto)  ]   │
+│  Hora liberación    [ 08:30           (auto)  ]   │
+│  Observaciones      [_____________________]      │
+│                                      [📷 Foto]   │
+│                                                    │
+│              [ Actualizar ]                        │
+└──────────────────────────────────────────────────┘
+```
+
+**Campos del formulario:**
+
+| Campo | Tipo | Estado | Detalle |
+|---|---|---|---|
+| Fecha | Selector fecha | Pre-cargado | Dato original del requerimiento |
+| Fundo | Desplegable | Pre-cargado | Dato original del requerimiento |
+| Lote | Desplegable | Pre-cargado | Dato original del requerimiento |
+| Especie | Desplegable | Pre-cargado | Dato original del requerimiento |
+| Etapa fenológica | Desplegable | Pre-cargado | Dato original del requerimiento |
+| Cantidad | Input numérico | Pre-cargado | Dato original del requerimiento |
+| Stock | Etiqueta | Solo lectura | Stock disponible actual |
+| Plaga objetivo | Desplegable | Pre-cargado | Dato original del requerimiento |
+| Fecha liberación | Etiqueta | Auto-completado | Se rellena con los metadatos del sistema al tomar la foto |
+| Hora liberación | Etiqueta | Auto-completado | Se rellena con los metadatos del sistema al tomar la foto |
+| Observaciones | Input multilinea | Pre-cargado | Dato original, editable |
+| Fotos | Botón 📷 | Habilitado | Toma foto de liberación, hasta 2 |
+
+**Botón Foto (📷):**
+- Habilitado para tomar la fotografía de liberación
+- Al capturar la foto: los campos **Fecha liberación** y **Hora liberación** se completan automáticamente con los metadatos del sistema
+- Permite hasta 2 fotografías con vista previa en miniatura
+
+**Botón Actualizar:**
+- Guarda los cambios realizados (incluyendo foto, fecha y hora de liberación)
+- Muestra notificación de confirmación
+- Redirige a Screen 12 con la galería actualizada
+
+**Alerta de 30 horas:**
+- Si han transcurrido más de 30 horas desde que el estado del requerimiento cambió a **Recibido** y no se ha tomado la foto de liberación, se muestra una alerta permanente en la parte superior de Screen 13
+- Texto de la alerta: *"Alerta: No se ingresó la información de la liberación, fecha de solicitud: [fecha]"*
+- La alerta permanece visible hasta que se tome la foto de liberación
 
 ---
 

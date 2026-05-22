@@ -280,7 +280,7 @@ Al hacer clic en Solicitud de Requerimiento → navega a Screen 7.
 
 **Estructura:**
 1. **Filtro de rango de fechas**: selector desde-hasta en la parte superior
-2. **Galería vertical**: registros con fecha de requerimiento, especie, estado (etiqueta con color), botón **Ver** y botón **Editar** (pendiente de definir)
+2. **Galería vertical**: registros con fecha de requerimiento, especie, estado (etiqueta con color), botón **Ver** (abre popup detalle) y botón **Editar** (navega a Screen 13)
 
 **Popup Ver:**
 Al hacer clic en Ver se muestra un popup con los siguientes datos del requerimiento:
@@ -289,5 +289,29 @@ Al hacer clic en Ver se muestra un popup con los siguientes datos del requerimie
 
 **Notificaciones:**
 Cuando Admin registre un cambio de estado en la solicitud (desde su flujo Screens 7→8), el sistema debe enviar un correo electrónico al usuario de Sanidad que realizó el requerimiento, informando el nuevo estado.
+
+---
+
+### Screen 13 — Edición de Requerimiento (User)
+
+**Acceso:** desde botón Editar en Screen 12
+
+**Descripción:**
+Pantalla de edición del requerimiento con los mismos campos de Screen 10 pre-cargados, más los campos **Fecha liberación** y **Hora liberación** que se auto-completan al tomar la foto.
+
+**Campos:**
+- Mismos campos que Screen 10 (Fecha, Fundo, Lote, Especie, Etapa fenológica, Cantidad, Stock, Plaga objetivo, Observaciones) — todos pre-cargados con los datos originales
+- **Fecha liberación**: se auto-completa con metadatos del sistema al tomar la foto
+- **Hora liberación**: se auto-completa con metadatos del sistema al tomar la foto
+- **Botón Foto 📷**: habilitado para capturar la foto de liberación
+
+**Alerta de 30 horas:**
+Si han transcurrido más de 30 horas desde que el estado cambió a **Recibido** sin haberse tomado la foto de liberación, se muestra una alerta permanente en la parte superior:
+> *"Alerta: No se ingresó la información de la liberación, fecha de solicitud: [fecha]"*
+
+**Botón Actualizar:**
+- Guarda los cambios (foto, fecha y hora de liberación)
+- Muestra notificación de confirmación
+- Redirige a Screen 12
 
 ---
