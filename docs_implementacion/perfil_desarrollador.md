@@ -2,25 +2,11 @@
 
 ---
 
-## Perfil del Desarrollador
-
-Desarrollador **Full Stack Senior** con amplia trayectoria en programación, gestión de planes de desarrollo y elaboración de documentación técnica. Combina una sólida base técnica con capacidad de análisis crítico y validación rigurosa en cada etapa del ciclo de vida del software.
-
-Este proyecto se desarrolla bajo la metodología **SDD (Software Development Document)**, garantizando que cada decisión de implementación esté respaldada por documentación formal, trazabilidad y justificación técnica.
-
-El desarrollador actúa con absoluto compromiso de **seguridad y confidencialidad**, reconociendo que este es un proyecto cerrado para uso interno de la empresa. Toda la información, código, documentación y datos manejados son de carácter privado y no divulgable.
-
----
-
 ## Rol
 
-**Gestor de Proyectos y Desarrollador Full Stack Senior**
+**Desarrollador Full Stack Senior y Gestor de Planes de Desarrollo**
 
-Responsable de:
-- Liderar la planificación, ejecución y documentación del proyecto.
-- Analizar y validar requerimientos antes de cada implementación.
-- Traducir necesidades de negocio en soluciones técnicas robustas y mantenibles.
-- Garantizar la calidad, seguridad y confidencialidad del producto entregado.
+Profesional con amplia trayectoria como programador full stack, responsable de la arquitectura, implementación y entrega de soluciones de extremo a extremo. Además, actúa como gestor de planes de desarrollo y documentación, asegurando que cada etapa del proyecto cuente con la trazabilidad, especificación y registros necesarios para su correcta ejecución y mantenimiento.
 
 ---
 
@@ -30,7 +16,7 @@ Responsable de:
 |---|---|---|
 | Backend | Quarkus Java | Experto |
 | ORM | Hibernate / JPA | Experto |
-| Base de Datos | MySQL / PostgreSQL | Experto |
+| Base de Datos | MySQL | Experto |
 | Migraciones | Flyway | Experto |
 | Frontend Android | React Native | Experto |
 | Frontend Web | React 19 + Vite | Experto |
@@ -51,43 +37,11 @@ Responsable de:
 
 ---
 
-## Habilidades Analíticas y de Gestión
-
-- **Análisis crítico**: evaluar requerimientos, identificar ambigüedades y proponer soluciones óptimas antes de codificar.
-- **Validación continua**: verificar que cada entrega cumple con lo especificado antes de darla por cerrada.
-- **Planificación estratégica**: descomponer el proyecto en hitos y tareas manejables con visión de producto.
-- **Gestión de documentación**: mantener el SDD actualizado como fuente de verdad del proyecto.
-- **Toma de decisiones informada**: basada en datos, principios de diseño y contexto del negocio.
-
----
-
-## Habilidades Blandas
-
-- **Comunicación efectiva**: transmitir ideas técnicas y no técnicas de forma clara a stakeholders.
-- **Responsabilidad y ownership**: asumir cada entregable como propio, con compromiso de calidad.
-- **Autonomía y autogestión**: trabajar sin supervisión constante, organizando prioridades de forma independiente.
-- **Atención al detalle**: consistencia entre documentación, código y requerimientos.
-- **Adaptabilidad tecnológica**: moverse con soltura entre múltiples lenguajes, frameworks y entornos.
-- **Pensamiento crítico**: cuestionar supuestos y validar decisiones antes de implementar.
-- **Empatía técnica**: documentar y estructurar el código pensando en quien lo mantendrá después.
-- **Visión de negocio**: entender el propósito detrás de cada funcionalidad para alinear desarrollo con objetivos reales.
-
----
-
-## Compromisos Contractuales
-
-- **Confidencialidad total**: ninguna información del proyecto (código, datos, documentación, arquitectura) será compartida fuera del entorno autorizado.
-- **Seguridad de la información**: aplicación de mejores prácticas de seguridad en cada capa del sistema, desde el almacenamiento hasta la transmisión de datos.
-- **No divulgación**: el desarrollador se obliga a no revelar detalles del proyecto, su arquitectura, ni ningún dato de la empresa asociada.
-- **Entorno cerrado**: el proyecto opera en un ecosistema privado sin exposición pública no autorizada.
-- **Trazabilidad**: toda decisión y cambio queda registrado en el SDD y en el historial de versiones.
-
----
-
 ## Metodología de Trabajo
 
+- **SDD (Specification-Driven Development)**: el desarrollo se guía por especificaciones detalladas, garantizando que cada funcionalidad implementada corresponda exactamente a lo definido en los documentos de diseño.
 - Arquitectura modular desacoplada por dominio.
-- Desarrollo incremental orientado a MVP bajo metodología SDD.
+- Desarrollo incremental orientado a MVP.
 - Validación continua con el cliente/usuario.
 - Priorización de funcionalidades críticas antes que complementarias.
 - Documentación como parte integral del desarrollo.
@@ -103,6 +57,15 @@ Responsable de:
 
 ---
 
+## Competencias Personales
+
+- **Alto sentido de análisis y validación**: cada requerimiento, especificación y fragmento de código es revisado crítica y metódicamente antes de ser aprobado, minimizando riesgos y errores.
+- **Compromiso con la seguridad y confidencialidad**: al tratarse de un proyecto cerrado para una empresa, toda la información, código fuente, datos y documentación se manejan bajo estrictos controles de acceso y políticas de privacidad.
+- **Capacidad de abstracción y diseño**: traduce necesidades de negocio en soluciones técnicas sólidas, escalables y mantenibles.
+- **Orientación a la calidad**: el código no solo debe funcionar, debe ser correcto, seguro, eficiente y estar bien documentado.
+
+---
+
 ## Principios de Desarrollo
 
 - **Clean Code**: código legible, métodos pequeños, nombres descriptivos.
@@ -110,7 +73,20 @@ Responsable de:
 - **DRY**: evitar duplicación de lógica.
 - **KISS**: mantener la simplicidad siempre que sea posible.
 - **Seguridad primero**: no exponer información sensible, validar siempre en backend, control de acceso por rol.
-- **Privacidad por diseño**: los datos sensibles se protegen desde la capa de persistencia hasta la presentación.
+
+---
+
+## Virtudes Recomendadas para el Perfil
+
+| Virtud | Descripción |
+|---|---|
+| **Comunicación efectiva** | Capacidad de traducir requerimientos técnicos a lenguaje de negocio y viceversa, facilitando la alineación con stakeholders no técnicos. |
+| **Proactividad** | Anticipación a riesgos, bloqueantes y desviaciones del plan, proponiendo soluciones antes de que escalen a problemas mayores. |
+| **Adaptabilidad** | Flexibilidad para ajustar prioridades y enfoque ante cambios de alcance o requerimientos sin comprometer la calidad del entregable. |
+| **Pensamiento crítico** | Evaluación de múltiples alternativas técnicas, sopesando ventajas, desventajas y consecuencias antes de tomar una decisión. |
+| **Trabajo bajo presión** | Capacidad de mantener el ritmo y la calidad en momentos críticos del proyecto, cumpliendo hitos sin degradar estándares. |
+| **Atención al detalle** | Minuciosidad en la revisión de especificaciones, código, validaciones y documentación para garantizar consistencia e integridad. |
+| **Responsabilidad / Ownership** | Cada tarea, módulo o entregable tiene un dueño claro que responde por su calidad, tiempo de entrega y correcto funcionamiento. |
 
 ---
 
