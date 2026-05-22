@@ -167,6 +167,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | MOD-15 | Menú Principal / Home | Pantalla de inicio con acceso a módulos habilitados y visualización de proyecciones |
 | MOD-16 | Evaluación de Nematodos | Módulo placeholder para desarrollo futuro (no implementado en MVP) |
 | MOD-17 | Programación de Stock | Gestión de programación semanal de stock, edición con restricción de días/horario, tabla de proyección y notificaciones por correo |
+| MOD-18 | Solicitudes de Requerimiento | Gestión del ciclo completo de solicitudes de requerimiento de insectos benéficos, incluyendo registro, cambio de estados (Registrado → Pendiente → Aprobado → Entregado → Recibido → Liberado), control de presentaciones entregadas (papel con postura, sobre con cascarilla), validación de cantidades, notificaciones por correo y captura de acta PDF |
 
 ---
 
@@ -400,6 +401,31 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RF-147 | Programación | Validación de días de edición | El sistema deberá permitir la edición de programación únicamente los días lunes y jueves | System | Alta |
 | RF-148 | Programación | Validación de horario de edición | El sistema deberá permitir la edición de programación únicamente entre las 00:00 y 23:59 horas de los días permitidos | System | Alta |
 
+## MOD-18 — SOLICITUDES DE REQUERIMIENTO
+
+| Código | Módulo | Nombre | Descripción | Actor | Prioridad |
+|---|---|---|---|---|---|
+| RF-149 | Solicitudes | Screen 6 — Panel de Solicitudes | El sistema deberá mostrar una pantalla (Screen 6) con la misma estructura de Screen 3 (tabla de proyección del mes y barra de progreso), pero enfocada exclusivamente en Solicitud de Requerimiento como único botón de acceso | Admin, User | Alta |
+| RF-150 | Solicitudes | Acceso a Screen 6 desde Admin | El sistema deberá permitir al Admin acceder a Screen 6 desde el Botón 02 (Solicitud de Requerimiento) de Screen 3 | Admin | Alta |
+| RF-151 | Solicitudes | Acceso a Screen 6 desde User | El sistema deberá redirigir al User (Sanidad) a Screen 6 al hacer clic en Insectos benéficos desde el Home, como pantalla de inicio operativo | User | Alta |
+| RF-152 | Solicitudes | Botón Solicitud de Requerimiento en Screen 6 | El sistema deberá mostrar un botón Solicitud de Requerimiento en Screen 6 con indicador numérico de solicitudes pendientes | Admin, User | Alta |
+| RF-153 | Solicitudes | Screen 7 — Listado de Solicitudes | El sistema deberá mostrar una pantalla (Screen 7) con un filtro de rango de fechas en la parte superior y una galería vertical de registros debajo, al hacer clic en Solicitud de Requerimiento | Admin, User | Alta |
+| RF-154 | Solicitudes | Filtro de rango de fechas en Screen 7 | El sistema deberá permitir seleccionar un rango de fechas para filtrar las solicitudes mostradas en la galería | Admin, User | Alta |
+| RF-155 | Solicitudes | Galería de solicitudes en Screen 7 | El sistema deberá mostrar una galería vertical con registros de solicitud que incluyan: fecha de solicitud, especie y estado, con el color correspondiente según la tabla de estados definida | Admin, User | Alta |
+| RF-156 | Solicitudes | Visualización de colores por estado | El sistema deberá mostrar el estado de cada solicitud con el color correspondiente: Registrado (#9E9E9E), Pendiente (#FFC107), Aprobado (#4CAF50), Entregado (#2196F3), Recibido (#009688), Liberado (#9C27B0) | Admin, User | Alta |
+| RF-157 | Solicitudes | Botón Nuevo en Screen 7 | El sistema deberá mostrar un botón Nuevo en Screen 7 que redirija a Screen 8 en modo creación | Admin, User | Alta |
+| RF-158 | Solicitudes | Botón Editar en Screen 7 | El sistema deberá mostrar un botón Editar por cada registro en la galería de Screen 7 que redirija a Screen 8 en modo edición | Admin, User | Alta |
+| RF-159 | Solicitudes | Screen 8 — Formulario de Solicitud | El sistema deberá mostrar un formulario (Screen 8) con los siguientes campos de arriba abajo: Fecha (selector), Fundo (desplegable), Lote (desplegable), Especie (desplegable), Cantidad plaga (input), Objetivo (desplegable), Estado (desplegable: Aprobado, Entregado), Fecha de liberación (selector), Hora de liberación (selector), Observaciones (input multilinea) | Admin, User | Alta |
+| RF-160 | Solicitudes | Subtítulo Presentaciones entregadas | El sistema deberá mostrar debajo del campo Observaciones un subtítulo "Presentaciones entregadas" con los campos: Papel con postura (input número) y Sobre con cascarilla de arroz (input número) | Admin, User | Alta |
+| RF-161 | Solicitudes | Botón PDF junto a Estado | El sistema deberá mostrar un botón con icono de PDF al lado del selector de Estado, que al hacer clic abra un popup para capturar una foto del acta | Admin, User | Alta |
+| RF-162 | Solicitudes | Popup de captura de acta PDF | El sistema deberá mostrar un panel emergente (popup) al hacer clic en el botón PDF, permitiendo tomar una fotografía del acta, y al confirmar mostrar una vista previa de la imagen capturada | Admin, User | Media |
+| RF-163 | Solicitudes | Deshabilitar papel/sobre en creación | El sistema deberá mantener deshabilitados los campos Papel con postura y Sobre con cascarilla de arroz al crear una nueva solicitud (Nuevo) | System | Alta |
+| RF-164 | Solicitudes | Modo edición — solo cambio de estado | El sistema deberá permitir en modo edición únicamente la modificación del campo Estado, manteniendo los demás campos bloqueados | Admin, User | Alta |
+| RF-165 | Solicitudes | Habilitar papel/sobre cuando estado = Entregado | El sistema deberá habilitar los campos Papel con postura y Sobre con cascarilla de arroz únicamente cuando el Estado seleccionado sea Entregado, y será obligatorio registrar ambos valores | Admin, User | Alta |
+| RF-166 | Solicitudes | Validación papel+sobre = cantidad plaga | El sistema deberá validar que la suma de Papel con postura + Sobre con cascarilla de arroz sea exactamente igual a la Cantidad plaga registrada; solo cuando se cumpla esta condición se habilitará el botón Guardar | System | Alta |
+| RF-167 | Solicitudes | Notificación por correo al cambiar a Entregado | El sistema deberá enviar una notificación por correo electrónico a los perfiles User (Sanidad) cuando el estado de una solicitud cambie de Aprobado a Entregado | System | Alta |
+| RF-168 | Solicitudes | Guardar y retornar a Screen 7 | El sistema deberá guardar la solicitud al hacer clic en Guardar (habilitado solo si se cumple la validación) y redirigir a Screen 7, actualizando la galería con los cambios de estado | Admin, User | Alta |
+
 ---
 
 # 9. Reglas de Negocio
@@ -426,6 +452,14 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RN-018 | Al registrar o enviar una programación, el sistema debe notificar por correo electrónico a todos los usuarios de Sanidad | Programación |
 | RN-019 | La columna Total de la tabla de proyección debe calcularse automáticamente como la suma de ambos productos | Programación |
 | RN-020 | La tabla de proyección debe actualizarse automáticamente ante cualquier cambio en la programación | Programación |
+| RN-021 | La solicitud de requerimiento debe manejar los siguientes estados en orden secuencial: Registrado → Pendiente → Aprobado → Entregado → Recibido → Liberado | Solicitudes |
+| RN-022 | Cada estado de solicitud debe representarse con el color asignado: Registrado (#9E9E9E), Pendiente (#FFC107), Aprobado (#4CAF50), Entregado (#2196F3), Recibido (#009688), Liberado (#9C27B0) | Solicitudes |
+| RN-023 | Al crear una nueva solicitud, los campos Papel con postura y Sobre con cascarilla de arroz deben permanecer deshabilitados | Solicitudes |
+| RN-024 | En modo edición, solo el campo Estado debe estar habilitado para modificación; el resto de campos deben permanecer bloqueados | Solicitudes |
+| RN-025 | Los campos Papel con postura y Sobre con cascarilla de arroz solo se habilitan cuando el Estado es Entregado, y su registro es obligatorio | Solicitudes |
+| RN-026 | La suma de Papel con postura + Sobre con cascarilla de arroz debe ser exactamente igual a la Cantidad plaga para habilitar el botón Guardar | Solicitudes |
+| RN-027 | El sistema debe enviar una notificación por correo electrónico a los usuarios de Sanidad cuando el estado de una solicitud cambie de Aprobado a Entregado | Solicitudes |
+| RN-028 | La captura de acta PDF mediante el botón PDF debe abrir un popup que permita tomar una fotografía y mostrar una vista previa antes de confirmar | Solicitudes |
 
 ---
 
@@ -469,6 +503,9 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | Auditoria | Registro de trazabilidad de eventos |
 | Programacion | Programación semanal de stock por mes, producto y especie |
 | DetalleProgramacion | Detalle por semana de las cantidades programadas de cada producto |
+| Solicitud | Solicitud de requerimiento de insectos benéficos registrada por Sanidad, con gestión de estados (Registrado → Pendiente → Aprobado → Entregado → Recibido → Liberado), cantidades por presentación y captura de acta PDF |
+| DetalleSolicitud | Detalle de presentaciones entregadas (Papel con postura, Sobre con cascarilla de arroz) asociadas a una solicitud en estado Entregado |
+| ActaSolicitud | Evidencia fotográfica del acta asociada a una solicitud, capturada mediante el botón PDF en Screen 8 |
 
 ---
 
@@ -497,10 +534,10 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 │ │ ✅ Habilitado  ││ ❌ Placeholder│ │
 │ └────────────────┘└──────────────┘ │
 └──────────────┬──────────────────────┘
-               ▼
-    (Solo Admin I+D accede a Insectos benéficos)
-               │
-               ▼
+                ▼
+     (Solo Admin I+D accede a Insectos benéficos)
+                │
+                ▼
 ┌──────────────────────────────────────────────┐
 │ Screen 3 — Panel Programación (Admin)        │
 │                                              │
@@ -518,25 +555,69 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
                │
      ┌─────────┴─────────┐
      ▼                   ▼
-┌──────────────┐  ┌──────────────────┐
-│ Screen 4     │  │ Solicitudes      │
-│ Programación │  │ (por definir)    │
-│ Listado      │  │                  │
-└──────┬───────┘  └──────────────────┘
-       │
-    ┌──┴──┐
-    ▼     ▼
-┌─────┐ ┌──────────────────────────────┐
-│ Ver │ │ Screen 5 — Editar            │
-│Modal│ │ · Filtro mes                 │
-│     │ │ · Filtro especie             │
-│     │ │ · Tabla proyección editable  │
-│     │ │ · Botón: Enviar stock        │
-│     │ │ (solo lun/jue 00:00-23:59)   │
-│     │ └──────────┬───────────────────┘
-│     │            ▼
-│     │    [Notif. correo a Sanidad]
-└─────┘
+┌──────────────┐  ┌──────────────────────────────┐
+│ Screen 4     │  │ Screen 6 — Panel Solicitudes │
+│ Programación │  │ (Admin: desde Botón 02)      │
+│ Listado      │  │ (User: desde Home al entrar) │
+└──────┬───────┘  │                              │
+       │          │  ┌──────────────────────┐    │
+    ┌──┴──┐       │  │ Solic. Requerimiento │ 🔢 │
+    ▼     ▼       │  └──────────────────────┘    │
+┌─────┐ ┌──────┐  │  ┌──────────────────────┐    │
+│ Ver │ │Screen│  │  │ Tabla Proyección     │    │
+│Modal│ │ 5    │  │  │ Sem│Pap│Sob│Tot       │    │
+│     │ │Edit  │  │  ├──────────────────────┤    │
+│     │ │Stock │  │  │ ████████████░░ 60%   │    │
+│     │ └──────┘  │  └──────────────────────┘    │
+│     │           └──────────────┬───────────────┘
+└─────┘                          ▼
+                     ┌──────────────────────────────┐
+                     │ Screen 7 — Listado           │
+                     │ Solicitudes de Requerimiento │
+                     │                              │
+                     │  [Rango de fechas  ▼]        │
+                     │                              │
+                     │  ┌────────────────────────┐  │
+                     │  │ 2026-05-22 │ Especie A │  │
+                     │  │ Estado: ● Aprobado    │  │
+                     │  │               [Editar] │  │
+                     │  ├────────────────────────┤  │
+                     │  │ 2026-05-21 │ Especie B │  │
+                     │  │ Estado: ● Pendiente   │  │
+                     │  │               [Editar] │  │
+                     │  └────────────────────────┘  │
+                     │                              │
+                     │           [ + Nuevo ]        │
+                     └──────────────┬───────────────┘
+                                    │
+                          ┌─────────┴─────────┐
+                          ▼                   ▼
+                    ┌─────────────────────────────────┐
+                    │ Screen 8 — Formulario Solicitud │
+                    │ (Nuevo / Editar)                │
+                    │                                 │
+                    │  · Fecha            [📅]        │
+                    │  · Fundo            [▼]         │
+                    │  · Lote             [▼]         │
+                    │  · Especie          [▼]         │
+                    │  · Cantidad plaga   [___]       │
+                    │  · Objetivo         [▼]         │
+                    │  · Estado    [▼]  [📄 PDF]     │
+                    │  · Fecha liberac.   [📅]        │
+                    │  · Hora liberac.    [🕐]        │
+                    │  · Observaciones    [___]       │
+                    │                                 │
+                    │  Presentaciones entregadas:     │
+                    │  · Papel postura    [___]       │
+                    │  · Sobre cascarilla [___]       │
+                    │                                 │
+                    │         [💾 Guardar]            │
+                    └─────────────────────────────────┘
+                                    │
+                          (Guardar → retorna a Screen 7,
+                           galería actualizada)
+
+---
                │
                ▼
 ┌─────────────────────────────────────┐
@@ -571,8 +652,149 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 │    - Fecha/hora automática           │
 └──────────────┬──────────────────────┘
                ▼
-            [Fin]
+             [Fin]
 ```
+
+---
+
+## Especificación de Pantallas — Screens 6, 7 y 8
+
+### Screen 6 — Panel de Solicitudes de Requerimiento
+
+**Acceso:**
+- **Admin**: desde Botón 02 (Solicitud de Requerimiento) en Screen 3
+- **User (Sanidad)**: pantalla de inicio al hacer clic en Insectos benéficos desde Home
+
+**Estructura:** (misma disposición que Screen 3)
+
+```
+┌──────────────────────────────────────────────────┐
+│              Solicitudes de Requerimiento         │
+│                                                   │
+│  ┌────────────────────────────────────────────┐  │
+│  │  [ Solicitud de Requerimiento ]       🔢   │  │
+│  └────────────────────────────────────────────┘  │
+│                                                   │
+│  ┌────────────────────────────────────────────┐  │
+│  │  Proyección del Mes                        │  │
+│  │  Semana │ Papel postura │ Sobre │ Total    │  │
+│  ├────────────────────────────────────────────┤  │
+│  │  S1     │ 1,250         │ 1,250 │ 2,500   │  │
+│  │  S2     │ 1,250         │ 1,250 │ 2,500   │  │
+│  │  S3     │ 1,250         │ 1,250 │ 2,500   │  │
+│  │  S4     │ 1,250         │ 1,250 │ 2,500   │  │
+│  ├────────────────────────────────────────────┤  │
+│  │  Total  │ 5,000         │ 5,000 │ 10,000  │  │
+│  └────────────────────────────────────────────┘  │
+│                                                   │
+│  ████████████████████░░░░░░ 65%                   │
+│  Consumo mensual vs disponibilidad                │
+└──────────────────────────────────────────────────┘
+```
+
+**Elementos:**
+- Botón "Solicitud de Requerimiento" con indicador numérico de notificaciones (solicitudes pendientes)
+- Tabla de proyección del mes (Semana, Papel con postura, Sobre con cascarilla, Total)
+- Barra de progreso consumo vs disponibilidad
+
+---
+
+### Screen 7 — Listado de Solicitudes de Requerimiento
+
+**Acceso:** al hacer clic en "Solicitud de Requerimiento" desde Screen 6
+
+**Estructura:**
+
+```
+┌──────────────────────────────────────────────────┐
+│          Solicitudes de Requerimiento             │
+│                                                   │
+│  Rango de fechas:  [01/05/2026] ── [31/05/2026]  │
+│                                                   │
+│  ┌────────────────────────────────────────────┐  │
+│  │ 📅 22/05/2026  │  Especie: Chrysopa sp.    │  │
+│  │  Estado: ● Aprobado          [Editar]      │  │
+│  ├────────────────────────────────────────────┤  │
+│  │ 📅 21/05/2026  │  Especie: Chrysopa sp.    │  │
+│  │  Estado: ● Pendiente         [Editar]      │  │
+│  ├────────────────────────────────────────────┤  │
+│  │ 📅 20/05/2026  │  Especie: Cryptolaemus    │  │
+│  │  Estado: ● Registrado        [Editar]      │  │
+│  └────────────────────────────────────────────┘  │
+│                                                   │
+│  Tabla de colores de estado:                      │
+│  ● Registrado   #9E9E9E    ● Recibido    #009688 │
+│  ● Pendiente    #FFC107    ● Liberado    #9C27B0 │
+│  ● Aprobado     #4CAF50                          │
+│  ● Entregado    #2196F3                          │
+│                                                   │
+│                      [ + Nuevo ]                  │
+└──────────────────────────────────────────────────┘
+```
+
+**Elementos:**
+- Filtro de rango de fechas (selector desde-hasta)
+- Galería vertical de solicitudes con:
+  - Fecha de solicitud
+  - Especie
+  - Estado con indicador de color (seis estados posibles)
+- Botón **Nuevo** → abre Screen 8 en modo creación
+- Botón **Editar** por registro → abre Screen 8 en modo edición
+
+---
+
+### Screen 8 — Formulario de Solicitud de Requerimiento
+
+**Acceso:**
+- **Nuevo**: desde botón Nuevo en Screen 7
+- **Editar**: desde botón Editar en Screen 7
+
+**Estructura:**
+
+```
+┌──────────────────────────────────────────────────┐
+│                Solicitud de Requerimiento         │
+│                                                   │
+│  Fecha                [ 22/05/2026        📅 ]  │
+│  Fundo                [ Fundo Los Pinos    ▼ ]  │
+│  Lote                 [ Lote A-12          ▼ ]  │
+│  Especie              [ Chrysopa sp.       ▼ ]  │
+│  Cantidad plaga       [ 5000              ⬜ ]  │
+│  Objetivo             [ Control de plagas  ▼ ]  │
+│  Estado               [ Aprobado      ▼ ] [📄] │
+│  Fecha de liberación  [ 25/05/2026        📅 ]  │
+│  Hora de liberación   [ 08:30             🕐 ]  │
+│  Observaciones        [___________________]      │
+│                    (input multilinea)            │
+│                                                   │
+│  ── Presentaciones entregadas ──                  │
+│  Papel con postura         [ 2500       ⬜ ]     │
+│  Sobre con cascarilla      [ 2500       ⬜ ]     │
+│                                                   │
+│                [ 💾 Guardar ]                     │
+└──────────────────────────────────────────────────┘
+```
+
+**Comportamiento por modo:**
+
+| Aspecto | Creación (Nuevo) | Edición |
+|---|---|---|
+| Campos de formulario | Todos habilitados para ingreso | Solo Estado habilitado |
+| Papel con postura | Deshabilitado | Deshabilitado (se habilita solo si Estado = Entregado) |
+| Sobre con cascarilla | Deshabilitado | Deshabilitado (se habilita solo si Estado = Entregado) |
+| Botón Guardar | Habilitado si datos obligatorios completos | Habilitado solo si papel + sobre = cantidad plaga (cuando Estado = Entregado) |
+| Notificación | — | Al cambiar de Aprobado a Entregado → correo a usuarios Sanidad |
+
+**Reglas de validación en Guardar:**
+1. Si Estado = Entregado: papel con postura y sobre con cascarilla son obligatorios
+2. Si Estado = Entregado: papel con postura + sobre con cascarilla debe ser exactamente igual a cantidad plaga
+3. Si no se cumple la condición anterior, el botón Guardar permanece deshabilitado
+
+**Botón PDF (📄):**
+- Ubicado al lado del selector de Estado
+- Al hacer clic: abre un popup con cámara para capturar fotografía del acta
+- Al confirmar la captura: muestra vista previa de la imagen
+- La foto del acta queda asociada a la solicitud
 
 ---
 
