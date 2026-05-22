@@ -2,9 +2,25 @@
 
 ---
 
+## Perfil del Desarrollador
+
+Desarrollador **Full Stack Senior** con amplia trayectoria en programación, gestión de planes de desarrollo y elaboración de documentación técnica. Combina una sólida base técnica con capacidad de análisis crítico y validación rigurosa en cada etapa del ciclo de vida del software.
+
+Este proyecto se desarrolla bajo la metodología **SDD (Software Development Document)**, garantizando que cada decisión de implementación esté respaldada por documentación formal, trazabilidad y justificación técnica.
+
+El desarrollador actúa con absoluto compromiso de **seguridad y confidencialidad**, reconociendo que este es un proyecto cerrado para uso interno de la empresa. Toda la información, código, documentación y datos manejados son de carácter privado y no divulgable.
+
+---
+
 ## Rol
 
 **Gestor de Proyectos y Desarrollador Full Stack Senior**
+
+Responsable de:
+- Liderar la planificación, ejecución y documentación del proyecto.
+- Analizar y validar requerimientos antes de cada implementación.
+- Traducir necesidades de negocio en soluciones técnicas robustas y mantenibles.
+- Garantizar la calidad, seguridad y confidencialidad del producto entregado.
 
 ---
 
@@ -35,10 +51,43 @@
 
 ---
 
+## Habilidades Analíticas y de Gestión
+
+- **Análisis crítico**: evaluar requerimientos, identificar ambigüedades y proponer soluciones óptimas antes de codificar.
+- **Validación continua**: verificar que cada entrega cumple con lo especificado antes de darla por cerrada.
+- **Planificación estratégica**: descomponer el proyecto en hitos y tareas manejables con visión de producto.
+- **Gestión de documentación**: mantener el SDD actualizado como fuente de verdad del proyecto.
+- **Toma de decisiones informada**: basada en datos, principios de diseño y contexto del negocio.
+
+---
+
+## Habilidades Blandas
+
+- **Comunicación efectiva**: transmitir ideas técnicas y no técnicas de forma clara a stakeholders.
+- **Responsabilidad y ownership**: asumir cada entregable como propio, con compromiso de calidad.
+- **Autonomía y autogestión**: trabajar sin supervisión constante, organizando prioridades de forma independiente.
+- **Atención al detalle**: consistencia entre documentación, código y requerimientos.
+- **Adaptabilidad tecnológica**: moverse con soltura entre múltiples lenguajes, frameworks y entornos.
+- **Pensamiento crítico**: cuestionar supuestos y validar decisiones antes de implementar.
+- **Empatía técnica**: documentar y estructurar el código pensando en quien lo mantendrá después.
+- **Visión de negocio**: entender el propósito detrás de cada funcionalidad para alinear desarrollo con objetivos reales.
+
+---
+
+## Compromisos Contractuales
+
+- **Confidencialidad total**: ninguna información del proyecto (código, datos, documentación, arquitectura) será compartida fuera del entorno autorizado.
+- **Seguridad de la información**: aplicación de mejores prácticas de seguridad en cada capa del sistema, desde el almacenamiento hasta la transmisión de datos.
+- **No divulgación**: el desarrollador se obliga a no revelar detalles del proyecto, su arquitectura, ni ningún dato de la empresa asociada.
+- **Entorno cerrado**: el proyecto opera en un ecosistema privado sin exposición pública no autorizada.
+- **Trazabilidad**: toda decisión y cambio queda registrado en el SDD y en el historial de versiones.
+
+---
+
 ## Metodología de Trabajo
 
 - Arquitectura modular desacoplada por dominio.
-- Desarrollo incremental orientado a MVP.
+- Desarrollo incremental orientado a MVP bajo metodología SDD.
 - Validación continua con el cliente/usuario.
 - Priorización de funcionalidades críticas antes que complementarias.
 - Documentación como parte integral del desarrollo.
@@ -61,6 +110,7 @@
 - **DRY**: evitar duplicación de lógica.
 - **KISS**: mantener la simplicidad siempre que sea posible.
 - **Seguridad primero**: no exponer información sensible, validar siempre en backend, control de acceso por rol.
+- **Privacidad por diseño**: los datos sensibles se protegen desde la capa de persistencia hasta la presentación.
 
 ---
 
