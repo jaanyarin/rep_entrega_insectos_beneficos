@@ -32,7 +32,9 @@ En la pantalla principal (Home), tanto Admin como User deben poder visualizar un
 ## Página 3 — Pantalla de Programación de Stock (Admin I+D)
 
 ### Aclaración importante
-El botón **"Insectos benéficos"** en el Menú Principal solo está habilitado para los usuarios con perfil **Admin (I+D)**. El personal de Sanidad no tiene acceso a esta sección.
+El botón **"Insectos benéficos"** redirige según el rol del usuario:
+- **Admin (I+D)**: accede al Panel de Programación (Screen 3) con gestión de stock y solicitudes.
+- **User (Sanidad)**: accede al Panel de Requerimientos (Screen 9) para registrar solicitudes de productos.
 
 ### Screen 3 — Panel de Programación y Solicitudes (Admin)
 Al hacer clic en "Insectos benéficos", se accede a una pantalla con los siguientes elementos:
@@ -136,5 +138,156 @@ Una vez recibido el producto, Sanidad ejecuta la liberación colocando los produ
 - Sin reportes históricos.
 - Sin gráficos ni indicadores del proceso.
 - Sin control centralizado del ciclo completo.
+
+---
+
+## Página 4 — Flujo de Solicitudes de Requerimiento (Admin I+D)
+
+### Screen 6 — Panel de Solicitudes de Requerimiento
+
+**Acceso:** desde Botón 02 (Solicitud de Requerimiento) en Screen 3, exclusivo Admin I+D
+
+Misma estructura que Screen 3, enfocada exclusivamente en solicitudes:
+
+- **Botón — Solicitud de Requerimiento**: con indicador numérico de notificaciones (solicitudes pendientes)
+- **Tabla de proyección del mes**: columnas Semana, Papel con postura, Sobre con cascarilla, Total
+- **Barra de progreso**: consumo mensual vs disponibilidad
+
+Al hacer clic en Solicitud de Requerimiento → navega a Screen 7.
+
+---
+
+### Screen 7 — Listado de Solicitudes de Requerimiento
+
+**Acceso:** desde Screen 6 al hacer clic en Solicitud de Requerimiento
+
+**Estructura:**
+1. **Filtro de rango de fechas**: selector desde-hasta en la parte superior
+2. **Galería vertical de registros**: cada registro muestra fecha de solicitud, especie y estado con color
+3. **Botón Nuevo** → redirige a Screen 8 (creación)
+4. **Botón Editar** por registro → redirige a Screen 8 (edición)
+
+**Estados y colores:**
+
+| Estado | Color | Hex |
+|---|---|---|
+| Registrado | Gris | #9E9E9E |
+| Pendiente | Ámbar | #FFC107 |
+| Aprobado | Verde | #4CAF50 |
+| Entregado | Azul | #2196F3 |
+| Recibido | Verde azulado | #009688 |
+| Liberado | Púrpura | #9C27B0 |
+
+---
+
+### Screen 8 — Formulario de Solicitud de Requerimiento
+
+**Acceso:** desde botón Nuevo (creación) o Editar (edición) en Screen 7
+
+**Campos del formulario (de arriba abajo):**
+
+| Campo | Tipo |
+|---|---|
+| Fecha | Selector de fecha |
+| Fundo | Desplegable |
+| Lote | Desplegable |
+| Especie | Desplegable |
+| Cantidad plaga | Input |
+| Objetivo | Desplegable |
+| Estado | Desplegable (Aprobado, Entregado) + Botón PDF 📄 |
+| Fecha de liberación | Selector de fecha |
+| Hora de liberación | Selector de hora |
+| Observaciones | Input multilinea |
+
+**Subtítulo — Presentaciones entregadas:**
+- Papel con postura (input número)
+- Sobre con cascarilla de arroz (input número)
+
+**Botón PDF:** al lado del selector de Estado. Abre un popup para capturar foto del acta con vista previa.
+
+**Comportamiento por modo:**
+
+| Aspecto | Creación (Nuevo) | Edición |
+|---|---|---|
+| Campos de formulario | Todos habilitados | Solo Estado habilitado |
+| Papel con postura | Deshabilitado | Deshabilitado (se habilita solo si Estado = Entregado) |
+| Sobre con cascarilla | Deshabilitado | Deshabilitado (se habilita solo si Estado = Entregado) |
+| Botón Guardar | Habilitado si datos completos | Habilitado solo si papel + sobre = cantidad plaga |
+| Notificación | — | Al cambiar Aprobado → Entregado: correo a Sanidad |
+
+**Validaciones:**
+- Si Estado = Entregado: papel y sobre son obligatorios
+- papel + sobre debe ser exactamente igual a cantidad plaga para habilitar Guardar
+- Al guardar → retorna a Screen 7 con galería actualizada
+
+---
+
+## Página 5 — Flujo de Requerimientos (User Sanidad)
+
+### Screen 9 — Panel de Requerimientos (User)
+
+**Acceso:** desde Menú Principal (Home) al hacer clic en Insectos benéficos, exclusivo User (Sanidad)
+
+**Estructura:**
+1. **Botón — Nuevo Requerimiento**: redirige a Screen 10
+2. **Botón — Historial de Requerimiento**: redirige a Screen 12 (historial de requerimientos del usuario)
+3. **Tabla — Proyección [mes] [año] — [cantidad base] millares**: columnas Sem, Papel con postura, Sobre con cascarilla, Total
+4. **Barra de progreso**: consumo mensual vs disponibilidad
+
+---
+
+### Screen 10 — Formulario de Nuevo Requerimiento (User)
+
+**Acceso:** desde botón Nuevo Requerimiento en Screen 9
+
+**Campos del formulario (de arriba abajo):**
+
+| Campo | Tipo | Obligatorio | Detalle |
+|---|---|---|---|
+| Fecha | Selector fecha | Sí | Default: fecha actual |
+| Fundo | Desplegable | Sí | Catálogo de fundos |
+| Lote | Desplegable | Sí | Catálogo de lotes por fundo |
+| Especie | Desplegable | Sí | Catálogo de especies |
+| Etapa fenológica | Desplegable | Sí | Catálogo de etapas |
+| Cantidad | Input numérico | Sí | En millares |
+| Stock | Etiqueta (solo lectura) | — | Stock disponible en tiempo real |
+| Plaga objetivo | Desplegable | Sí | Catálogo de plagas |
+| Observaciones | Input multilinea | No | Texto libre |
+| Fotos | Botón 📷 | No | Hasta 2 fotos con vista previa |
+
+**Botón Enviar Solicitud:**
+- Valida que todos los campos obligatorios estén completos (excepto Observaciones y Fotos)
+- Al hacer clic: guarda el requerimiento, descuenta la cantidad del stock, muestra mensaje de confirmación y redirige a Screen 9
+
+**Reglas de stock:**
+- El campo **Stock** se actualiza en tiempo real según la especie seleccionada
+- Al cambiar **Especie**, el stock mostrado se actualiza al disponible de esa especie
+- La **Cantidad** no puede superar el stock disponible
+- Si el stock es 0, se bloquea el envío y se muestra "Stock agotado"
+- Cada envío descuenta automáticamente la cantidad del stock
+
+**Botón Foto (📷):**
+- Abre la cámara del dispositivo móvil
+- Permite capturar hasta 2 fotografías
+- Muestra vista previa en miniatura de cada foto en el screen
+- Las fotos quedan asociadas al requerimiento como evidencia
+
+---
+
+### Screen 12 — Historial de Requerimientos (User)
+
+**Acceso:** desde botón Historial de Requerimiento en Screen 9
+
+**Estructura:**
+1. **Filtro de rango de fechas**: selector desde-hasta en la parte superior
+2. **Galería vertical**: registros con fecha de requerimiento, especie, estado (etiqueta con color), botón **Ver** y botón **Editar** (pendiente de definir)
+
+**Popup Ver:**
+Al hacer clic en Ver se muestra un popup con los siguientes datos del requerimiento:
+- Fecha, Fundo, Lote, Especie, Cantidad, Plaga objetivo, Fecha de liberación, Observaciones
+- Botón **Cerrar** para ocultar el popup
+
+**Notificaciones:**
+Cuando Admin registre un cambio de estado en la solicitud (desde su flujo Screens 7→8), el sistema debe enviar un correo electrónico al usuario de Sanidad que realizó el requerimiento, informando el nuevo estado.
 
 ---

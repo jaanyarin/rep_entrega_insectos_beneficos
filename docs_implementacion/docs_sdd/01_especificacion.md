@@ -154,7 +154,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | MOD-02 | Usuarios | Administración de usuarios, roles y accesos al sistema |
 | MOD-03 | Publicación de Stock | Gestión de stock semanal de insectos benéficos (papel con postura y sobre con cascarilla de arroz) |
 | MOD-04 | Proyección Mensual | Gestión de proyección base (5,000 millares) y adicionales del mes |
-| MOD-05 | Requerimientos | Registro de requerimientos de Sanidad por fundo, lote y cantidad por producto |
+| MOD-05 | Requerimientos | Gestión de requerimientos de Sanidad, incluyendo formulario de registro con campos (fundo, lote, especie, etapa fenológica, cantidad, plaga objetivo, observaciones, fotos), control de stock disponible en tiempo real y descuento automático al enviar solicitud |
 | MOD-06 | Despachos | Gestión de despachos de I+D hacia Sanidad con validación de stock |
 | MOD-07 | Validación de Recepción | Confirmación de recepción conforme por parte de Sanidad |
 | MOD-08 | Liberación en Campo | Registro de liberación en campo con captura fotográfica y metadatos automáticos |
@@ -167,7 +167,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | MOD-15 | Menú Principal / Home | Pantalla de inicio con acceso a módulos habilitados y visualización de proyecciones |
 | MOD-16 | Evaluación de Nematodos | Módulo placeholder para desarrollo futuro (no implementado en MVP) |
 | MOD-17 | Programación de Stock | Gestión de programación semanal de stock, edición con restricción de días/horario, tabla de proyección y notificaciones por correo |
-| MOD-18 | Solicitudes de Requerimiento | Gestión del ciclo completo de solicitudes de requerimiento de insectos benéficos, incluyendo registro, cambio de estados (Registrado → Pendiente → Aprobado → Entregado → Recibido → Liberado), control de presentaciones entregadas (papel con postura, sobre con cascarilla), validación de cantidades, notificaciones por correo y captura de acta PDF |
+| MOD-18 | Solicitudes de Requerimiento | Gestión del ciclo completo de solicitudes de requerimiento de insectos benéficos gestionadas por I+D, incluyendo registro, cambio de estados (Registrado → Pendiente → Aprobado → Entregado → Recibido → Liberado), control de presentaciones entregadas (papel con postura, sobre con cascarilla), validación de cantidades, notificaciones por correo y captura de acta PDF |
 
 ---
 
@@ -256,6 +256,20 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RF-057 | Requerimientos | Edición de requerimiento pendiente | El sistema deberá permitir editar requerimientos en estado Pendiente | User | Media |
 | RF-058 | Requerimientos | Historial de requerimientos | El sistema deberá mantener el historial de requerimientos por fundo y lote | Admin, User | Alta |
 | RF-059 | Requerimientos | Mensajes de validación | El sistema deberá mostrar mensajes de error si no hay stock suficiente | User | Media |
+| RF-168 | Requerimientos | Screen 9 — Panel de Requerimientos (User) | El sistema deberá mostrar una pantalla (Screen 9) al User al hacer clic en Insectos benéficos desde Home, con dos botones (Nuevo Requerimiento, Historial de Requerimiento), una tabla de proyección mensual con columnas Sem, Papel con postura, Sobre con cascarilla, Total, y una barra de progreso consumo vs disponibilidad | User | Alta |
+| RF-169 | Requerimientos | Botón Nuevo Requerimiento en Screen 9 | El sistema deberá mostrar un botón Nuevo Requerimiento en Screen 9 que redirija a Screen 10 (formulario de requerimiento) | User | Alta |
+| RF-170 | Requerimientos | Botón Historial de Requerimiento en Screen 9 | El sistema deberá mostrar un botón Historial de Requerimiento en Screen 9 que redirija a Screen 12 (listado de requerimientos del usuario) | User | Alta |
+| RF-171 | Requerimientos | Tabla de proyección mensual en Screen 9 | El sistema deberá mostrar en Screen 9 una tabla titulada "Proyección [mes] [año] — [cantidad base] millares" con columnas: Sem, Papel con postura, Sobre con cascarilla, Total (suma de papel y sobre), registrada por semana del mes actual | Admin, User | Alta |
+| RF-172 | Requerimientos | Barra de progreso en Screen 9 | El sistema deberá mostrar en Screen 9 una barra de progreso que mida visualmente el consumo mensual vs la disponibilidad de productos | User | Alta |
+| RF-173 | Requerimientos | Screen 10 — Formulario de Requerimiento | El sistema deberá mostrar un formulario (Screen 10) al hacer clic en Nuevo Requerimiento, con los campos de arriba abajo: Fecha (selector, default fecha actual), Fundo (desplegable), Lote (desplegable), Especie (desplegable), Etapa fenológica (desplegable), Cantidad (input numérico), Stock (etiqueta informativa con stock disponible), Plaga objetivo (desplegable), Observaciones (input multilinea), y un botón Foto al lado de Observaciones | User | Alta |
+| RF-174 | Requerimientos | Botón Foto en Screen 10 | El sistema deberá mostrar un botón Foto al lado del campo Observaciones en Screen 10, que permita abrir la cámara del dispositivo y capturar hasta 2 fotografías, mostrando una vista previa en miniatura de cada foto capturada | User | Alta |
+| RF-175 | Requerimientos | Botón Enviar Solicitud en Screen 10 | El sistema deberá mostrar un botón Enviar Solicitud en Screen 10, que al hacer clic valide que todos los campos obligatorios (excepto Observaciones) estén completos, guarde el requerimiento y muestre un mensaje de confirmación, redirigiendo luego a Screen 9 | User | Alta |
+| RF-176 | Requerimientos | Visualización de stock en etiqueta de Screen 10 | El sistema deberá mostrar en la etiqueta Stock de Screen 10 la cantidad disponible del producto seleccionado, actualizada en tiempo real a medida que se registran requerimientos | User | Alta |
+| RF-177 | Requerimientos | Descuento automático de stock al enviar | El sistema deberá descontar automáticamente la cantidad del requerimiento del stock disponible al confirmar el envío, evitando que se pueda superar el stock restante | System | Alta |
+| RF-178 | Requerimientos | Bloqueo de requerimientos por stock cero | El sistema deberá impedir el registro de nuevos requerimientos cuando el stock disponible llegue a cero, mostrando un mensaje de stock agotado | System | Alta |
+| RF-179 | Requerimientos | Screen 12 — Historial de Requerimientos | El sistema deberá mostrar una pantalla (Screen 12) al hacer clic en Historial de Requerimiento desde Screen 9, con un filtro de rango de fechas en la parte superior y una galería vertical con los requerimientos registrados por el usuario | User | Alta |
+| RF-180 | Requerimientos | Galería de Screen 12 con botones Ver y Editar | El sistema deberá mostrar en la galería de Screen 12 registros con: fecha de requerimiento, especie, estado (como etiqueta), botón Ver y botón Editar (pendiente de definir) | User | Alta |
+| RF-181 | Requerimientos | Popup Ver detalle de requerimiento en Screen 12 | El sistema deberá mostrar un popup al hacer clic en Ver, con los datos del requerimiento: fecha, fundo, lote, especie, cantidad, plaga objetivo, fecha liberación y observaciones, más un botón para ocultar el popup | User | Alta |
 
 ## MOD-06 — DESPACHOS
 
@@ -374,7 +388,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RF-125 | Home | Navegación a Insectos benéficos | El sistema deberá redirigir al flujo operativo al presionar el botón Insectos benéficos | Admin, User | Alta |
 | RF-126 | Home | Placeholder Evaluación de nematodos | El botón Evaluación de nematodos no deberá navegar a ninguna pantalla (placeholder futuro) | Admin, User | Alta |
 | RF-127 | Home | Visualización de proyecciones en Home | El sistema deberá mostrar un texto informativo con las proyecciones mensuales de productos en la pantalla principal | Admin, User | Alta |
-| RF-128 | Home | Acceso restringido a Admin | El botón Insectos benéficos debe estar habilitado únicamente para usuarios con rol Admin (I+D) | Admin | Alta |
+| RF-128 | Home | Redirección por rol en Insectos benéficos | El botón Insectos benéficos debe redirigir según el rol: Admin (I+D) a Screen 3 (Panel Programación), User (Sanidad) a Screen 9 (Panel Requerimientos) | Admin, User | Alta |
 
 ## MOD-17 — PROGRAMACIÓN DE STOCK
 
@@ -405,26 +419,25 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 
 | Código | Módulo | Nombre | Descripción | Actor | Prioridad |
 |---|---|---|---|---|---|
-| RF-149 | Solicitudes | Screen 6 — Panel de Solicitudes | El sistema deberá mostrar una pantalla (Screen 6) con la misma estructura de Screen 3 (tabla de proyección del mes y barra de progreso), pero enfocada exclusivamente en Solicitud de Requerimiento como único botón de acceso | Admin, User | Alta |
-| RF-150 | Solicitudes | Acceso a Screen 6 desde Admin | El sistema deberá permitir al Admin acceder a Screen 6 desde el Botón 02 (Solicitud de Requerimiento) de Screen 3 | Admin | Alta |
-| RF-151 | Solicitudes | Acceso a Screen 6 desde User | El sistema deberá redirigir al User (Sanidad) a Screen 6 al hacer clic en Insectos benéficos desde el Home, como pantalla de inicio operativo | User | Alta |
-| RF-152 | Solicitudes | Botón Solicitud de Requerimiento en Screen 6 | El sistema deberá mostrar un botón Solicitud de Requerimiento en Screen 6 con indicador numérico de solicitudes pendientes | Admin, User | Alta |
-| RF-153 | Solicitudes | Screen 7 — Listado de Solicitudes | El sistema deberá mostrar una pantalla (Screen 7) con un filtro de rango de fechas en la parte superior y una galería vertical de registros debajo, al hacer clic en Solicitud de Requerimiento | Admin, User | Alta |
-| RF-154 | Solicitudes | Filtro de rango de fechas en Screen 7 | El sistema deberá permitir seleccionar un rango de fechas para filtrar las solicitudes mostradas en la galería | Admin, User | Alta |
-| RF-155 | Solicitudes | Galería de solicitudes en Screen 7 | El sistema deberá mostrar una galería vertical con registros de solicitud que incluyan: fecha de solicitud, especie y estado, con el color correspondiente según la tabla de estados definida | Admin, User | Alta |
-| RF-156 | Solicitudes | Visualización de colores por estado | El sistema deberá mostrar el estado de cada solicitud con el color correspondiente: Registrado (#9E9E9E), Pendiente (#FFC107), Aprobado (#4CAF50), Entregado (#2196F3), Recibido (#009688), Liberado (#9C27B0) | Admin, User | Alta |
-| RF-157 | Solicitudes | Botón Nuevo en Screen 7 | El sistema deberá mostrar un botón Nuevo en Screen 7 que redirija a Screen 8 en modo creación | Admin, User | Alta |
-| RF-158 | Solicitudes | Botón Editar en Screen 7 | El sistema deberá mostrar un botón Editar por cada registro en la galería de Screen 7 que redirija a Screen 8 en modo edición | Admin, User | Alta |
-| RF-159 | Solicitudes | Screen 8 — Formulario de Solicitud | El sistema deberá mostrar un formulario (Screen 8) con los siguientes campos de arriba abajo: Fecha (selector), Fundo (desplegable), Lote (desplegable), Especie (desplegable), Cantidad plaga (input), Objetivo (desplegable), Estado (desplegable: Aprobado, Entregado), Fecha de liberación (selector), Hora de liberación (selector), Observaciones (input multilinea) | Admin, User | Alta |
-| RF-160 | Solicitudes | Subtítulo Presentaciones entregadas | El sistema deberá mostrar debajo del campo Observaciones un subtítulo "Presentaciones entregadas" con los campos: Papel con postura (input número) y Sobre con cascarilla de arroz (input número) | Admin, User | Alta |
-| RF-161 | Solicitudes | Botón PDF junto a Estado | El sistema deberá mostrar un botón con icono de PDF al lado del selector de Estado, que al hacer clic abra un popup para capturar una foto del acta | Admin, User | Alta |
-| RF-162 | Solicitudes | Popup de captura de acta PDF | El sistema deberá mostrar un panel emergente (popup) al hacer clic en el botón PDF, permitiendo tomar una fotografía del acta, y al confirmar mostrar una vista previa de la imagen capturada | Admin, User | Media |
-| RF-163 | Solicitudes | Deshabilitar papel/sobre en creación | El sistema deberá mantener deshabilitados los campos Papel con postura y Sobre con cascarilla de arroz al crear una nueva solicitud (Nuevo) | System | Alta |
-| RF-164 | Solicitudes | Modo edición — solo cambio de estado | El sistema deberá permitir en modo edición únicamente la modificación del campo Estado, manteniendo los demás campos bloqueados | Admin, User | Alta |
-| RF-165 | Solicitudes | Habilitar papel/sobre cuando estado = Entregado | El sistema deberá habilitar los campos Papel con postura y Sobre con cascarilla de arroz únicamente cuando el Estado seleccionado sea Entregado, y será obligatorio registrar ambos valores | Admin, User | Alta |
-| RF-166 | Solicitudes | Validación papel+sobre = cantidad plaga | El sistema deberá validar que la suma de Papel con postura + Sobre con cascarilla de arroz sea exactamente igual a la Cantidad plaga registrada; solo cuando se cumpla esta condición se habilitará el botón Guardar | System | Alta |
-| RF-167 | Solicitudes | Notificación por correo al cambiar a Entregado | El sistema deberá enviar una notificación por correo electrónico a los perfiles User (Sanidad) cuando el estado de una solicitud cambie de Aprobado a Entregado | System | Alta |
-| RF-168 | Solicitudes | Guardar y retornar a Screen 7 | El sistema deberá guardar la solicitud al hacer clic en Guardar (habilitado solo si se cumple la validación) y redirigir a Screen 7, actualizando la galería con los cambios de estado | Admin, User | Alta |
+| RF-149 | Solicitudes | Screen 6 — Panel de Solicitudes | El sistema deberá mostrar una pantalla (Screen 6) con la misma estructura de Screen 3 (tabla de proyección del mes y barra de progreso), pero enfocada exclusivamente en Solicitud de Requerimiento como único botón de acceso | Admin | Alta |
+| RF-150 | Solicitudes | Acceso a Screen 6 | El sistema deberá permitir al Admin acceder a Screen 6 desde el Botón 02 (Solicitud de Requerimiento) de Screen 3 | Admin | Alta |
+| RF-151 | Solicitudes | Botón Solicitud de Requerimiento en Screen 6 | El sistema deberá mostrar un botón Solicitud de Requerimiento en Screen 6 con indicador numérico de solicitudes pendientes | Admin | Alta |
+| RF-152 | Solicitudes | Screen 7 — Listado de Solicitudes | El sistema deberá mostrar una pantalla (Screen 7) con un filtro de rango de fechas en la parte superior y una galería vertical de registros debajo, al hacer clic en Solicitud de Requerimiento | Admin | Alta |
+| RF-153 | Solicitudes | Filtro de rango de fechas en Screen 7 | El sistema deberá permitir seleccionar un rango de fechas para filtrar las solicitudes mostradas en la galería | Admin | Alta |
+| RF-154 | Solicitudes | Galería de solicitudes en Screen 7 | El sistema deberá mostrar una galería vertical con registros de solicitud que incluyan: fecha de solicitud, especie y estado, con el color correspondiente según la tabla de estados definida | Admin | Alta |
+| RF-155 | Solicitudes | Visualización de colores por estado | El sistema deberá mostrar el estado de cada solicitud con el color correspondiente: Registrado (#9E9E9E), Pendiente (#FFC107), Aprobado (#4CAF50), Entregado (#2196F3), Recibido (#009688), Liberado (#9C27B0) | Admin | Alta |
+| RF-156 | Solicitudes | Botón Nuevo en Screen 7 | El sistema deberá mostrar un botón Nuevo en Screen 7 que redirija a Screen 8 en modo creación | Admin | Alta |
+| RF-157 | Solicitudes | Botón Editar en Screen 7 | El sistema deberá mostrar un botón Editar por cada registro en la galería de Screen 7 que redirija a Screen 8 en modo edición | Admin | Alta |
+| RF-158 | Solicitudes | Screen 8 — Formulario de Solicitud | El sistema deberá mostrar un formulario (Screen 8) con los siguientes campos de arriba abajo: Fecha (selector), Fundo (desplegable), Lote (desplegable), Especie (desplegable), Cantidad plaga (input), Objetivo (desplegable), Estado (desplegable: Aprobado, Entregado), Fecha de liberación (selector), Hora de liberación (selector), Observaciones (input multilinea) | Admin | Alta |
+| RF-159 | Solicitudes | Subtítulo Presentaciones entregadas | El sistema deberá mostrar debajo del campo Observaciones un subtítulo "Presentaciones entregadas" con los campos: Papel con postura (input número) y Sobre con cascarilla de arroz (input número) | Admin | Alta |
+| RF-160 | Solicitudes | Botón PDF junto a Estado | El sistema deberá mostrar un botón con icono de PDF al lado del selector de Estado, que al hacer clic abra un popup para capturar una foto del acta | Admin | Alta |
+| RF-161 | Solicitudes | Popup de captura de acta PDF | El sistema deberá mostrar un panel emergente (popup) al hacer clic en el botón PDF, permitiendo tomar una fotografía del acta, y al confirmar mostrar una vista previa de la imagen capturada | Admin | Media |
+| RF-162 | Solicitudes | Deshabilitar papel/sobre en creación | El sistema deberá mantener deshabilitados los campos Papel con postura y Sobre con cascarilla de arroz al crear una nueva solicitud (Nuevo) | System | Alta |
+| RF-163 | Solicitudes | Modo edición — solo cambio de estado | El sistema deberá permitir en modo edición únicamente la modificación del campo Estado, manteniendo los demás campos bloqueados | Admin | Alta |
+| RF-164 | Solicitudes | Habilitar papel/sobre cuando estado = Entregado | El sistema deberá habilitar los campos Papel con postura y Sobre con cascarilla de arroz únicamente cuando el Estado seleccionado sea Entregado, y será obligatorio registrar ambos valores | Admin | Alta |
+| RF-165 | Solicitudes | Validación papel+sobre = cantidad plaga | El sistema deberá validar que la suma de Papel con postura + Sobre con cascarilla de arroz sea exactamente igual a la Cantidad plaga registrada; solo cuando se cumpla esta condición se habilitará el botón Guardar | System | Alta |
+| RF-166 | Solicitudes | Notificación por correo al cambiar a Entregado | El sistema deberá enviar una notificación por correo electrónico a los perfiles User (Sanidad) cuando el estado de una solicitud cambie de Aprobado a Entregado | System | Alta |
+| RF-167 | Solicitudes | Guardar y retornar a Screen 7 | El sistema deberá guardar la solicitud al hacer clic en Guardar (habilitado solo si se cumple la validación) y redirigir a Screen 7, actualizando la galería con los cambios de estado | Admin | Alta |
 
 ---
 
@@ -458,8 +471,14 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RN-024 | En modo edición, solo el campo Estado debe estar habilitado para modificación; el resto de campos deben permanecer bloqueados | Solicitudes |
 | RN-025 | Los campos Papel con postura y Sobre con cascarilla de arroz solo se habilitan cuando el Estado es Entregado, y su registro es obligatorio | Solicitudes |
 | RN-026 | La suma de Papel con postura + Sobre con cascarilla de arroz debe ser exactamente igual a la Cantidad plaga para habilitar el botón Guardar | Solicitudes |
-| RN-027 | El sistema debe enviar una notificación por correo electrónico a los usuarios de Sanidad cuando el estado de una solicitud cambie de Aprobado a Entregado | Solicitudes |
+| RN-027 | El sistema debe enviar una notificación por correo electrónico al usuario solicitante (Sanidad) cuando Admin registre un cambio de estado en su solicitud | Solicitudes |
 | RN-028 | La captura de acta PDF mediante el botón PDF debe abrir un popup que permita tomar una fotografía y mostrar una vista previa antes de confirmar | Solicitudes |
+| RN-029 | El campo Stock en Screen 10 debe mostrar en tiempo real el stock disponible del producto seleccionado, calculado como stock total menos requerimientos ya registrados | Requerimientos |
+| RN-030 | Al enviar un requerimiento en Screen 10, el sistema debe descontar automáticamente la cantidad solicitada del stock disponible del producto | Requerimientos |
+| RN-031 | No se permite registrar un requerimiento si la cantidad solicitada supera el stock disponible del producto | Requerimientos |
+| RN-032 | Cuando el stock disponible llegue a cero, el sistema debe bloquear el registro de nuevos requerimientos y mostrar mensaje "Stock agotado" | Requerimientos |
+| RN-033 | El botón Foto en Screen 10 debe permitir capturar hasta 2 fotografías por requerimiento, mostrando vista previa en miniatura de cada una | Requerimientos |
+| RN-034 | Las fotografías capturadas desde Screen 10 deben quedar asociadas al requerimiento como evidencia | Requerimientos |
 
 ---
 
@@ -503,9 +522,10 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | Auditoria | Registro de trazabilidad de eventos |
 | Programacion | Programación semanal de stock por mes, producto y especie |
 | DetalleProgramacion | Detalle por semana de las cantidades programadas de cada producto |
-| Solicitud | Solicitud de requerimiento de insectos benéficos registrada por Sanidad, con gestión de estados (Registrado → Pendiente → Aprobado → Entregado → Recibido → Liberado), cantidades por presentación y captura de acta PDF |
+| Solicitud | Solicitud de requerimiento de insectos benéficos gestionada por I+D, con gestión de estados (Registrado → Pendiente → Aprobado → Entregado → Recibido → Liberado), cantidades por presentación y captura de acta PDF |
 | DetalleSolicitud | Detalle de presentaciones entregadas (Papel con postura, Sobre con cascarilla de arroz) asociadas a una solicitud en estado Entregado |
 | ActaSolicitud | Evidencia fotográfica del acta asociada a una solicitud, capturada mediante el botón PDF en Screen 8 |
+| FotoRequerimiento | Fotografía capturada desde Screen 10 como evidencia del requerimiento, hasta 2 por requerimiento |
 
 ---
 
@@ -535,30 +555,60 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 │ └────────────────┘└──────────────┘ │
 └──────────────┬──────────────────────┘
                 ▼
-     (Solo Admin I+D accede a Insectos benéficos)
-                │
-                ▼
-┌──────────────────────────────────────────────┐
-│ Screen 3 — Panel Programación (Admin)        │
-│                                              │
-│  ┌──────────────┐  ┌──────────────────┐      │
-│  │ Programación │  │ Solic. Requerim. │ 🔢   │
-│  └──────────────┘  └──────────────────┘      │
-│                                              │
-│  ┌──────────────────────────────────────┐    │
-│  │ Tabla Proyección del Mes             │    │
-│  │ Semana │ Papel │ Sobre │ Total       │    │
-│  ├──────────────────────────────────────┤    │
-│  │ ████████████████░░░░ 60%             │    │
-│  └──────────────────────────────────────┘    │
-└──────────────┬───────────────────────────────┘
+          ┌─────┴─────┐
+          │           │
+          ▼           ▼
+┌────────────────────────────┐  ┌──────────────────────────────┐
+│ Rol: Admin (I+D)           │  │ Rol: User (Sanidad)           │
+└────────────┬───────────────┘  └──────────────┬───────────────┘
+             │                                  │
+             ▼                                  ▼
+┌──────────────────────────────────┐  ┌──────────────────────────────┐
+│ Screen 3 — Panel Programación   │  │ Screen 9 — Panel             │
+│                                 │  │ Requerimientos (User)        │
+│  ┌──────────┐ ┌────────────┐   │  │                              │
+│  │Programac │ │Solic. Req. │🔢│  │  ┌──────────┐ ┌──────────┐   │
+│  └──────────┘ └────────────┘   │  │  │Nuevo Req │ │Historial │   │
+│                                │  │  └──────────┘ └──────────┘   │
+│  ┌────────────────────────┐   │  │                              │
+│  │ Tabla Proyección       │   │  │  ┌──────────────────────┐    │
+│  │ Sem│Papel│Sobre│Total  │   │  │  │Proyección mayo       │    │
+│  ├────────────────────────┤   │  │  │ 5,000 millares       │    │
+│  │ ██████████████░░ 60%   │   │  │  │Sem│Pap│Sob│Tot       │    │
+│  └────────────────────────┘   │  │  ├──────────────────────┤    │
+└──────────────┬─────────────────┘  │  │ ████████████░░ 65%   │    │
+               │                    │  └──────────────────────┘    │
+      ┌────────┴────────┐           └──────────────┬───────────────┘
+      ▼                 ▼                           │
+┌──────────┐  ┌──────────────────┐                  ▼
+│ Screen 4 │  │ Screen 6 — Panel │  ┌──────────────────────────────┐
+│Prog.List │  │ Solicitudes      │  │ Screen 10 — Formulario       │
+└────┬─────┘  │ (desde Botón 02) │  │ Nuevo Requerimiento          │
+     │        │                  │  │                              │
+  ┌──┴──┐     │  ┌────────────┐ │  │  · Fecha         [📅]       │
+  ▼     ▼     │  │Solic.Req   │🔢│  │  · Fundo         [▼]        │
+┌───┐ ┌────┐  │  └────────────┘ │  │  · Lote          [▼]        │
+│Ver│ │Scr │  │  ┌────────────┐ │  │  · Especie       [▼]        │
+│Mod│ │5   │  │  │Proy. Tabla │ │  │  · Etapa fenol.  [▼]        │
+└───┘ └────┘  │  └────────────┘ │  │  · Cantidad      [___]      │
+               └────────┬───────┘  │  · Stock         [5000]     │
+                        ▼          │  · Plaga objetivo [▼]       │
+                  ┌──────────┐     │  · Obs     [___]  [📷 Foto] │
+                  │ Screen 7 │     │                              │
+                  │ Listado  │     │          [Enviar Solicitud]  │
+                  └────┬─────┘     └──────────────────────────────┘
+                       ▼
+                  ┌──────────┐
+                  │ Screen 8 │
+                  │ Formul.  │
+                  └──────────┘
                │
      ┌─────────┴─────────┐
      ▼                   ▼
 ┌──────────────┐  ┌──────────────────────────────┐
 │ Screen 4     │  │ Screen 6 — Panel Solicitudes │
-│ Programación │  │ (Admin: desde Botón 02)      │
-│ Listado      │  │ (User: desde Home al entrar) │
+│ Programación │  │ (desde Botón 02 de Screen 3) │
+│ Listado      │  │                              │
 └──────┬───────┘  │                              │
        │          │  ┌──────────────────────┐    │
     ┌──┴──┐       │  │ Solic. Requerimiento │ 🔢 │
@@ -662,8 +712,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 ### Screen 6 — Panel de Solicitudes de Requerimiento
 
 **Acceso:**
-- **Admin**: desde Botón 02 (Solicitud de Requerimiento) en Screen 3
-- **User (Sanidad)**: pantalla de inicio al hacer clic en Insectos benéficos desde Home
+- desde Botón 02 (Solicitud de Requerimiento) en Screen 3 (exclusivo Admin I+D)
 
 **Estructura:** (misma disposición que Screen 3)
 
@@ -795,6 +844,157 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 - Al hacer clic: abre un popup con cámara para capturar fotografía del acta
 - Al confirmar la captura: muestra vista previa de la imagen
 - La foto del acta queda asociada a la solicitud
+
+---
+
+### Screen 9 — Panel de Requerimientos (User)
+
+**Acceso:** desde Menú Principal (Home) al hacer clic en Insectos benéficos, exclusivo para rol User (Sanidad)
+
+**Estructura:**
+
+```
+┌──────────────────────────────────────────────────┐
+│             Requerimientos — Sanidad               │
+│                                                    │
+│  ┌──────────────────────┐ ┌──────────────────┐   │
+│  │ Nuevo Requerimiento  │ │ Historial Req.   │   │
+│  └──────────────────────┘ └──────────────────┘   │
+│                                                    │
+│  ┌────────────────────────────────────────────┐   │
+│  │ Proyección mayo — 5,000 millares           │   │
+│  │ Sem │ Papel postura │ Sobre │ Total        │   │
+│  ├────────────────────────────────────────────┤   │
+│  │ S1  │ 1,250         │ 1,250 │ 2,500       │   │
+│  │ S2  │ 1,250         │ 1,250 │ 2,500       │   │
+│  │ S3  │ 1,250         │ 1,250 │ 2,500       │   │
+│  │ S4  │ 1,250         │ 1,250 │ 2,500       │   │
+│  ├────────────────────────────────────────────┤   │
+│  │ Total│ 5,000        │ 5,000 │ 10,000      │   │
+│  └────────────────────────────────────────────┘   │
+│                                                    │
+│  ████████████████████░░░░░░ 65%                    │
+│  Consumo mensual vs disponibilidad                 │
+└──────────────────────────────────────────────────┘
+```
+
+**Elementos:**
+- Botón **Nuevo Requerimiento** → redirige a Screen 10
+- Botón **Historial de Requerimiento** → placeholder (pendiente de definir)
+- Tabla **Proyección [mes] [año] — [cantidad base] millares** con columnas: Sem, Papel con postura, Sobre con cascarilla, Total (suma automática)
+- Barra de progreso consumo mensual vs disponibilidad
+
+---
+
+### Screen 10 — Formulario de Nuevo Requerimiento (User)
+
+**Acceso:** desde botón Nuevo Requerimiento en Screen 9
+
+**Estructura:**
+
+```
+┌──────────────────────────────────────────────────┐
+│              Nuevo Requerimiento                   │
+│                                                    │
+│  Fecha              [ 22/05/2026          📅 ]   │
+│  Fundo              [ Fundo Los Pinos      ▼ ]   │
+│  Lote               [ Lote A-12            ▼ ]   │
+│  Especie            [ Chrysopa sp.         ▼ ]   │
+│  Etapa fenológica   [ Floración            ▼ ]   │
+│  Cantidad           [ 500                ⬜ ]   │
+│  Stock              [ 4,500 millares disponibles ]│
+│  Plaga objetivo     [ Pulgón               ▼ ]   │
+│  Observaciones      [_____________________]      │
+│                                      [📷 Foto]   │
+│                                                    │
+│              [ Enviar Solicitud ]                  │
+└──────────────────────────────────────────────────┘
+```
+
+**Campos del formulario:**
+
+| Campo | Tipo | Obligatorio | Detalle |
+|---|---|---|---|
+| Fecha | Selector fecha | Sí | Default: fecha actual del dispositivo |
+| Fundo | Desplegable | Sí | Catálogo de fundos registrados |
+| Lote | Desplegable | Sí | Catálogo de lotes asociados al fundo seleccionado |
+| Especie | Desplegable | Sí | Catálogo de especies de insectos benéficos |
+| Etapa fenológica | Desplegable | Sí | Catálogo de etapas fenológicas del cultivo |
+| Cantidad | Input numérico | Sí | Cantidad requerida en millares |
+| Stock | Etiqueta (solo lectura) | — | Muestra el stock disponible del producto seleccionado, se actualiza en tiempo real |
+| Plaga objetivo | Desplegable | Sí | Catálogo de plagas objetivo |
+| Observaciones | Input multilinea | No | Texto libre |
+| Fotos | Botón 📷 | No | Abre cámara, hasta 2 fotos con vista previa |
+
+**Reglas de negocio:**
+- Todos los campos son obligatorios excepto Observaciones y Fotos
+- El campo **Stock** muestra el stock disponible calculado como: stock total - requerimientos ya registrados
+- Al cambiar el campo **Especie**, el stock mostrado debe actualizarse al disponible de esa especie
+- Al cambiar el campo **Cantidad**, se valida que no supere el stock disponible
+- Si el stock disponible es 0, se bloquea el envío y se muestra mensaje "Stock agotado"
+- Al hacer clic en **Enviar Solicitud**: guarda el requerimiento, descuenta la cantidad del stock, muestra mensaje de confirmación y redirige a Screen 9
+
+**Botón Foto (📷):**
+- Ubicado al lado derecho del campo Observaciones
+- Al hacer clic: abre la cámara del dispositivo móvil
+- Permite capturar hasta 2 fotografías por requerimiento
+- Cada foto capturada se muestra como vista previa en miniatura dentro del screen
+- Las fotos quedan asociadas al requerimiento como evidencia
+
+---
+
+### Screen 12 — Historial de Requerimientos (User)
+
+**Acceso:** desde botón Historial de Requerimiento en Screen 9
+
+**Estructura:**
+
+```
+┌──────────────────────────────────────────────────┐
+│           Historial de Requerimientos              │
+│                                                    │
+│  Rango de fechas:  [01/05/2026] ── [31/05/2026]  │
+│                                                    │
+│  ┌────────────────────────────────────────────┐  │
+│  │ 📅 22/05/2026  │  Especie: Chrysopa sp.    │  │
+│  │  Estado: ● Aprobado         [Ver] [Editar] │  │
+│  ├────────────────────────────────────────────┤  │
+│  │ 📅 20/05/2026  │  Especie: Cryptolaemus    │  │
+│  │  Estado: ● Pendiente        [Ver] [Editar] │  │
+│  └────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────┘
+```
+
+**Elementos:**
+- Filtro de rango de fechas (selector desde-hasta)
+- Galería vertical con registros de requerimiento que incluyen:
+  - Fecha de requerimiento
+  - Especie
+  - Estado (etiqueta con color según tabla de estados)
+  - Botón **Ver** → abre popup con detalle completo
+  - Botón **Editar** → pendiente de definir
+
+**Popup Ver:**
+
+```
+┌──────────────────────────────────────────────────┐
+│               Detalle de Requerimiento             │
+│                                                    │
+│  Fecha:           22/05/2026                       │
+│  Fundo:           Fundo Los Pinos                  │
+│  Lote:            Lote A-12                        │
+│  Especie:         Chrysopa sp.                     │
+│  Cantidad:        500 millares                     │
+│  Plaga objetivo:  Pulgón                           │
+│  Fecha liberac.:  25/05/2026                       │
+│  Observaciones:   Aplicar en horas de la mañana    │
+│                                                    │
+│                   [ Cerrar ]                       │
+└──────────────────────────────────────────────────┘
+```
+
+**Notificaciones:**
+- Cuando Admin registre un cambio de estado en la solicitud (desde Screens 7→8), el sistema debe enviar un correo electrónico al usuario (Sanidad) que realizó el requerimiento original, informando el nuevo estado
 
 ---
 
