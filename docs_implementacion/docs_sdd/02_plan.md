@@ -40,7 +40,7 @@
 | Backend | Quarkus Java |
 | Frontend Android | React Native |
 | Frontend Web | React + MUI |
-| Base de Datos | MySQL |
+| Base de Datos | PostgreSQL |
 | Autenticación | Microsoft Identity |
 | Seguridad | JWT |
 | APIs | REST |

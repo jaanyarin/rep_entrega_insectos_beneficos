@@ -3,6 +3,62 @@
 
 ---
 
+## Página 1 — Contexto Inicial y Flujo Operacional
+
+### Fecha de registro
+21 de mayo de 2026
+
+### Origen de la solicitud
+El proyecto nace por la necesidad de digitalizar un proceso crítico que actualmente se gestiona de forma completamente manual mediante tablas Excel y validaciones por WhatsApp. Esto genera confusión, errores operativos, falta de trazabilidad y ausencia de reportes históricos o indicadores gráficos.
+
+### Actores del sistema
+
+| Área | Perfil | Rol en el sistema |
+|---|---|---|
+| I+D (Investigación y Desarrollo) | admin | Publica stock semanal, valida requerimientos, gestiona despachos |
+| Sanidad | Usuario | Solicita productos, valida recepción, ejecuta liberación en campo |
+
+### Flujo operativo (5 pasos)
+
+**Paso 1 — Publicación (I+D)**
+Los usuarios del área de I+D con perfil admin cargan al sistema el stock semanal disponible de dos productos biológicos que ellos mismos producen:
+- Papel con postura
+- Sobre con cascarilla de arroz
+
+Esta publicación se realiza a través del aplicativo.
+
+**Paso 2 — Requerimiento (Sanidad)**
+Los usuarios del área de Sanidad con perfil usuario registran en el aplicativo el requerimiento de los productos, indicando:
+- Fundo
+- Lote
+- Cantidad por producto
+
+**Paso 3 — Despacho (I+D)**
+I+D recibe la solicitud, valida el stock disponible contra el requerimiento (normalmente el stock cubre el pedido) y procede a realizar la entrega física.
+
+**Paso 4 — Validación de Recepción (Sanidad)**
+Sanidad confirma la recepción de lo despachado por I+D.
+
+**Paso 5 — Liberación en Campo (Sanidad)**
+Una vez recibido el producto, Sanidad ejecuta la liberación colocando los productos en campo (fundo, lote). Esta acción se valida mediante una captura fotográfica que registra automáticamente la fecha y hora de la toma.
+
+### Premisas de stock
+
+- Proyección mensual base: **5,000 millares** (nunca baja de esa cifra).
+- Pueden existir adicionales puntuales: +10, +100 millares, etc., que se registran como ajuste dentro del mes.
+- Días de publicación semanal: **lunes y jueves**, I+D muestra la cantidad disponible.
+- Con esa información, Sanidad hace su pedido indicando dónde se va a consumir (fundo, lote).
+
+### Problemática actual
+
+- Proceso manual en Excel → confusión y errores.
+- Validaciones mediante WhatsApp → información no trazable.
+- Sin reportes históricos.
+- Sin gráficos ni indicadores del proceso.
+- Sin control centralizado del ciclo completo.
+
+---
+
 ## Página 2 — Pantalla de Login y Menú Principal
 
 ### Pantalla 1 — Login
@@ -13,30 +69,30 @@ Tras la autenticación exitosa, el sistema muestra una pantalla con dos botones 
 
 | Botón | Descripción | Estado |
 |---|---|---|
-| **Insectos benéficos** | Acceso al flujo operativo completo (publicación, requerimiento, despacho, recepción, liberación) | ✅ Habilitado (Admin y User) |
+| **Insectos benéficos** | Acceso al flujo operativo completo (publicación, requerimiento, despacho, recepción, liberación) | ✅ Habilitado (admin y user) |
 | **Evaluación de nematodos** | Módulo futuro — aún no implementado | ❌ No navega a ninguna pantalla |
 
 Cada botón debe incluir una imagen referencial representativa de la descripción.
 
 ### Visualización de proyecciones
-En la pantalla principal (Home), tanto Admin como User deben poder visualizar un texto informativo que muestre las proyecciones actuales de los productos (cantidad base + adicionales del mes).
+En la pantalla principal (Home), tanto admin como user deben poder visualizar un texto informativo que muestre las proyecciones actuales de los productos (cantidad base + adicionales del mes).
 
 ### Notas
 - **Solo el botón "Insectos benéficos"** se encuentra operativo por el momento.
 - El botón "Evaluación de nematodos" queda como placeholder para desarrollo futuro.
-- Ambos roles (Admin I+D y User Sanidad) tienen acceso al botón "Insectos benéficos".
+- Ambos roles (admin i+d y user sanidad) tienen acceso al botón "Insectos benéficos".
 - La proyección es informativa visible para ambos roles.
 
 ---
 
-## Página 3 — Pantalla de Programación de Stock (Admin I+D)
+## Página 3 — Pantalla de Programación de Stock (admin i+d)
 
 ### Aclaración importante
 El botón **"Insectos benéficos"** redirige según el rol del usuario:
-- **Admin (I+D)**: accede al Panel de Programación (Screen 3) con gestión de stock y solicitudes.
-- **User (Sanidad)**: accede al Panel de Requerimientos (Screen 9) para registrar solicitudes de productos.
+- **admin (i+d)**: accede al panel de programación (screen 3) con gestión de stock y solicitudes.
+- **user (sanidad)**: accede al panel de requerimientos (screen 9) para registrar solicitudes de productos.
 
-### Screen 3 — Panel de Programación y Solicitudes (Admin)
+### Screen 3 — Panel de Programación y Solicitudes (admin)
 Al hacer clic en "Insectos benéficos", se accede a una pantalla con los siguientes elementos:
 
 **Botones:**
@@ -85,67 +141,13 @@ La edición de la programación solo está permitida bajo las siguientes condici
 - **Horario permitido:** desde las 00:00 hasta las 23:59 de esos dos días.
 - Fuera de ese horario y días, no se permite la edición.
 
----## Página 1 — Contexto Inicial y Flujo Operacional
-
-### Fecha de registro
-21 de mayo de 2026
-
-### Origen de la solicitud
-El proyecto nace por la necesidad de digitalizar un proceso crítico que actualmente se gestiona de forma completamente manual mediante tablas Excel y validaciones por WhatsApp. Esto genera confusión, errores operativos, falta de trazabilidad y ausencia de reportes históricos o indicadores gráficos.
-
-### Actores del sistema
-
-| Área | Perfil | Rol en el sistema |
-|---|---|---|
-| I+D (Investigación y Desarrollo) | Admin | Publica stock semanal, valida requerimientos, gestiona despachos |
-| Sanidad | Usuario | Solicita productos, valida recepción, ejecuta liberación en campo |
-
-### Flujo operativo (5 pasos)
-
-**Paso 1 — Publicación (I+D)**
-Los usuarios del área de I+D con perfil Admin cargan al sistema el stock semanal disponible de dos productos biológicos que ellos mismos producen:
-- Papel con postura
-- Sobre con cascarilla de arroz
-
-Esta publicación se realiza a través del aplicativo.
-
-**Paso 2 — Requerimiento (Sanidad)**
-Los usuarios del área de Sanidad con perfil Usuario registran en el aplicativo el requerimiento de los productos, indicando:
-- Fundo
-- Lote
-- Cantidad por producto
-
-**Paso 3 — Despacho (I+D)**
-I+D recibe la solicitud, valida el stock disponible contra el requerimiento (normalmente el stock cubre el pedido) y procede a realizar la entrega física.
-
-**Paso 4 — Validación de Recepción (Sanidad)**
-Sanidad confirma la recepción de lo despachado por I+D.
-
-**Paso 5 — Liberación en Campo (Sanidad)**
-Una vez recibido el producto, Sanidad ejecuta la liberación colocando los productos en campo (fundo, lote). Esta acción se valida mediante una captura fotográfica que registra automáticamente la fecha y hora de la toma.
-
-### Premisas de stock
-
-- Proyección mensual base: **5,000 millares** (nunca baja de esa cifra).
-- Pueden existir adicionales puntuales: +10, +100 millares, etc., que se registran como ajuste dentro del mes.
-- Días de publicación semanal: **lunes y jueves**, I+D muestra la cantidad disponible.
-- Con esa información, Sanidad hace su pedido indicando dónde se va a consumir (fundo, lote).
-
-### Problemática actual
-
-- Proceso manual en Excel → confusión y errores.
-- Validaciones mediante WhatsApp → información no trazable.
-- Sin reportes históricos.
-- Sin gráficos ni indicadores del proceso.
-- Sin control centralizado del ciclo completo.
-
 ---
 
-## Página 4 — Flujo de Solicitudes de Requerimiento (Admin I+D)
+## Página 4 — Flujo de Solicitudes de Requerimiento (admin i+d)
 
 ### Screen 6 — Panel de Solicitudes de Requerimiento
 
-**Acceso:** desde Botón 02 (Solicitud de Requerimiento) en Screen 3, exclusivo Admin I+D
+**Acceso:** desde Botón 02 (Solicitud de Requerimiento) en Screen 3, exclusivo admin i+d
 
 Misma estructura que Screen 3, enfocada exclusivamente en solicitudes:
 
@@ -222,11 +224,11 @@ Al hacer clic en Solicitud de Requerimiento → navega a Screen 7.
 
 ---
 
-## Página 5 — Flujo de Requerimientos (User Sanidad)
+## Página 5 — Flujo de Requerimientos (user sanidad)
 
-### Screen 9 — Panel de Requerimientos (User)
+### Screen 9 — Panel de Requerimientos (user)
 
-**Acceso:** desde Menú Principal (Home) al hacer clic en Insectos benéficos, exclusivo User (Sanidad)
+**Acceso:** desde Menú Principal (Home) al hacer clic en Insectos benéficos, exclusivo user (sanidad)
 
 **Estructura:**
 1. **Botón — Nuevo Requerimiento**: redirige a Screen 10
@@ -236,7 +238,7 @@ Al hacer clic en Solicitud de Requerimiento → navega a Screen 7.
 
 ---
 
-### Screen 10 — Formulario de Nuevo Requerimiento (User)
+### Screen 10 — Formulario de Nuevo Requerimiento (user)
 
 **Acceso:** desde botón Nuevo Requerimiento en Screen 9
 
@@ -274,7 +276,7 @@ Al hacer clic en Solicitud de Requerimiento → navega a Screen 7.
 
 ---
 
-### Screen 12 — Historial de Requerimientos (User)
+### Screen 12 — Historial de Requerimientos (user)
 
 **Acceso:** desde botón Historial de Requerimiento en Screen 9
 
@@ -288,11 +290,11 @@ Al hacer clic en Ver se muestra un popup con los siguientes datos del requerimie
 - Botón **Cerrar** para ocultar el popup
 
 **Notificaciones:**
-Cuando Admin registre un cambio de estado en la solicitud (desde su flujo Screens 7→8), el sistema debe enviar un correo electrónico al usuario de Sanidad que realizó el requerimiento, informando el nuevo estado.
+Cuando admin registre un cambio de estado en la solicitud (desde su flujo Screens 7→8), el sistema debe enviar un correo electrónico al usuario de Sanidad que realizó el requerimiento, informando el nuevo estado.
 
 ---
 
-### Screen 13 — Edición de Requerimiento (User)
+### Screen 13 — Edición de Requerimiento (user)
 
 **Acceso:** desde botón Editar en Screen 12
 

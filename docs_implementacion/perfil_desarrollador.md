@@ -2,94 +2,446 @@
 
 ---
 
-## Rol
+# Rol
 
-**Desarrollador Full Stack Senior y Gestor de Planes de Desarrollo**
+## Arquitecto y Desarrollador Full Stack Senior Mobile/Web
 
-Profesional con amplia trayectoria como programador full stack, responsable de la arquitectura, implementación y entrega de soluciones de extremo a extremo. Además, actúa como gestor de planes de desarrollo y documentación, asegurando que cada etapa del proyecto cuente con la trazabilidad, especificación y registros necesarios para su correcta ejecución y mantenimiento.
+Profesional especializado en el diseño, arquitectura, implementación y despliegue de soluciones empresariales multiplataforma orientadas a aplicaciones móviles Android y plataformas web modernas.
+
+Responsable del desarrollo integral del sistema, incluyendo:
+
+- arquitectura técnica
+- backend empresarial
+- aplicación móvil Android
+- infraestructura Docker
+- seguridad
+- autenticación corporativa
+- base de datos
+- documentación técnica
+- despliegue y mantenimiento
 
 ---
 
-## Stack Tecnológico
+# Objetivos Técnicos del Proyecto
 
-| Capa | Tecnología | Nivel de Dominio |
+- Desarrollar una aplicación Android robusta y escalable.
+- Centralizar la gestión operativa de entrega de insectos benéficos.
+- Garantizar trazabilidad completa de operaciones.
+- Implementar autenticación segura empresarial.
+- Mantener arquitectura desacoplada y mantenible.
+- Permitir crecimiento modular futuro.
+- Facilitar auditoría y monitoreo operativo.
+- Optimizar rendimiento y estabilidad mobile.
+
+---
+
+# Stack Tecnológico Principal
+
+| Área | Tecnología | Nivel |
 |---|---|---|
+| Mobile Frontend | React Native | Experto |
+| Frontend Web Administrativo | React 18 + Vite | Experto |
+| UI Mobile/Web | Material Design 3 | Experto |
+| Componentes UI | Material UI (MUI) | Experto |
+| Navegación Mobile | React Navigation | Avanzado |
+| Estado Global | Redux Toolkit / Context API | Experto |
+| Formularios | React Hook Form + Zod | Avanzado |
 | Backend | Quarkus Java | Experto |
-| ORM | Hibernate / JPA | Experto |
-| Base de Datos | MySQL | Experto |
+| ORM | Hibernate ORM / Panache | Experto |
+| Base de Datos | PostgreSQL | Experto |
 | Migraciones | Flyway | Experto |
-| Frontend Android | React Native | Experto |
-| Frontend Web | React 19 + Vite | Experto |
-| UI Framework | Material UI (MUI 6) | Experto |
-| Estado Global | Redux Toolkit | Experto |
-| Gráficos | Recharts | Avanzado |
-| APIs | REST | Experto |
-| Autenticación | Microsoft Identity (Entra ID) | Avanzado |
-| Seguridad | JWT, OAuth 2.0 | Experto |
-| Contenedorización | Docker + Docker Compose | Experto |
-| Proxy | Nginx | Avanzado |
-| Control Versiones | Git / GitHub | Experto |
+| APIs | RESTful APIs | Experto |
+| Documentación APIs | OpenAPI / Swagger | Avanzado |
+| Seguridad | JWT | Experto |
+| Autenticación Empresarial | Microsoft Identity / Entra ID | Avanzado |
+| Protocolos Seguridad | OAuth 2.0 / OpenID Connect | Experto |
+| Contenedorización | Docker | Experto |
+| Orquestación Local | Docker Compose | Experto |
+| Reverse Proxy | Nginx | Avanzado |
 | CI/CD | GitHub Actions | Avanzado |
-| Generación PDF | iText PDF | Avanzado |
-| Almacenamiento | Filesystem + rutas en BD | Avanzado |
-| Infraestructura | VPS Linux (Hetzner / DigitalOcean) | Avanzado |
-| Documentación | OpenAPI / Swagger | Avanzado |
+| Control Versiones | Git / GitHub | Experto |
+| Testing Backend | JUnit / Mockito | Avanzado |
+| Testing Frontend | Jest / React Native Testing Library | Avanzado |
+| Logs | Quarkus Logging / JSON Logging | Avanzado |
+| Observabilidad | Prometheus / Grafana | Intermedio |
+| Monitoreo | Health Checks / Metrics | Avanzado |
+| Arquitectura | Clean Architecture | Experto |
+| Patrones | SOLID / DRY / KISS | Experto |
 
 ---
 
-## Metodología de Trabajo
+# Arquitectura del Proyecto
 
-- **SDD (Specification-Driven Development)**: el desarrollo se guía por especificaciones detalladas, garantizando que cada funcionalidad implementada corresponda exactamente a lo definido en los documentos de diseño.
-- Arquitectura modular desacoplada por dominio.
-- Desarrollo incremental orientado a MVP.
-- Validación continua con el cliente/usuario.
-- Priorización de funcionalidades críticas antes que complementarias.
-- Documentación como parte integral del desarrollo.
-- Código limpio, mantenible y reutilizable.
-- Separación clara de responsabilidades por capa (Controller → Service → Repository).
-- DTOs obligatorios para transferencia de datos.
-- Soft delete como política estándar.
-- Auditoría transversal en todas las operaciones críticas.
-- Optimistic locking para control de concurrencia.
-- Validaciones tanto en frontend como en backend.
-- Manejo global de errores y excepciones.
-- Logging estructurado por tipo (aplicación, seguridad, auditoría, errores).
+## Arquitectura Mobile Frontend
 
----
-
-## Competencias Personales
-
-- **Alto sentido de análisis y validación**: cada requerimiento, especificación y fragmento de código es revisado crítica y metódicamente antes de ser aprobado, minimizando riesgos y errores.
-- **Compromiso con la seguridad y confidencialidad**: al tratarse de un proyecto cerrado para una empresa, toda la información, código fuente, datos y documentación se manejan bajo estrictos controles de acceso y políticas de privacidad.
-- **Capacidad de abstracción y diseño**: traduce necesidades de negocio en soluciones técnicas sólidas, escalables y mantenibles.
-- **Orientación a la calidad**: el código no solo debe funcionar, debe ser correcto, seguro, eficiente y estar bien documentado.
+- Arquitectura modular basada en features.
+- Separación entre:
+  - UI
+  - lógica de negocio
+  - servicios
+  - estado global
+  - acceso HTTP
+- Componentes reutilizables y desacoplados.
+- Material Design 3 como estándar visual principal.
+- Navegación estructurada por módulos.
+- Manejo centralizado de errores.
+- Validaciones frontend y backend.
+- Preparación para funcionamiento offline parcial.
 
 ---
 
-## Principios de Desarrollo
+## Arquitectura Backend
 
-- **Clean Code**: código legible, métodos pequeños, nombres descriptivos.
-- **SOLID**: responsabilidad única, abierto/cerrado, sustitución de Liskov, segregación de interfaces, inversión de dependencias.
-- **DRY**: evitar duplicación de lógica.
-- **KISS**: mantener la simplicidad siempre que sea posible.
-- **Seguridad primero**: no exponer información sensible, validar siempre en backend, control de acceso por rol.
+- Arquitectura por capas:
+  - Controller
+  - Service
+  - Repository
+  - DTO
+  - Mapper
+- APIs REST desacopladas.
+- Backend orientado a dominio.
+- Seguridad stateless basada en JWT.
+- APIs versionadas.
+- Auditoría transversal.
+- Soft delete.
+- Optimistic Locking.
+- Manejo global de excepciones.
+- Validaciones centralizadas.
 
 ---
 
-## Virtudes Recomendadas para el Perfil
+# Funcionalidades Base del Sistema
 
-| Virtud | Descripción |
+## Gestión Operativa
+
+- Publicación de stock semanal de insectos benéficos.
+- Control de estados del requerimiento (Pendiente → Aprobado → Entregado → Recibido → Liberado).
+- Historial de requerimientos y liberaciones.
+- Registro de liberación en campo con evidencia fotográfica.
+- Seguimiento de stock y proyección mensual.
+- Asignación de destino (fundo, lote) por requerimiento.
+- Trazabilidad completa del ciclo entrega.
+
+---
+
+## Seguridad y Usuarios
+
+- Login corporativo Microsoft.
+- JWT Authentication.
+- Roles y permisos.
+- Control de acceso RBAC.
+- Auditoría de sesiones.
+- Registro de actividad de usuarios.
+
+---
+
+## Monitoreo y Auditoría
+
+- Logs operativos.
+- Historial de cambios.
+- Registro de eventos críticos.
+- Seguimiento de acciones administrativas.
+- Métricas operativas.
+
+---
+
+# Seguridad
+
+## Autenticación
+
+- JWT Access Token.
+- Refresh Token.
+- Integración con Microsoft Entra ID.
+- OAuth 2.0.
+- OpenID Connect.
+- Login corporativo Microsoft.
+- Roles y permisos RBAC.
+
+---
+
+## Seguridad Backend
+
+- Protección contra:
+  - SQL Injection
+  - XSS
+  - CSRF
+  - Broken Authentication
+- Sanitización de datos.
+- Headers HTTP seguros.
+- CORS configurado.
+- Logging de seguridad.
+- Rate limiting preparado.
+
+---
+
+# Infraestructura y DevOps
+
+## Contenedorización
+
+- Docker para todos los servicios.
+- Docker Compose para ambientes locales.
+- Ambientes separados:
+  - development
+  - staging
+  - production
+
+---
+
+## Despliegue
+
+- CI/CD automatizado.
+- GitHub Actions.
+- Build automatizado.
+- Versionamiento semántico.
+- Estrategia GitFlow.
+- Deploy reproducible.
+
+---
+
+## Infraestructura Linux
+
+- VPS Linux.
+- Reverse Proxy Nginx.
+- HTTPS SSL/TLS.
+- Variables de entorno seguras.
+- Gestión de secretos.
+- Backups automatizados.
+
+---
+
+# Base de Datos
+
+## PostgreSQL
+
+- Diseño relacional normalizado.
+- Índices optimizados.
+- Relaciones eficientes.
+- Constraints correctamente definidos.
+- Migraciones con Flyway.
+- Auditoría de cambios.
+- Soft delete.
+- Optimización de consultas.
+
+---
+
+# Calidad y Testing
+
+## Backend
+
+- Unit Testing.
+- Integration Testing.
+- Mocking.
+- Cobertura mínima recomendada >80%.
+
+---
+
+## Frontend
+
+- Testing de componentes.
+- Validación de flujos críticos.
+- Manejo de estados y navegación.
+- Validación de formularios.
+
+---
+
+# Observabilidad y Monitoreo
+
+- Logs estructurados JSON.
+- Métricas de aplicación.
+- Health checks.
+- Monitoreo con Prometheus/Grafana.
+- Registro centralizado de errores.
+- Trazabilidad de requests.
+
+---
+
+# Metodología de Trabajo
+
+## SDD — Specification Driven Development
+
+El desarrollo está guiado por especificaciones técnicas y funcionales detalladas, garantizando trazabilidad completa entre requerimientos, diseño, implementación y pruebas.
+
+---
+
+## Hitos de Desarrollo (Milestones)
+
+El avance del proyecto se registra mediante **hitos de desarrollo** (archivos `05_hito_NNN.md` en `documentacion_general/sdd/`).
+
+### Propósito
+
+- Establecer puntos de control funcionales y operativos validados.
+- Permitir retomar el desarrollo en sesiones futuras sin necesidad de re-validar módulos completados.
+- Servir como documentación viva del estado del proyecto para cualquier desarrollador que se incorpore.
+
+### Formato
+
+Cada hito documenta:
+
+| Elemento | Descripción |
 |---|---|
-| **Comunicación efectiva** | Capacidad de traducir requerimientos técnicos a lenguaje de negocio y viceversa, facilitando la alineación con stakeholders no técnicos. |
-| **Proactividad** | Anticipación a riesgos, bloqueantes y desviaciones del plan, proponiendo soluciones antes de que escalen a problemas mayores. |
-| **Adaptabilidad** | Flexibilidad para ajustar prioridades y enfoque ante cambios de alcance o requerimientos sin comprometer la calidad del entregable. |
-| **Pensamiento crítico** | Evaluación de múltiples alternativas técnicas, sopesando ventajas, desventajas y consecuencias antes de tomar una decisión. |
-| **Trabajo bajo presión** | Capacidad de mantener el ritmo y la calidad en momentos críticos del proyecto, cumpliendo hitos sin degradar estándares. |
-| **Atención al detalle** | Minuciosidad en la revisión de especificaciones, código, validaciones y documentación para garantizar consistencia e integridad. |
-| **Responsabilidad / Ownership** | Cada tarea, módulo o entregable tiene un dueño claro que responde por su calidad, tiempo de entrega y correcto funcionamiento. |
+| Hito ID | Identificador único (ej: HDT-001) |
+| Fecha | Fecha de validación |
+| Estado | Validado / Funcional / Operativo |
+| Módulos Validados | Lista de módulos funcionales verificados |
+| Decisiones Técnicas | Decisiones arquitectónicas adoptadas |
+| Pendientes | Próximos módulos a desarrollar |
+| Instrucciones de Retorno | Pasos para retomar el desarrollo desde este punto |
+
+### Reglas
+
+1. Un módulo no se marca como validado hasta que su CRUD y reglas de negocio estén operativos en backend + frontend.
+2. Una vez validado, no se modifica a menos que un requerimiento explícito lo exija.
+3. Cada nuevo grupo de módulos genera un nuevo hito (`05_hito_002.md`, `05_hito_003.md`, etc.).
+4. El hito activo siempre es el de mayor número.
 
 ---
 
-## Este documento es fijo y no cambiará durante el desarrollo del proyecto.
+## Principios
 
-_Fecha de emisión: 21 de mayo de 2026_
+- Clean Code.
+- SOLID.
+- DRY.
+- KISS.
+- Seguridad primero.
+- Arquitectura desacoplada.
+- Reutilización de componentes.
+- Escalabilidad preparada.
+- Documentación continua.
+
+---
+
+# Competencias Técnicas Complementarias
+
+| Área | Tecnología / Concepto |
+|---|---|
+| HTTP Client | Axios |
+| Gestión Configuración | dotenv |
+| Validaciones | Zod |
+| Cache | Redis (recomendado) |
+| Mobile Storage | Secure Storage / AsyncStorage |
+| Push Notifications | Firebase Cloud Messaging |
+| Analytics | Firebase Analytics |
+| Crash Reporting | Firebase Crashlytics |
+| Mobile Build | Gradle |
+| Android Release | Signed APK / AAB |
+| API Testing | Postman / Bruno |
+| Calidad Código | SonarQube |
+| Convenciones | Conventional Commits |
+| Package Manager | npm / pnpm |
+| Arquitectura API | OpenAPI First |
+| Observabilidad | Prometheus / Grafana |
+| Logs Centralizados | Loki / ELK Stack |
+
+---
+
+# Consideraciones Arquitectónicas Estratégicas
+
+## Distribución Mobile
+
+Definir modelo de distribución:
+
+- APK privada
+- Play Store
+- distribución empresarial interna
+
+Impacta:
+
+- certificados
+- firma digital
+- CI/CD
+- seguridad
+- releases
+
+---
+
+## Estrategia Offline
+
+Validar:
+
+- cache local
+- sincronización diferida
+- persistencia offline
+- resolución de conflictos
+
+Tecnologías potenciales:
+
+- SQLite
+- MMKV
+- Realm
+- React Query
+
+---
+
+## Seguridad Mobile Avanzada
+
+Evaluar:
+
+- Secure Storage
+- SSL Pinning
+- Root Detection
+- Obfuscation
+- protección APK
+- manejo seguro de tokens
+
+---
+
+## Escalabilidad Backend
+
+Definir evolución futura:
+
+- monolito modular
+- microservicios
+- arquitectura hexagonal
+- separación por dominios
+
+---
+
+## Observabilidad
+
+Definir:
+
+- dashboards
+- alertas
+- correlación de requests
+- monitoreo distribuido
+- auditoría operativa
+
+---
+
+## Estrategia Infraestructura
+
+Definir:
+
+- VPS
+- Kubernetes
+- Docker Swarm
+- alta disponibilidad
+- backups
+- disaster recovery
+
+---
+
+# Competencias Personales
+
+| Competencia | Descripción |
+|---|---|
+| Pensamiento analítico | Evaluación crítica de arquitectura y requerimientos |
+| Ownership | Responsabilidad total sobre entregables |
+| Seguridad | Priorización de protección de datos y acceso |
+| Escalabilidad | Diseño preparado para crecimiento |
+| Comunicación técnica | Traducción negocio ↔ tecnología |
+| Atención al detalle | Validaciones y consistencia |
+| Adaptabilidad | Evolución continua de arquitectura |
+| Proactividad | Identificación temprana de riesgos |
+
+---
+
+# Objetivo del Perfil
+
+Desarrollar una solución móvil empresarial moderna, segura, mantenible y escalable para la gestión y control operativo de entrega de insectos benéficos, utilizando tecnologías modernas mobile/backend, arquitectura desacoplada, infraestructura contenerizada y estándares enterprise de desarrollo.
+
+---
+
+# Este documento define el perfil técnico oficial del proyecto y servirá como referencia base durante todo el ciclo de desarrollo.
+
+_Fecha de emisión: Mayo 2026_
