@@ -1,0 +1,156 @@
+@startuml diagrama_actividades
+skinparam backgroundColor #FEFEFE
+skinparam activityBackgroundColor #F5F5FF
+skinparam activityBorderColor #333366
+skinparam arrowColor #333366
+skinparam swimlaneBackgroundColor #F0F0F8
+skinparam defaultFontName Arial
+
+title "diagrama de actividades - ciclo de entrega de insectos benéficos"
+
+' =====================================================================
+' carriles (swimlanes)
+' =====================================================================
+|#ADD8E6|**i+d (admin)**|
+|#90EE90|**sanidad (user)**|
+|#FFD700|**sistema**|
+
+' =====================================================================
+' inicio
+' =====================================================================
+start
+
+' =====================================================================
+' paso 1 - publicación de stock semanal
+' =====================================================================
+|#ADD8E6|
+:publicar stock semanal;
+note right
+  días: lunes y jueves
+  hora límite: 23:59
+end note
+
+|#FFD700|
+:registrar proyección semanal;
+:calcular stock disponible;
+:notificar a sanidad por correo;
+
+|#90EE90|
+:recibe notificación de stock disponible;
+
+' =====================================================================
+' paso 2 - registro de requerimiento
+' =====================================================================
+|#90EE90|
+:ingresa nuevo requerimiento;
+note right
+  campos obligatorios:
+  - fundo
+  - lote
+  - especie
+  - cantidad <= stock
+  - plaga objetivo
+  - etapa fenológica
+  - observaciones (opcional)
+end note
+
+:adjunta fotos (máx. 2);
+
+|#FFD700|
+:validar stock disponible;
+
+if (stock suficiente?) then (sí)
+  |#FFD700|
+  :descontar stock automáticamente;
+  :registrar estado: registrado;
+  :notificar a i+d;
+else (no)
+  |#FFD700|
+  :rechazar solicitud;
+  :mostrar error de stock;
+  |#90EE90|
+  :ajustar cantidad y reintentar;
+  note right: vuelve a ingreso de requerimiento
+  ->
+
+endif
+
+' =====================================================================
+' paso 3 - aprobación y despacho
+' =====================================================================
+|#ADD8E6|
+:revisar solicitudes pendientes;
+note right
+  indicador numérico de
+  notificación en el panel
+end note
+
+:cambiar estado a aprobado;
+note right
+  color: verde
+  notificación por correo a sanidad
+end note
+
+|#90EE90|
+:recibe notificación de aprobación;
+
+|#ADD8E6|
+:realizar despacho físico;
+
+:registrar entregas por presentación;
+note right
+  - papel con postura: [cantidad]
+  - sobre con cascarilla: [cantidad]
+  la suma debe coincidir con
+  la cantidad solicitada
+end note
+
+:cambiar estado a entregado;
+note right
+  sin color de estado
+  subir acta de entrega (pdf)
+  notificación por correo a sanidad
+end note
+
+' =====================================================================
+' paso 4 - validación de recepción
+' =====================================================================
+|#90EE90|
+:visualizar presentaciones entregadas;
+
+:registrar recepción conforme;
+note right
+  botón "recibido"
+  ventana máxima: 30 horas
+  si expira -> estado automático recibido
+end note
+
+|#FFD700|
+:registrar fecha/hora de recepción;
+:cambiar estado a recibido;
+
+' =====================================================================
+' paso 5 - liberación en campo
+' =====================================================================
+|#90EE90|
+:ir a edición de requerimiento;
+:capturar foto de liberación;
+note right
+  fecha y hora automáticas
+  máx. 2 fotos
+end note
+
+|#FFD700|
+:registrar fecha/hora de liberación;
+:cambiar estado a liberado;
+
+|#FFD700|
+:enviar notificación a i+d;
+:generar trazabilidad completa;
+
+' =====================================================================
+' fin
+' =====================================================================
+stop
+
+@enduml

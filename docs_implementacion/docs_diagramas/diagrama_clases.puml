@@ -1,0 +1,376 @@
+@startuml diagrama_clases
+skinparam style strictuml
+skinparam classAttributeIconSize 0
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Arial
+
+title "diagrama de clases - sistema de control de entrega de insectos benéficos"
+
+' =====================================================================
+' enumeraciones (listas de valores fijos)
+' =====================================================================
+enum estado_requerimiento {
+  registrado
+  pendiente
+  aprobado
+  entregado
+  recibido
+  liberado
+}
+note bottom of estado_requerimiento
+  ciclo de vida de un pedido:
+  registrado  = sanidad crea el pedido
+  pendiente   = i+d lo tiene pendiente de revisar
+  aprobado    = i+d lo acepta
+  entregado   = i+d entrega físicamente
+  recibido    = sanidad confirma que llegó
+  liberado    = sanidad liberó en campo (con fotos)
+end note
+
+enum rol {
+  admin_i_d
+  user_sanidad
+}
+note bottom of rol
+  admin_i_d    = personal de investigación y desarrollo
+                 (publica stock, gestiona pedidos)
+  user_sanidad = personal de sanidad
+                 (solicita insectos, libera en campo)
+end note
+
+enum tipo_producto {
+  papel_con_postura
+  sobre_con_cascarilla
+}
+note bottom of tipo_producto
+  papel con postura       = hojas con postura de insectos
+  sobre con cascarilla    = sobres con cascarilla de arroz
+end note
+
+enum estado_stock {
+  en_proceso
+  publicado
+}
+
+enum etapa_fenologica {
+  crecimiento_vegetativo
+  floracion
+  fructificacion
+  maduracion
+  post_cosecha
+  barbecho
+}
+note bottom of etapa_fenologica
+  etapa del cultivo en la que se liberan
+  los insectos. ej: "post cosecha"
+end note
+
+' =====================================================================
+' entidades (tablas del sistema)
+' =====================================================================
+class usuario {
+  +id: uuid
+  +nombre: string
+  +email: string
+  +rol: rol
+  +activo: boolean
+  +fecha_creacion: datetime
+  +ultimo_acceso: datetime
+}
+note bottom of usuario
+  quién usa el sistema:
+  - nombre completo de la persona
+  - correo electrónico corporativo
+  - rol: admin (i+d) o user (sanidad)
+  - activo o inactivo
+  se autentica con cuenta microsoft
+  (outlook corporativo).
+end note
+
+class fundo {
+  +id: uuid
+  +nombre: string
+  +ubicacion: string
+  +activo: boolean
+}
+note bottom of fundo
+  lugar de trabajo (campo):
+  - nombre del fundo agrícola
+    (ej: "los laureles")
+  - ubicación geográfica
+  - activo o inactivo
+end note
+
+class lote {
+  +id: uuid
+  +nombre: string
+  +area: double
+  +activo: boolean
+}
+note bottom of lote
+  subdivisión del fundo:
+  - nombre del lote (ej: "ll06")
+  - área en hectáreas
+  cada fundo tiene varios lotes.
+  aquí se liberan los insectos.
+end note
+
+class producto {
+  +id: uuid
+  +nombre: string
+  +tipo: tipo_producto
+  +descripcion: string
+  +activo: boolean
+}
+note bottom of producto
+  tipo de insecto benéfico:
+  - nombre del producto biológico
+  - tipo: papel con postura o
+           sobre con cascarilla
+  - descripción
+  - activo o inactivo
+end note
+
+class proyeccion_mensual {
+  +id: uuid
+  +mes: integer
+  +anio: integer
+  +cantidad_base: integer
+  +adicional: integer
+  +total: integer
+  +fecha_creacion: datetime
+}
+note bottom of proyeccion_mensual
+  plan del mes:
+  - mes y año
+  - cantidad base: 5,000 millares
+  - adicional: ajustes del mes
+  - total = base + adicional
+  nunca baja de 5,000 millares.
+end note
+
+class programacion_semanal {
+  +id: uuid
+  +semana: integer
+  +fecha: date
+  +stock_inicial: integer
+  +papel_postura: integer
+  +sobre_cascarilla: integer
+  +stock_final: integer
+  +estado: estado_stock
+  +fecha_publicacion: datetime
+}
+note bottom of programacion_semanal
+  stock disponible cada semana:
+  - semana del año y fecha
+  - stock inicial disponible
+  - cantidad de papel con postura
+  - cantidad de sobre con cascarilla
+  - stock final (después de pedidos)
+  - estado: en proceso o publicado
+  solo se publica en:
+  - lunes y jueves hasta 23:59
+end note
+
+class requerimiento {
+  +id: uuid
+  +fecha_solicitud: datetime
+  +especie: string
+  +cantidad_total: integer
+  +plaga_objetivo: string
+  +etapa_fenologica: etapa_fenologica
+  +observaciones: string
+  +estado: estado_requerimiento
+  +fecha_liberacion: datetime
+  +hora_liberacion: string
+  +fecha_estado: map
+}
+note bottom of requerimiento
+  solicitud de insectos:
+  - fecha en que sanidad hizo el pedido
+  - especie solicitada (ej: chrysopas)
+  - cantidad total en millares
+  - plaga objetivo (ej: trips)
+  - etapa fenológica del cultivo
+  - estado actual (6 estados)
+  - fecha y hora de liberación
+  cada cambio de estado:
+  - se registra con fecha y hora
+  - envía un correo de notificación
+end note
+
+class detalle_requerimiento {
+  +id: uuid
+  +cantidad: integer
+}
+note bottom of detalle_requerimiento
+  detalle del pedido:
+  desglosa la cantidad total según
+  el tipo de producto.
+end note
+
+class despacho {
+  +id: uuid
+  +fecha_despacho: datetime
+  +papel_entregado: integer
+  +sobre_entregado: integer
+}
+note bottom of despacho
+  entrega física:
+  - fecha de entrega
+  - cantidad de papel entregado
+  - cantidad de sobre entregado
+  la suma debe coincidir
+  exactamente con lo solicitado.
+end note
+
+class recepcion {
+  +id: uuid
+  +fecha_recepcion: datetime
+  +conforme: boolean
+  +observaciones: string
+}
+note bottom of recepcion
+  confirmación de recibo:
+  - fecha de confirmación
+  - conforme: sí o no
+  - observaciones (opcional)
+  botón "recibido" disponible
+  por 30 horas. si expira,
+  el sistema lo marca automático.
+end note
+
+class acta_entrega {
+  +id: uuid
+  +url_archivo: string
+  +fecha_subida: datetime
+}
+note bottom of acta_entrega
+  documento de entrega:
+  - archivo pdf del acta firmada
+  - fecha de subida al sistema
+  i+d sube el acta y sanidad
+  puede descargarla desde la app.
+end note
+
+class evidencia_fotografica {
+  +id: uuid
+  +url: string
+  +fecha_captura: datetime
+  +hora_captura: string
+  +tipo: string
+}
+note bottom of evidencia_fotografica
+  foto de liberación en campo:
+  - url de la foto almacenada
+  - fecha y hora de captura
+    (automáticas, no editables)
+  - tipo de evidencia
+  máximo 2 fotos por requerimiento.
+end note
+
+class auditoria {
+  +id: uuid
+  +accion: string
+  +entidad: string
+  +id_entidad: uuid
+  +detalle: string
+  +fecha: datetime
+  +direccion_ip: string
+}
+note bottom of auditoria
+  bitácora del sistema:
+  - qué acción se realizó
+  - en qué tabla se hizo el cambio
+  - id del registro afectado
+  - detalle del cambio
+  - fecha y hora exacta
+  - dirección ip del usuario
+  sirve para auditoría y trazabilidad.
+end note
+
+class solicitud_requerimiento {
+  +id: uuid
+  +fecha_solicitud: datetime
+  +fundo_destino: string
+  +lote_destino: string
+  +especie: string
+  +cantidad: integer
+  +plaga_objetivo: string
+  +etapa_fenologica: etapa_fenologica
+  +observaciones: string
+  +estado: estado_requerimiento
+  +fecha_liberacion: datetime
+  +hora_liberacion: string
+}
+note bottom of solicitud_requerimiento
+  solicitud directa (app móvil):
+  - fecha de solicitud
+  - fundo y lote de destino
+  - especie y cantidad
+  - plaga objetivo
+  - etapa fenológica
+  - observaciones
+  - estado actual
+  - fecha y hora de liberación
+end note
+
+class saldo_stock {
+  +id: uuid
+  +semana: integer
+  +saldo_papel: integer
+  +saldo_sobre: integer
+  +fecha_actualizacion: datetime
+}
+note bottom of saldo_stock
+  control de stock restante:
+  - semana correspondiente
+  - saldo de papel con postura
+  - saldo de sobre con cascarilla
+  - fecha de última actualización
+  permite saber cuánto stock
+  queda disponible en tiempo real.
+end note
+
+' =====================================================================
+' relaciones entre tablas
+' (las líneas muestran cómo se conectan los datos)
+' =====================================================================
+
+' usuario - requerimientos - auditoría
+usuario ||--o{ requerimiento : "genera"
+usuario ||--o{ auditoria : "registra"
+usuario ||--o{ solicitud_requerimiento : "crea"
+
+' fundo - lote
+fundo ||--o{ lote : "contiene"
+
+' requerimiento - ubicación
+requerimiento }o--|| fundo : "destino"
+requerimiento }o--|| lote : "destino"
+
+' requerimiento - detalle - producto
+requerimiento ||--|| detalle_requerimiento : "desglosa"
+detalle_requerimiento }o--|| producto : "especifica"
+
+' requerimiento - despacho - recepción - evidencia
+requerimiento ||--o| despacho : "genera"
+despacho ||--o| recepcion : "confirma"
+recepcion ||--o| liberacion : "activa"
+requerimiento ||--o{ evidencia_fotografica : "adjunta"
+
+' proyección - programación - saldo
+proyeccion_mensual ||--o{ programacion_semanal : "planifica"
+proyeccion_mensual ||--o{ saldo_stock : "controla"
+
+' solicitud - ubicación
+solicitud_requerimiento }o--|| fundo : "asignado a"
+solicitud_requerimiento }o--|| lote : "asignado a"
+
+' acta de entrega
+despacho ||--o| acta_entrega : "documenta"
+
+' auditoría transversal
+auditoria --> usuario : "afecta a"
+
+@enduml

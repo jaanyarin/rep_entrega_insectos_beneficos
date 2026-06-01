@@ -1,0 +1,226 @@
+@startuml diagrama_secuencia
+skinparam backgroundColor #FEFEFE
+skinparam participantBackgroundColor #E6F3FF
+skinparam participantBorderColor #336699
+skinparam actorBackgroundColor #FFE6CC
+skinparam actorBorderColor #CC6600
+skinparam arrowColor #333333
+skinparam defaultFontName Arial
+
+title "diagrama de secuencia - ciclo completo de entrega de insectos benéficos"
+
+' =====================================================================
+' actores (personas que interactúan con el sistema)
+' =====================================================================
+actor "i+d (admin)" as admin #FFE6CC
+actor "sanidad (user)" as user #E6FFE6
+
+' =====================================================================
+' componentes internos del sistema
+' =====================================================================
+box "sistema" #F0F0FF
+  participant "auth" as auth #E6F3FF
+  participant "stock" as stock #E6F3FF
+  participant "requerimiento" as req #E6F3FF
+  participant "despacho" as desp #E6F3FF
+  participant "liberación" as lib #E6F3FF
+  participant "correo" as mail #FFE6E6
+  participant "base de datos" as db #F0F0F0
+end box
+
+' =====================================================================
+' etapa 1 - autenticación (microsoft entra id)
+' =====================================================================
+== 1. inicio de sesión (login microsoft) ==
+
+admin -> auth: ingresar con correo corporativo
+auth -> auth: validar token microsoft
+auth -> db: verificar usuario registrado y activo
+db --> auth: usuario válido + rol (admin_i+d)
+auth --> admin: ingreso exitoso + menú principal
+
+user -> auth: ingresar con correo corporativo
+auth -> auth: validar token microsoft
+auth -> db: verificar usuario registrado y activo
+db --> auth: usuario válido + rol (user_sanidad)
+auth --> user: ingreso exitoso + menú principal
+
+note over auth, db
+  ambos usuarios se autentican con su cuenta
+  de microsoft (outlook corporativo).
+  el sistema valida que el usuario esté
+  registrado y activo antes de permitir el acceso.
+end note
+
+' =====================================================================
+' etapa 2 - publicación de stock semanal
+' =====================================================================
+== 2. publicación de stock semanal (i+d) ==
+
+admin -> stock: acceder a programación
+admin -> stock: registrar proyección semanal\n(papel + sobre)
+stock -> db: guardar programación semanal
+db --> stock: registro exitoso
+stock -> mail: notificar stock disponible a sanidad
+mail --> user: correo: "stock semanal publicado"
+stock --> admin: programación publicada exitosamente
+
+note over stock, mail
+  i+d publica el stock los lunes y jueves
+  hasta las 23:59. al publicar, el sistema
+  envía un correo automático a sanidad.
+end note
+
+' =====================================================================
+' etapa 3 - registro de requerimiento
+' =====================================================================
+== 3. registro de requerimiento (sanidad) ==
+
+user -> req: nuevo requerimiento\n(fundo, lote, cantidad, plaga)
+req -> db: validar stock disponible
+db --> req: stock actual
+
+alt stock suficiente
+  req -> db: registrar requerimiento (estado: registrado)
+  db --> req: registro exitoso
+  req -> db: descontar stock
+  req -> mail: notificar nuevo requerimiento a i+d
+  mail --> admin: correo: "nueva solicitud pendiente"
+  req --> user: requerimiento registrado exitosamente
+
+else stock insuficiente
+  req --> user: error: stock no disponible
+  note right: sanidad debe ajustar\nla cantidad y reintentar
+end
+
+note over req, mail
+  el sistema valida que haya stock suficiente
+  antes de registrar el pedido. si no hay,
+  rechaza la solicitud y muestra un mensaje.
+end note
+
+' =====================================================================
+' etapa 4 - aprobación y despacho
+' =====================================================================
+== 4. aprobación y despacho (i+d) ==
+
+admin -> req: listar solicitudes pendientes
+req -> db: consultar requerimientos
+db --> req: lista de solicitudes
+req --> admin: panel con indicador de notificaciones
+
+admin -> req: cambiar estado a aprobado
+req -> db: actualizar estado + fecha
+db --> req: actualización exitosa
+req -> mail: notificar aprobación a sanidad
+mail --> user: correo: "solicitud aprobada"
+req --> admin: estado actualizado
+
+admin -> desp: registrar despacho\n( papel entregado, sobre entregado )
+desp -> desp: validar suma = cantidad solicitada
+desp -> db: registrar entregas por presentación
+desp -> db: subir acta de entrega (pdf)
+db --> desp: registro exitoso
+desp -> db: cambiar estado a entregado
+db --> desp: actualización exitosa
+desp -> mail: notificar entrega a sanidad
+mail --> user: correo: "producto entregado"
+desp --> admin: despacho registrado exitosamente
+
+note over admin, mail
+  i+d revisa las solicitudes, las aprueba y
+  registra la entrega física. el sistema valida
+  que la suma de papel + sobre coincida con
+  la cantidad solicitada. cada cambio genera
+  una notificación por correo a sanidad.
+end note
+
+' =====================================================================
+' etapa 5 - validación de recepción
+' =====================================================================
+== 5. validación de recepción (sanidad) ==
+
+user -> req: visualizar presentaciones entregadas
+req -> db: consultar detalle
+db --> req: papel: x, sobre: y
+req --> user: detalle de entregas
+
+user -> req: confirmar recepción (botón recibido)
+note right: ventana máxima 30 horas
+req -> db: registrar fecha/hora de recepción
+req -> db: cambiar estado a recibido
+db --> req: actualización exitosa
+req -> mail: notificar recepción a i+d
+mail --> admin: correo: "sanidad confirmó recepción"
+req --> user: recepción confirmada exitosamente
+
+alt 30 horas sin confirmación
+  req -> db: estado automático recibido
+  req -> mail: notificar recepción automática
+  mail --> admin: correo: "recepción automática"
+  note right
+    si sanidad no confirma en
+    30 horas, el sistema lo
+    marca como recibido
+    automáticamente
+  end note
+end
+
+note over req, mail
+  sanidad tiene 30 horas para confirmar
+  la recepción. si no lo hace, el sistema
+  lo marca como "recibido" automáticamente
+  y notifica a i+d.
+end note
+
+' =====================================================================
+' etapa 6 - liberación en campo
+' =====================================================================
+== 6. liberación en campo (sanidad) ==
+
+user -> lib: editar requerimiento para liberación
+lib -> db: consultar datos del requerimiento
+db --> lib: datos del requerimiento
+lib --> user: formulario de liberación\n(solo fecha/hora/foto editables)
+
+user -> lib: tomar foto de liberación
+note right: fecha y hora se registran\nautomáticamente
+lib -> lib: registrar fecha y hora automática
+lib -> db: guardar evidencia fotográfica
+db --> lib: foto guardada exitosamente
+
+user -> lib: confirmar liberación
+lib -> db: registrar fecha y hora de liberación
+lib -> db: cambiar estado a liberado
+db --> lib: ciclo completado exitosamente
+lib -> mail: notificar liberación a i+d
+mail --> admin: correo: "liberación completada"
+lib --> user: liberación registrada exitosamente
+
+note over lib, mail
+  sanidad toma hasta 2 fotos como evidencia
+  de la liberación. la fecha y hora se
+  registran automáticamente (no se pueden
+  editar). al confirmar, el sistema notifica
+  a i+d que el ciclo terminó.
+end note
+
+' =====================================================================
+' cierre - trazabilidad completa
+' =====================================================================
+== trazabilidad completa del ciclo ==
+
+note over admin, db
+  ciclo completo de estados:
+  registrado -> pendiente -> aprobado -> entregado -> recibido -> liberado
+
+  cada cambio de estado queda registrado en la tabla de auditoría con:
+  - fecha y hora exacta
+  - usuario que realizó el cambio
+  - detalle de la acción
+
+  el sistema mantiene trazabilidad completa de todo el proceso
+  para consultas históricas, reportes y auditoría.
+end note
+
+@enduml
