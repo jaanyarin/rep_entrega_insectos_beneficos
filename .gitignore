@@ -1,0 +1,18 @@
+# Dependencies
+mobile/node_modules/
+
+# React Native
+mobile/.metro-health-check*
+mobile/android/app/build/
+mobile/ios/build/
+
+# IDE (user-specific)
+mobile/.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+mobile/.env
+mobile/.env.local
