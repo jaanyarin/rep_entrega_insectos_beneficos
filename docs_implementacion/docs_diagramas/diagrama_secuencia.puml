@@ -33,21 +33,19 @@ end box
 ' =====================================================================
 == 1. inicio de sesión (login microsoft) ==
 
-admin -> auth: ingresar con correo corporativo
-auth -> auth: validar token microsoft
-auth -> db: verificar usuario registrado y activo
+admin -> auth: ingresar con email + contraseña
+auth -> db: validar credenciales contra tabla de usuarios
 db --> auth: usuario válido + rol (admin_i+d)
 auth --> admin: ingreso exitoso + menú principal
 
-user -> auth: ingresar con correo corporativo
-auth -> auth: validar token microsoft
-auth -> db: verificar usuario registrado y activo
+user -> auth: ingresar con email + contraseña
+auth -> db: validar credenciales contra tabla de usuarios
 db --> auth: usuario válido + rol (user_sanidad)
 auth --> user: ingreso exitoso + menú principal
 
 note over auth, db
-  ambos usuarios se autentican con su cuenta
-  de microsoft (outlook corporativo).
+  ambos usuarios se autentican localmente
+  con email y contraseña.
   el sistema valida que el usuario esté
   registrado y activo antes de permitir el acceso.
 end note

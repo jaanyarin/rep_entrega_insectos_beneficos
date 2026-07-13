@@ -41,7 +41,7 @@
 | Frontend Android | React Native |
 | Frontend Web | React + MUI |
 | Base de Datos | PostgreSQL |
-| Autenticación | Microsoft Identity |
+| Autenticación | JWT + tabla de usuarios local |
 | Seguridad | JWT |
 | APIs | REST |
 | Reverse Proxy | Nginx |

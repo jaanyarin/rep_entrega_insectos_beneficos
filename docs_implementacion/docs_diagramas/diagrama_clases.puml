@@ -83,8 +83,8 @@ note bottom of usuario
   - correo electrónico corporativo
   - rol: admin (i+d) o user (sanidad)
   - activo o inactivo
-  se autentica con cuenta microsoft
-  (outlook corporativo).
+  se autentica localmente con email y
+  contraseña contra la tabla de usuarios.
 end note
 
 class fundo {

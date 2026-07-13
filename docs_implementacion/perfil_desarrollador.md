@@ -53,8 +53,7 @@ Responsable del desarrollo integral del sistema, incluyendo:
 | APIs | RESTful APIs | Experto |
 | Documentación APIs | OpenAPI / Swagger | Avanzado |
 | Seguridad | JWT | Experto |
-| Autenticación Empresarial | Microsoft Identity / Entra ID | Avanzado |
-| Protocolos Seguridad | OAuth 2.0 / OpenID Connect | Experto |
+| Autenticación | JWT con validación local contra tabla de usuarios | Avanzado |
 | Contenedorización | Docker | Experto |
 | Orquestación Local | Docker Compose | Experto |
 | Reverse Proxy | Nginx | Avanzado |
@@ -126,8 +125,10 @@ Responsable del desarrollo integral del sistema, incluyendo:
 
 ## Seguridad y Usuarios
 
-- Login corporativo Microsoft.
+- Login con credenciales locales (email + contraseña).
 - JWT Authentication.
+- Migración inicial con usuario super admin.
+- El super admin puede crear usuarios admin y user.
 - Roles y permisos.
 - Control de acceso RBAC.
 - Auditoría de sesiones.
@@ -151,10 +152,9 @@ Responsable del desarrollo integral del sistema, incluyendo:
 
 - JWT Access Token.
 - Refresh Token.
-- Integración con Microsoft Entra ID.
-- OAuth 2.0.
-- OpenID Connect.
-- Login corporativo Microsoft.
+- Validación local contra tabla de usuarios en base de datos.
+- Login con email y contraseña.
+- Migración inicial con usuario super admin.
 - Roles y permisos RBAC.
 
 ---

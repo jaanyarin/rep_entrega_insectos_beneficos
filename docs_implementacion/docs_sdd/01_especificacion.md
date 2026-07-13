@@ -30,9 +30,9 @@
 | Proyecto | Sistema de Control de Entrega de Insectos Beneficos |
 | Tipo de Sistema | Plataforma Full Stack Empresarial |
 | Plataforma | Android + Web |
-| Versión Documento | 1.0 |
+| Versión Documento | 1.1 |
 | Estado | En elaboración |
-| Fecha | 2026-05-21 |
+| Fecha | 2026-07-13 |
 | Responsable | Jose Anyarin |
 
 ---
@@ -64,7 +64,7 @@ Desarrollar una plataforma digital empresarial para el control operativo del cic
 
 - Aplicativo móvil Android para operación en campo.
 - Plataforma web para visualización y gestión administrativa.
-- Gestión de usuarios y autenticación mediante cuenta Microsoft corporativa.
+- Gestión de usuarios y autenticación local mediante tabla de usuarios con JWT.
 - Gestión de roles y permisos (admin de i+d / usuario de sanidad).
 - Módulo de publicación de stock semanal de insectos benéficos.
 - Gestión de proyección mensual de stock base (5,000 millares) + adicionales.
@@ -151,7 +151,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 
 | Código | Módulo | Descripción |
 |---|---|---|
-| MOD-01 | Autenticación | Gestión de autenticación mediante cuenta Microsoft corporativa y control de sesiones |
+| MOD-01 | Autenticación | Gestión de autenticación local mediante tabla de usuarios con JWT y control de sesiones |
 | MOD-02 | Usuarios | Administración de usuarios, roles y accesos al sistema |
 | MOD-03 | Publicación de Stock | Gestión de stock semanal de insectos benéficos (papel con postura y sobre con cascarilla de arroz) |
 | MOD-04 | Proyección Mensual | Gestión de proyección base (5,000 millares) y adicionales del mes |
@@ -178,7 +178,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 
 | Código | Módulo | Nombre | Descripción | Actor | Prioridad |
 |---|---|---|---|---|---|
-| RF-001 | Autenticación | Inicio de sesión Microsoft | El sistema deberá permitir el inicio de sesión únicamente mediante cuentas Microsoft corporativas | admin, user | Alta |
+| RF-001 | Autenticación | Inicio de sesión local | El sistema deberá permitir el inicio de sesión mediante credenciales locales (email + contraseña) validadas contra la tabla de usuarios | admin, user | Alta |
 | RF-002 | Autenticación | Validación de dominio corporativo | El sistema deberá validar que la cuenta pertenezca al dominio corporativo autorizado | admin, user | Alta |
 | RF-003 | Autenticación | Validación de usuario registrado | El sistema deberá permitir el acceso únicamente a usuarios previamente registrados y habilitados | admin, user | Alta |
 | RF-004 | Autenticación | Validación de usuario activo | El sistema deberá validar que el usuario se encuentre en estado activo | admin, user | Alta |
@@ -195,6 +195,8 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RF-015 | Autenticación | Restricción de navegación por rol | El sistema deberá mostrar únicamente las funcionalidades autorizadas según el rol | admin, user | Alta |
 | RF-016 | Autenticación | Revocación inmediata de acceso | El sistema deberá invalidar sesiones activas cuando un usuario sea deshabilitado | admin | Alta |
 | RF-017 | Autenticación | Mensajes de validación de acceso | El sistema deberá mostrar mensajes visuales de confirmación o error durante la autenticación | admin, user | Media |
+| RF-191 | Autenticación | Migración de super admin | El sistema deberá incluir una migración de base de datos que inserte un usuario super admin por defecto (email: admin@sistema.com) con rol admin, permitiendo el primer acceso al sistema | System | Alta |
+| RF-192 | Usuarios | Creación de usuarios por super admin | El usuario super admin debe poder crear usuarios admin y user desde el panel de administración | admin | Alta |
 
 ## MOD-02 — USUARIOS
 
@@ -208,7 +210,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RF-023 | Usuarios | Asignación de área | El sistema deberá permitir asignar el área (I+D / Sanidad) a cada usuario registrado | admin | Alta |
 | RF-024 | Usuarios | Consulta de usuarios | El sistema deberá permitir visualizar el listado de usuarios registrados | admin | Alta |
 | RF-025 | Usuarios | Búsqueda de usuarios | El sistema deberá permitir realizar búsquedas de usuarios mediante filtros | admin | Alta |
-| RF-026 | Usuarios | Validación de usuarios duplicados | El sistema deberá impedir el registro de usuarios con el mismo correo corporativo | admin | Alta |
+| RF-026 | Usuarios | Validación de usuarios duplicados | El sistema deberá impedir el registro de usuarios con el mismo correo electrónico | admin | Alta |
 | RF-027 | Usuarios | Validación de rol asignado | El sistema deberá requerir que todo usuario tenga un rol asignado | admin | Alta |
 | RF-028 | Usuarios | Visualización de última sesión | El sistema deberá mostrar la fecha y hora del último acceso de cada usuario | admin | Media |
 | RF-029 | Usuarios | Mensajes de validación administrativa | El sistema deberá mostrar mensajes visuales de confirmación y error | admin | Media |
@@ -507,7 +509,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 
 | Código | Nombre | Descripción | Prioridad |
 |---|---|---|---|
-| RNF-001 | Seguridad | La autenticación debe realizarse mediante Microsoft Identity con JWT | Alta |
+| RNF-001 | Seguridad | La autenticación debe realizarse mediante JWT con validación local contra tabla de usuarios | Alta |
 | RNF-002 | Disponibilidad | El sistema debe tener una disponibilidad del 99.5% en horario operativo | Alta |
 | RNF-003 | Rendimiento | Las consultas de stock y requerimientos deben responder en menos de 3 segundos | Alta |
 | RNF-004 | Concurrentes | El sistema debe soportar al menos 20 usuarios simultáneos | Alta |
@@ -608,10 +610,10 @@ Ruta que sigue el usuario con rol **admin** (área i+d) desde el inicio de sesi�
     │
     ▼
 ┌─────────────────────────────────────────┐
-│ Login Microsoft                         │
-│ - Correo corporativo + contraseña       │
-│ - Validación token + tenant             │
-│ - Asignación de rol: admin               │
+│ Login Local                             │
+│ - Email + contraseña                    │
+│ - Validación contra tabla de usuarios   │
+│ - Asignación de rol: admin              │
 └──────────────────┬──────────────────────┘
                    ▼
 ┌─────────────────────────────────────────┐
@@ -719,10 +721,10 @@ Ruta que sigue el usuario con rol **user** (área sanidad) desde el inicio de se
     │
     ▼
 ┌─────────────────────────────────────────┐
-│ Login Microsoft                         │
-│ - Correo corporativo + contraseña       │
-│ - Validación token + tenant             │
-│ - Asignación de rol: user                │
+│ Login Local                             │
+│ - Email + contraseña                    │
+│ - Validación contra tabla de usuarios   │
+│ - Asignación de rol: user               │
 └──────────────────┬──────────────────────┘
                    ▼
 ┌─────────────────────────────────────────┐

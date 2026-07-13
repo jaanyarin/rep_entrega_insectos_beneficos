@@ -62,7 +62,7 @@ Una vez recibido el producto, Sanidad ejecuta la liberación colocando los produ
 ## Página 2 — Pantalla de Login y Menú Principal
 
 ### Pantalla 1 — Login
-El sistema presenta una pantalla de login con autenticación Microsoft (Entra ID). El usuario debe ingresar su correo corporativo y contraseña. El sistema valida internamente el token contra el tenant corporativo; si es correcto y el usuario está habilitado, adopta el perfil y roles designados y redirige a la pantalla principal.
+El sistema presenta una pantalla de login con autenticación local. El usuario debe ingresar su correo electrónico y contraseña. El sistema valida internamente contra la tabla de usuarios en base de datos; si es correcto y el usuario está habilitado, adopta el perfil y roles designados y redirige a la pantalla principal.
 
 ### Pantalla 2 — Menú Principal (Home)
 Tras la autenticación exitosa, el sistema muestra una pantalla con dos botones de acceso:
