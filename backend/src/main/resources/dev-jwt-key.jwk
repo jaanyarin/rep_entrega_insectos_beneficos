@@ -1,0 +1,6 @@
+{
+  "kty": "oct",
+  "kid": "dev-hs256-key",
+  "k": "N3NTu6i6AhcQ07GQP2ByDuKzzUEvMV-QvA9CUTaWa6QWPy2OJz60FJZQRLxIhorQ",
+  "alg": "HS256"
+}

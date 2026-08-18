@@ -1,0 +1,153 @@
+# AGENTS.md — Sistema de Control de Entrega de Insectos Benéficos
+
+Fuente de verdad **operacional** de este repositorio para agentes de IA (OpenCode).
+Define identidad, stack, estructura, comandos de verificación, leyes de desarrollo,
+convenciones de documentación y coordinación de agentes.
+
+> Las fuentes funcionales/técnicas de detalle viven en `docs_implementacion/_sdd/`
+> y en `docs_implementacion/_perfiles/`; este archivo las **resume y referencia**,
+> no las duplica. Si algo contradice a otra fuente, detente y solicita reconciliación;
+> nunca resuelvas por prueba/error.
+
+---
+
+## 1. Identidad del proyecto
+
+| Dato | Valor |
+|---|---|
+| Nombre | Sistema de Control de Entrega de Insectos Benéficos |
+| Tipo | Sistema de información para control de stock semanal y entrega de insectos benéficos a fundos agrícolas |
+| Repositorio | `C:\repos\rep_entrega_insectos_beneficos` (Windows) |
+| Doc. 1.1 | `docs_implementacion/_sdd/01_especificacion.md` (2026-07-13, responsable Jose Anyarin) |
+
+### 1.1 Dominio (resumen del flujo operativo)
+
+1. **Publicación de stock**: programación semanal `EN_PROCESO` → `PUBLICADO` (lunes y jueves);
+   papel con postura / sobre con cascarilla de arroz.
+2. **Proyección mensual**: base de 5,000 millares + proyecciones adicionales (fundo o lote).
+3. **Requerimiento por fundo/lote**: estados de solicitud
+   `Registrado → Pendiente → Aprobado → Entregado → Recibido → Liberado`
+   (colores `#9E9E9E/#FFC107/#4CAF50/#2196F3/#009688/#9C27B0`).
+4. **Despacho, recepción y liberación en campo** con evidencias fotográficas:
+   metadatos no editables, JPG/PNG ≤ 5 MB, hasta 2 fotos por requerimiento,
+   acta PDF por solicitud.
+5. Roles: **admin i+d** (publicación/configuración) y **user sanidad** (operación en campo).
+
+## 2. Stack confirmado (decisiones vigentes — ver `ADR-A001`)
+
+| Capa | Tecnología |
+|---|---|
+| Autenticación | **JWT local** (tabla `usuarios` + super admin). Descartados: Microsoft Entra ID / OAuth / OIDC / Firebase |
+| Backend | Quarkus (Java), PostgreSQL + Flyway, iText PDF, envío de correos SMTP |
+| Mobile | React Native CLI + Gradle (NO Expo/EAS), React Navigation, react-native-paper (MD3), React Hook Form + Zod |
+| Web | React 18 + Vite + MUI |
+| Infra | Docker / Docker Compose, Nginx, GitHub Actions, VPS Linux |
+| Almacenamiento evidencias | Filesystem server + metadatos inmutables (sin Firebase) |
+
+## 3. Estructura del repositorio
+
+```text
+AGENTS.md
+README.md
+backend/                     (API Quarkus — HITO-001 pendiente de scaffold)
+mobile/                      (React Native CLI bootstrap 0.86 / React 19.2.3)
+web/                         (React + Vite — HITO-001 pendiente de scaffold)
+docs_implementacion/
+├── _perfiles/
+│   ├── perfil_desarrollador.md   (Leyes 1-5, metodología SDD)
+│   └── perfil_auditor.md          (catálogo de 32 gates, protocolo)
+├── _auditoria/
+│   ├── README.md                  (proceso de auditoría)
+│   └── ADRs_AUDITORIA/
+│       └── ADR-A001.md            (decisiones vigentes)
+├── _sdd/
+│   ├── 01_especificacion.md
+│   ├── 02_plan.md
+│   ├── 03_tareas.md
+│   ├── 04_implementacion.md       (NOTA: singular — fuente del historial de implementación)
+│   └── 05_hito_NNN.md             (por cada hito cerrado)
+├── _diagramas/                    (PUML + PNG)
+├── _usuario/                      (PPTX/DOCX entregables)
+├── OPENCode_orquestacion_agentes_proyecto_v2.md
+└── transcripcion.md
+```
+
+`backend/` hoy está sin código de aplicación; `mobile/` solo contiene el bootstrap
+con login local (`src/services/api.ts` → `http://10.13.18.97:6101`, `/api/auth/login`).
+**HITO-001 = Infraestructura base** (ver §7).
+
+## 4. No usar (prohibido por decisión vigente)
+
+- Microsoft Entra ID / OAuth / OIDC / Firebase (autenticación, evidencias o notificaciones push).
+- Expo / EAS para mobile.
+- Rebasear el historial con fines estéticos (Ley 2).
+- Inventar gates fuera del catálogo del perfil auditor.
+
+> Nota: la palabra "offline" aparece en el perfil desarrollador solo en una nota MVP
+> (la capa offline no está implementada). No usar como justificación de nueva dependencia.
+
+## 5. Leyes del desarrollo (resumen — detalle en `perfil_desarrollador.md`)
+
+- **🇱 1 Análisis previo obligatorio**: prohibido trial/error. Plan y verificación definidos antes de tocar código.
+- **🇱 2 Estado en disco**: git limpio o estado documentado (`04_implementacion.md` / hito). Nunca depender de memoria.
+- **🇱 3 Trazabilidad de versión**: bump + `versionHistory.js` + docs en el mismo commit; artefacto reconstruido o pendiente marcado.
+- **🇱 4 Eficiencia / mínimo diff / DRY**: cambios mínimos, patrones existentes primero.
+- **🇱 5 Verificación obligatoria**: verificar con comandos reales; fallos pre-existentes documentados en el análisis.
+
+## 6. Comandos de verificación por capa (contrato de comunicación)
+
+```text
+Backend : mvn test / mvn clean package          (Quarkus, dentro de backend/)
+Mobile  : npm run lint · npm test · gradle assembleRelease · KBuild
+```
+
+### Regla de tiempo de build (obligatoria)
+
+- `gradle assembleRelease` (release cold ≈ 2-6 min): **si el APK release ya existe**
+  (`mobile/android/app/build/outputs/apk/release/app-release.apk`) y el comando supera los
+  **3 minutos**, el build debe **detenerse** y pasar a la siguiente tarea sin recompilar.
+- El artefacto ya construido se considera **válido como evidencia** (Ley 3: artefacto existente
+  marcado como reconstruido; no re-compilar sin necesidad).
+- Si el APK NO existe y la tarea requiere APK, el build es obligatorio (timeout acorde, NO cortar).
+
+Si un comando no está disponible o falla por causa pre-existente, documentarlo en el análisis (Ley 5)
+y reportar al Orchestrator; no "arreglarlo" en silencio.
+
+## 7. Hitos e infraestructura actual
+
+- El repositorio **no tiene aún línea base de producto**: se parte por
+  **HITO-001 = scaffold backend (Quarkus) + mobile base (auth/navegación) + web base (React/Vite)
+  + autenticación JWT local + CI/CD base + convenciones verificadas**.
+- Ninguna tarea dependiente del HITO-001 puede ejecutarse antes de su validación (gate review integral).
+- Los hitos se cierran con **auditoría integral PASS + verificación + `05_hito_NNN.md` + commit** coherente.
+- `versionHistory.js` es la fuente del historial visible al usuario (mobile existente); web la adoptará.
+
+## 8. Coordinación de agentes OpenCode
+
+Arquitectura definida en `OPENCode_orquestacion_agentes_proyecto_v2.md`:
+
+| Agente | Rol | Permisos |
+|---|---|---|
+| `orchestrator` | Session principal: descompone hitos/tareas, delega `task`, valida ciclos 1/2/3, bloquea y coordina humanos | Primary |
+| `developer` | Ejecuta análisis anterior, implementa tareas, verifica (Leyes 1-5) | Subagente, edición permitida |
+| `auditor` | Gate review objetivo por tarea/HITO; registra hallazgos; JAMÁS modifica código | Subagente, `edit: deny` (enforced) |
+
+Reglas de operación no negociables:
+
+1. No duplicar tareas (un solo Developer en ejecución por tarea).
+2. Tarea dependiente no se ejecuta antes que su predecesora cierre (developer + auditor).
+3. Excepción de coordinación: código idéntico compartido (mobile/web) se puede paralelizar solo bajo coordinación explícita del Orchestrator.
+4. El gate list proviene del perfil auditor (32 gates); el Auditor no inventa criterios.
+5. Los bloqueos humanos detienen la automatización (nunca se silencian).
+6. El commit solo ocurre después del gate review integral PASS (Ley 3 + perfiles).
+
+Estado del trabajo se recupera **desde disco** (docs + git), no de memoria de sesión.
+
+## 9. Convenciones de documentación y commit
+
+- SDD (singular): `01_especificacion.md`, `02_plan.md`, `03_tareas.md`, `04_implementacion.md`, `05_hito_NNN.md` dentro de `docs_implementacion/_sdd/`.
+- El catálogo de gates vive SOLO en `perfil_auditor.md`; otros docs lo referencian.
+- Rutas antiguas (`docs_sdd/`, `docs_diagramas/`, `docs_usuario/`, `perfil_desarrollador.md` suelto)
+  quedaron **reemplazadas** por las carpetas `_`-prefijadas; no recrear las antiguas.
+- Commit al cierre del HITO (único, coherente). WIP opcional `feat(wip,n):` documentado.
+- Sin README creado hasta acá: `README.md` raíz describe el proyecto (se incorpora como parte de este trabajo).

@@ -5,7 +5,8 @@
 
 # 1. Objetivo del Plan
 
-
+Plan del HITO-001 (línea base + vertical 1: usuarios/autenticación). Define alcance, estrategia,
+fases y riesgos antes de tocar código (Ley 1 — análisis previo obligatorio).
 
 ---
 
@@ -13,9 +14,14 @@
 
 ## 2.1 Alcance Incluido
 
-
+- Línea base técnica: scaffold backend Quarkus, PostgreSQL en Docker, autenticación JWT local.
+- Vertical 1: CRUD de usuarios (3 perfiles, soft delete) + login por `usuario` + cambio de
+  contraseña obligatorio (DNI máx 8) + homes mobile por perfil (ADR-A002).
 
 ## 2.2 Alcance Excluido
+
+- Web (React/Vite), CI/CD GitHub Actions, programación de stock, requerimientos reales,
+  evidencias fotográficas, actas PDF, SMTP, Nginx/HTTPS, refresh token/revocación, rate limiting.
 
 
 
@@ -23,11 +29,18 @@
 
 # 3. Estrategia de Implementación
 
-
+Vertical incremental: BD (Flyway V1/V2) → backend (auth JWT + CRUD + tests) → mobile
+(navegación + cambio password + homes). Verificación por capa (Ley 5); auditoría integral
+(gate review) antes de cerrar el HITO; commit único coherente.
 
 ---
 
 # 4. Arquitectura General
+
+```text
+mobile (RN CLI) ──► backend API Quarkus (:6101) ──► PostgreSQL 16 (Docker)
+       JWT local                          Flyway V1/V2
+```
 
 
 
@@ -60,6 +73,8 @@
 
 | Código | Módulo |
 |---|---|
+| MOD-01 | Autenticación (JWT local, login por usuario, cambio de contraseña obligatorio) |
+| MOD-02 | Usuarios (CRUD, 3 perfiles, soft delete) |
 
 ---
 
@@ -67,6 +82,9 @@
 
 | Fase | Objetivo |
 |---|---|
+| F1 — Línea base + Vertical 1 (HITO-001) | Scaffold backend + BD Docker + auth + CRUD usuarios + homes mobile (CERRADO 2026-08-18) |
+| F2 — Web + CI/CD | Scaffold web React/Vite + GitHub Actions (pendiente) |
+| F3 — Módulos funcionales | Requerimientos, programación, evidencias (pendiente, a coordinar) |
 
 ---
 

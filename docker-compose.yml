@@ -1,0 +1,25 @@
+# Sistema de Control de Entrega de Insectos Benéficos
+# Infraestructura local de desarrollo (HITO-001 / vertical usuarios+auth).
+# Solo PostgreSQL 16; el backend Quarkus corre fuera de Docker en esta vertical.
+# Credenciales de DEV documentadas en backend/src/main/resources/application.properties.
+services:
+  postgres:
+    image: postgres:16
+    container_name: insectos_beneficos_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: insectos_beneficos
+      POSTGRES_USER: insectos_dev
+      POSTGRES_PASSWORD: insectos_dev_password_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insectos_dev -d insectos_beneficos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:

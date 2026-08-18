@@ -1,15 +1,16 @@
 import React, {createContext, useContext, useState, useCallback} from 'react';
-import {loginApi, LoginResponse} from '../services/api';
+import {cambiarPasswordApi, loginApi, Usuario} from '../services/api';
 
 interface AuthState {
   token: string | null;
-  usuario: LoginResponse['usuario'] | null;
+  usuario: Usuario | null;
   loading: boolean;
   error: string | null;
 }
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
+  login: (usuario: string, contrasena: string) => Promise<void>;
+  cambiarPassword: (dni: string, contrasenaActual?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -23,10 +24,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     error: null,
   });
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (usuario: string, contrasena: string) => {
     setState(prev => ({...prev, loading: true, error: null}));
     try {
-      const data = await loginApi(email, password);
+      const data = await loginApi(usuario, contrasena);
       setState({
         token: data.token,
         usuario: data.usuario,
@@ -42,12 +43,40 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     }
   }, []);
 
+  const cambiarPassword = useCallback(
+    async (dni: string, contrasenaActual?: string) => {
+      if (!state.token) {
+        setState(prev => ({...prev, error: 'Sesión no iniciada'}));
+        return;
+      }
+      setState(prev => ({...prev, loading: true, error: null}));
+      try {
+        await cambiarPasswordApi(state.token, dni, contrasenaActual);
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: null,
+          usuario: prev.usuario
+            ? {...prev.usuario, dni, debeCambiarPassword: false}
+            : prev.usuario,
+        }));
+      } catch (err: any) {
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: err.message || 'Error al cambiar la contraseña',
+        }));
+      }
+    },
+    [state.token],
+  );
+
   const logout = useCallback(() => {
     setState({token: null, usuario: null, loading: false, error: null});
   }, []);
 
   return (
-    <AuthContext.Provider value={{...state, login, logout}}>
+    <AuthContext.Provider value={{...state, login, cambiarPassword, logout}}>
       {children}
     </AuthContext.Provider>
   );

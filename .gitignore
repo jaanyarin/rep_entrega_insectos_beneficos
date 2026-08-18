@@ -6,12 +6,21 @@ mobile/.metro-health-check*
 mobile/android/app/build/
 mobile/ios/build/
 
+# Java / Maven (backend)
+backend/target/
+
+# Herramienta de actualización Java (plan/ruido generado, no es código del proyecto)
+backend/.github/
+
 # IDE (user-specific)
 mobile/.vscode/
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Office lock files (temporales)
+~$*
 
 # Environment
 mobile/.env

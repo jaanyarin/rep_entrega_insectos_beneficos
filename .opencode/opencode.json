@@ -1,0 +1,22 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "orchestrator",
+  "instructions": ["AGENTS.md"],
+  "agent": {
+    "orchestrator": {
+      "description": "Session principal: descompone hitos/tareas, delega task, valida ciclos, bloquea/coordina humanos.",
+      "mode": "primary"
+    },
+    "developer": {
+      "description": "Ejecuta tareas con análisis previo (Leyes 1-5) y verificación por capa. Nunca hace el commit final.",
+      "mode": "subagent"
+    },
+    "auditor": {
+      "description": "Gate review objetivo con el catálogo de 32 gates del perfil auditor. Nunca modifica código.",
+      "mode": "subagent",
+      "permission": {
+        "edit": "deny"
+      }
+    }
+  }
+}

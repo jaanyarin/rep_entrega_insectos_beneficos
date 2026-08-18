@@ -12,15 +12,15 @@ import {
 import {useAuth} from '../context/AuthContext';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [usuario, setUsuario] = useState('');
+  const [contrasena, setContrasena] = useState('');
   const {login, loading, error} = useAuth();
 
   const handleLogin = () => {
-    if (!email.trim() || !password.trim()) {
+    if (!usuario.trim() || !contrasena.trim()) {
       return;
     }
-    login(email.trim(), password);
+    login(usuario.trim(), contrasena);
   };
 
   return (
@@ -34,11 +34,10 @@ export default function LoginScreen() {
 
         <TextInput
           style={styles.input}
-          placeholder="Correo electrónico"
+          placeholder="Usuario"
           placeholderTextColor="#999"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
+          value={usuario}
+          onChangeText={setUsuario}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -47,8 +46,8 @@ export default function LoginScreen() {
           style={styles.input}
           placeholder="Contraseña"
           placeholderTextColor="#999"
-          value={password}
-          onChangeText={setPassword}
+          value={contrasena}
+          onChangeText={setContrasena}
           secureTextEntry
         />
 

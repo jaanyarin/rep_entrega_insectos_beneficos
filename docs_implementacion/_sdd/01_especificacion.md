@@ -140,10 +140,15 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 
 # 6. Roles y Permisos
 
-| Rol | Área | Descripción |
+> **Nota de reconciliación (ADR-A002, 2026-08-18):** el sistema adopta 3 perfiles
+> (`SUPER_ADMIN`, `ADMIN`, `USUARIO`) en sustitución del modelo binario `admin/user`.
+> El login se realiza por `usuario` (username) — el email queda descartado como identificador.
+
+| Perfil | Área | Descripción |
 |---|---|---|
-| admin | i+d | Acceso total a publicación de stock, proyecciones, despachos, reportes, dashboard, catálogos y monitoreo operativo |
-| user | sanidad | Acceso operativo para registro de requerimientos, validación de recepción, liberación en campo y captura de evidencias fotográficas |
+| super_admin | Global | Control total: gestión de todos los usuarios, módulos y configuración |
+| admin | I+D | Gestión de usuarios de perfil admin y usuario; publicación de stock, proyecciones, despachos, reportes, dashboard, catálogos y monitoreo operativo |
+| usuario | Sanidad | Acceso operativo para registro de requerimientos, validación de recepción, liberación en campo y captura de evidencias fotográficas |
 
 ---
 
@@ -178,25 +183,25 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 
 | Código | Módulo | Nombre | Descripción | Actor | Prioridad |
 |---|---|---|---|---|---|
-| RF-001 | Autenticación | Inicio de sesión local | El sistema deberá permitir el inicio de sesión mediante credenciales locales (email + contraseña) validadas contra la tabla de usuarios | admin, user | Alta |
-| RF-002 | Autenticación | Validación de dominio corporativo | El sistema deberá validar que la cuenta pertenezca al dominio corporativo autorizado | admin, user | Alta |
-| RF-003 | Autenticación | Validación de usuario registrado | El sistema deberá permitir el acceso únicamente a usuarios previamente registrados y habilitados | admin, user | Alta |
-| RF-004 | Autenticación | Validación de usuario activo | El sistema deberá validar que el usuario se encuentre en estado activo | admin, user | Alta |
-| RF-005 | Autenticación | Asignación de roles | El sistema deberá recuperar y aplicar el rol asignado al usuario autenticado | admin, user | Alta |
-| RF-006 | Autenticación | Persistencia de sesión | El sistema deberá mantener la sesión activa mediante JWT mientras el token esté vigente | admin, user | Alta |
-| RF-007 | Autenticación | Expiración de sesión | El sistema deberá cerrar automáticamente la sesión después de un periodo configurable de inactividad | admin, user | Alta |
-| RF-008 | Autenticación | Cierre manual de sesión | El sistema deberá permitir al usuario cerrar sesión manualmente | admin, user | Alta |
-| RF-009 | Autenticación | Registro de auditoría de acceso | El sistema deberá registrar eventos de autenticación (inicio, cierre, fecha, hora, usuario) | admin, user | Alta |
-| RF-010 | Autenticación | Bloqueo de acceso no autorizado | El sistema deberá denegar el acceso a usuarios no registrados, inactivos o sin permisos | admin, user | Alta |
-| RF-011 | Autenticación | Administración de usuarios | El sistema deberá permitir al administrador registrar, habilitar, deshabilitar y actualizar usuarios | admin | Alta |
-| RF-012 | Autenticación | Administración de roles | El sistema deberá permitir al administrador asignar y modificar roles de usuario | admin | Alta |
-| RF-013 | Autenticación | Control de permisos por rol | El sistema deberá restringir el acceso a funcionalidades según el rol asignado | admin, user | Alta |
-| RF-014 | Autenticación | Seguridad de tokens | El sistema deberá utilizar JWT para proteger las sesiones activas | admin, user | Alta |
-| RF-015 | Autenticación | Restricción de navegación por rol | El sistema deberá mostrar únicamente las funcionalidades autorizadas según el rol | admin, user | Alta |
-| RF-016 | Autenticación | Revocación inmediata de acceso | El sistema deberá invalidar sesiones activas cuando un usuario sea deshabilitado | admin | Alta |
-| RF-017 | Autenticación | Mensajes de validación de acceso | El sistema deberá mostrar mensajes visuales de confirmación o error durante la autenticación | admin, user | Media |
-| RF-191 | Autenticación | Migración de super admin | El sistema deberá incluir una migración de base de datos que inserte un usuario super admin por defecto (email: admin@sistema.com) con rol admin, permitiendo el primer acceso al sistema | System | Alta |
-| RF-192 | Usuarios | Creación de usuarios por super admin | El usuario super admin debe poder crear usuarios admin y user desde el panel de administración | admin | Alta |
+| RF-001 | Autenticación | Inicio de sesión local | El sistema deberá permitir el inicio de sesión mediante credenciales locales (usuario + contraseña) validadas contra la tabla de usuarios | super_admin, admin, usuario | Alta |
+| RF-002 | Autenticación | Validación de cuenta registrada | El sistema deberá validar que la cuenta (`usuario` + contraseña) corresponda a un usuario registrado en la tabla `usuarios` | super_admin, admin, usuario | Alta |
+| RF-003 | Autenticación | Validación de usuario registrado | El sistema deberá permitir el acceso únicamente a usuarios previamente registrados y habilitados | super_admin, admin, usuario | Alta |
+| RF-004 | Autenticación | Validación de usuario activo | El sistema deberá validar que el usuario se encuentre en estado activo | super_admin, admin, usuario | Alta |
+| RF-005 | Autenticación | Asignación de perfiles | El sistema deberá recuperar y aplicar el perfil (super_admin, admin, usuario) asignado al usuario autenticado | super_admin, admin, usuario | Alta |
+| RF-006 | Autenticación | Persistencia de sesión | El sistema deberá mantener la sesión activa mediante JWT mientras el token esté vigente | super_admin, admin, usuario | Alta |
+| RF-007 | Autenticación | Expiración de sesión | El sistema deberá cerrar automáticamente la sesión después de un periodo configurable de inactividad | super_admin, admin, usuario | Alta |
+| RF-008 | Autenticación | Cierre manual de sesión | El sistema deberá permitir al usuario cerrar sesión manualmente | super_admin, admin, usuario | Alta |
+| RF-009 | Autenticación | Registro de auditoría de acceso | El sistema deberá registrar eventos de autenticación (inicio, cierre, fecha, hora, usuario) | super_admin, admin, usuario | Alta |
+| RF-010 | Autenticación | Bloqueo de acceso no autorizado | El sistema deberá denegar el acceso a usuarios no registrados, inactivos o sin permisos | super_admin, admin, usuario | Alta |
+| RF-011 | Autenticación | Administración de usuarios | El sistema deberá permitir al super admin y admin registrar, habilitar, deshabilitar y actualizar usuarios (según RBAC del ADR-A002) | super_admin, admin | Alta |
+| RF-012 | Autenticación | Administración de perfiles | El sistema deberá permitir al administrador asignar y modificar perfiles de usuario | super_admin, admin | Alta |
+| RF-013 | Autenticación | Control de permisos por perfil | El sistema deberá restringir el acceso a funcionalidades según el perfil asignado | super_admin, admin, usuario | Alta |
+| RF-014 | Autenticación | Seguridad de tokens | El sistema deberá utilizar JWT para proteger las sesiones activas | super_admin, admin, usuario | Alta |
+| RF-015 | Autenticación | Restricción de navegación por perfil | El sistema deberá mostrar únicamente las funcionalidades autorizadas según el perfil | super_admin, admin, usuario | Alta |
+| RF-016 | Autenticación | Revocación inmediata de acceso | El sistema deberá invalidar sesiones activas cuando un usuario sea deshabilitado | super_admin, admin | Alta |
+| RF-017 | Autenticación | Mensajes de validación de acceso | El sistema deberá mostrar mensajes visuales de confirmación o error durante la autenticación | super_admin, admin, usuario | Media |
+| RF-191 | Autenticación | Migración de super admin | El sistema deberá incluir una migración de base de datos que inserte un usuario super admin por defecto (usuario: Admin PowerApps, contraseña por defecto 00000000 hasheada, debe_cambiar_password = true) permitiendo el primer acceso al sistema | System | Alta |
+| RF-192 | Usuarios | Creación de usuarios por super admin | El usuario super admin debe poder crear usuarios con perfil admin y usuario desde el panel de administración | super_admin | Alta |
 
 ## MOD-02 — USUARIOS
 
@@ -206,14 +211,16 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RF-019 | Usuarios | Actualización de usuarios | El sistema deberá permitir actualizar información de usuarios registrados | admin | Alta |
 | RF-020 | Usuarios | Desactivación de usuarios | El sistema deberá permitir desactivar usuarios sin eliminar su información histórica | admin | Alta |
 | RF-021 | Usuarios | Reactivación de usuarios | El sistema deberá permitir reactivar usuarios previamente deshabilitados | admin | Media |
-| RF-022 | Usuarios | Asignación de roles | El sistema deberá permitir asignar roles (admin/user) a usuarios registrados | admin | Alta |
-| RF-023 | Usuarios | Asignación de área | El sistema deberá permitir asignar el área (I+D / Sanidad) a cada usuario registrado | admin | Alta |
-| RF-024 | Usuarios | Consulta de usuarios | El sistema deberá permitir visualizar el listado de usuarios registrados | admin | Alta |
-| RF-025 | Usuarios | Búsqueda de usuarios | El sistema deberá permitir realizar búsquedas de usuarios mediante filtros | admin | Alta |
-| RF-026 | Usuarios | Validación de usuarios duplicados | El sistema deberá impedir el registro de usuarios con el mismo correo electrónico | admin | Alta |
-| RF-027 | Usuarios | Validación de rol asignado | El sistema deberá requerir que todo usuario tenga un rol asignado | admin | Alta |
-| RF-028 | Usuarios | Visualización de última sesión | El sistema deberá mostrar la fecha y hora del último acceso de cada usuario | admin | Media |
-| RF-029 | Usuarios | Mensajes de validación administrativa | El sistema deberá mostrar mensajes visuales de confirmación y error | admin | Media |
+| RF-022 | Usuarios | Asignación de perfiles | El sistema deberá permitir asignar perfiles (super_admin, admin, usuario) a usuarios registrados | super_admin, admin | Alta |
+| RF-023 | Usuarios | Asignación de área | El sistema deberá permitir asignar el área (I+D / Sanidad) a cada usuario registrado | super_admin, admin | Alta |
+| RF-024 | Usuarios | Consulta de usuarios | El sistema deberá permitir visualizar el listado de usuarios registrados | super_admin, admin | Alta |
+| RF-025 | Usuarios | Búsqueda de usuarios | El sistema deberá permitir realizar búsquedas de usuarios mediante filtros | super_admin, admin | Alta |
+| RF-026 | Usuarios | Validación de usuarios duplicados | El sistema deberá impedir el registro de usuarios con el mismo nombre de usuario (login) | super_admin, admin | Alta |
+| RF-027 | Usuarios | Validación de perfil asignado | El sistema deberá requerir que todo usuario tenga un perfil asignado | super_admin, admin | Alta |
+| RF-028 | Usuarios | Visualización de última sesión | El sistema deberá mostrar la fecha y hora del último acceso de cada usuario | super_admin, admin | Media |
+| RF-029 | Usuarios | Mensajes de validación administrativa | El sistema deberá mostrar mensajes visuales de confirmación y error | super_admin, admin | Media |
+| RF-193 | Autenticación | Cambio de contraseña obligatorio | El sistema deberá exigir el cambio de contraseña al usuario que inicie sesión con la contraseña por defecto (00000000); la nueva contraseña es el DNI (solo numérico, máximo 8 dígitos) | todos | Alta |
+| RF-194 | Usuarios | Eliminación lógica (soft delete) | La eliminación de usuarios se realizará únicamente por soft delete: el estado pasa de ACTIVO a INACTIVO; nunca se elimina el registro (histórico preservado) | super_admin, admin | Alta |
 
 ## MOD-03 — PUBLICACIÓN DE STOCK
 
