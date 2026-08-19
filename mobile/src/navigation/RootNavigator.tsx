@@ -9,6 +9,9 @@ import SettingsScreen from '../screens/SettingsScreen';
 import CambiarPasswordScreen from '../screens/CambiarPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
+import PerfilScreen from '../screens/PerfilScreen';
+import CatalogosScreen from '../screens/CatalogosScreen';
+import {theme} from '../theme';
 import type {RootStackParamList} from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -28,7 +31,7 @@ export default function RootNavigator() {
   if (loading) {
     return (
       <View style={styles.splash}>
-        <ActivityIndicator size="large" color="#1a5c2a" />
+        <ActivityIndicator size="large" color={theme.colors.action.secondary} />
       </View>
     );
   }
@@ -73,6 +76,8 @@ export default function RootNavigator() {
               component={HomeScreen}
               options={{headerShown: false}}
             />
+            <Stack.Screen name="Catalogos" component={CatalogosScreen} options={{headerShown: false}} />
+            <Stack.Screen name="Perfil" component={PerfilScreen} options={{headerShown: false}} />
             <Stack.Screen
               name="NuevoRequerimiento"
               component={PlaceholderScreen}

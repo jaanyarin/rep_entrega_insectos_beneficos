@@ -12,6 +12,8 @@ import {useAuth} from '../context/AuthContext';
 import {isSuperAdmin} from '../utils/roles';
 import MenuButton from '../components/MenuButton';
 import type {RootStackParamList} from '../navigation/types';
+import BottomNavigation from '../components/BottomNavigation';
+import {theme} from '../theme';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -63,7 +65,7 @@ export default function HomeScreen() {
   const grupos = MENU_POR_PERFIL[user.rol] ?? MENU_POR_PERFIL.Usuario;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.root}><ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.welcome}>Bienvenido(a), {user.nombre}</Text>
       <Text style={styles.perfil}>Perfil: {user.rol}</Text>
 
@@ -100,14 +102,18 @@ export default function HomeScreen() {
         accessibilityLabel="Cerrar sesión">
         <Text style={styles.logoutText}>Cerrar sesión</Text>
       </TouchableOpacity>
-    </ScrollView>
+    </ScrollView><BottomNavigation active="Home" /></View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: theme.colors.background.default,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background.default,
   },
   content: {
     padding: 20,
@@ -116,12 +122,12 @@ const styles = StyleSheet.create({
   welcome: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1a5c2a',
+    color: theme.colors.text.primary,
     marginBottom: 4,
   },
   perfil: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginBottom: 20,
     textTransform: 'capitalize',
   },
@@ -135,7 +141,7 @@ const styles = StyleSheet.create({
   },
   divVarianteUno: {
     backgroundColor: '#e8f2ea',
-    borderColor: '#1a5c2a',
+    borderColor: theme.colors.action.secondary,
   },
   divVarianteDos: {
     backgroundColor: '#ffffff',

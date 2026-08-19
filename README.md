@@ -25,7 +25,7 @@ Decisiones de arquitectura vigentes y decisiones descartadas: ver
 ```text
 backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, 32 tests
 mobile/       App React Native CLI 0.86 / React 19.2.3 — auth v2 (login 3 pasos, URL runtime,
-              SecureStore/keychain), 27 tests — versión 1.1.0
+              SecureStore/keychain), 27 tests — versión 1.2.0
 web/          Frontend React + Vite (pendiente de scaffold)
 docs_implementacion/
 ├── _sdd/                      Especificación, plan, tareas e implementación
@@ -45,6 +45,9 @@ docs_implementacion/
   (`roles` + `usuarios.rol_id`, Flyway V3), API `/api/v1` + OpenAPI, cambio de contraseña con nuevo
   JWT, SecureStore/keychain + ServerCheck/Settings de URL runtime, Super Admin id=1 inmune
   (ADR-A003). Versión de artefactos: **1.1.0** (32 tests BE · 27 tests MO · APK v2 61.5 MB).
+- **HITO-003 cerrado técnicamente (2026-08-19) = UI Vanguard y navegación mobile**: tema con tokens,
+  fuentes Poppins, iconos Material Community, componentes base, navegación Home/slot vacío/Catálogos/
+  Perfil, Perfil con historial y logout confirmado. Versión de artefactos: **1.2.0**, `versionCode 3`.
 - **Pendientes**: frontend web (React/Vite), CI/CD (GitHub Actions), hitos funcionales
   (requerimientos, programación de stock, evidencias). Ver
   [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).

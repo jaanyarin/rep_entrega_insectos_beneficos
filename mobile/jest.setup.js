@@ -6,6 +6,12 @@ jest.mock('react-native-safe-area-context', () => {
   return require('react-native-safe-area-context/jest/mock').default;
 });
 
+// Los iconos se renderizan como texto en Jest; el módulo nativo real se usa en Android.
+jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => {
+  const {Text} = require('react-native');
+  return {__esModule: true, default: Text};
+});
+
 // Mock de react-native-keychain (SecureStore): evita cargar el módulo
 // nativo en Jest. Por defecto no hay token ni URL guardados.
 jest.mock('react-native-keychain', () => ({

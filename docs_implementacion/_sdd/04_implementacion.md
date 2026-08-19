@@ -10,8 +10,8 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | HITO-002 en cierre |
-| Versión | 1.1.0 |
+| Estado | HITO-003 cerrado técnicamente |
+| Versión | 1.2.0 |
 | Fecha | 2026-08-19 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
@@ -29,7 +29,7 @@ decisiones/avances por HITO. Se alimenta en cada tarea y se consulta antes de re
 # 3. Alcance del Documento
 
 Cubre el HITO-001 (infraestructura base + vertical 1: módulo de usuarios/autenticación) y el
-HITO-002 (auth v2: login 3 pasos, roles en tabla, /api/v1 + OpenAPI, SecureStore); será la base
+HITO-002 (auth v2) y HITO-003 (sistema visual Vanguard y navegación mobile); será la base
 para hitos posteriores (requerimientos, programación, evidencias).
 
 ---
@@ -110,6 +110,8 @@ mobile (React Native CLI) ──► backend API Quarkus (:6101) ──► Postgr
   `refreshUser` vía `parseToken`; `utils/roles.ts` (isSuperAdmin/isAdminOrSuperAdmin con
   literales con espacios).
 - UI: componentes core + StyleSheet (deuda H8: paper MD3 pendiente).
+- UI: tema Vanguard con tokens, fuentes Poppins, iconos Material Community y componentes base
+  reutilizables; Perfil sin react-native-paper.
 
 ---
 
@@ -218,7 +220,8 @@ Leyes 1-5 (perfil_desarrollador.md). Conventional Commits al cierre de HITO. UTF
 
 - Backend: Testcontainers Postgres 16, RestAssured — 32 tests (13 Auth + 19 Usuarios) PASS.
 - Mobile: jest + react-test-renderer (RNTL) — 27 tests (7 suites) PASS con `test-utils/helpers.ts`;
-  flujos críticos de auth cubiertos (H6 parcial, hallazgo F2 remediado).
+- Mobile: jest + react-test-renderer (RNTL) — 27 tests (7 suites) PASS con `test-utils/helpers.ts`;
+  flujos críticos de auth y navegación cubiertos (H6 parcial, hallazgo F2 remediado).
 
 ---
 

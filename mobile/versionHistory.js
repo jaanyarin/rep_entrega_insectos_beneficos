@@ -6,6 +6,15 @@
 
 const versionHistory = [
   {
+    version: '1.2.0',
+    fecha: '2026-08-19',
+    cambios: [
+      'Nuevo sistema visual Vanguard con fuentes Poppins e iconos Material Community.',
+      'Navegación inferior Home, slot vacío, Catálogos y Perfil.',
+      'Perfil con información de versión y confirmación para cerrar sesión.',
+    ],
+  },
+  {
     version: '1.1.0',
     fecha: '2026-08-19',
     cambios: [

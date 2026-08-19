@@ -12,6 +12,8 @@ export type RootStackParamList = {
   ConfigurarServidor: undefined;
   CambiarPassword: undefined;
   Home: undefined;
+  Catalogos: undefined;
+  Perfil: undefined;
   NuevoRequerimiento: undefined;
   HistorialRequerimiento: undefined;
   Programacion: undefined;

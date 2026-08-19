@@ -1,14 +1,6 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {BackHandler, KeyboardAvoidingView, Platform, StyleSheet, Text} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {
@@ -20,6 +12,11 @@ import {
   setApiUrl,
 } from '../services/ApiClient';
 import type {RootStackParamList} from '../navigation/types';
+import AppInput from '../components/AppInput';
+import AppButton from '../components/AppButton';
+import AppCard from '../components/AppCard';
+import LoadingState from '../components/LoadingState';
+import {theme} from '../theme';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -30,6 +27,10 @@ type Status = 'checking' | 'error' | 'ready';
  * prueba `GET /auth/roles` contra la URL guardada (timeout 5 s). Si falla,
  * muestra el formulario para ingresar/guardar la URL de la API y reintentar.
  * Requiere conectividad (no existe capa offline — AGENTS.md §4).
+ *
+ * HITO-003: thema Vanguard (§18 card radius 16/shadow z2, tokens), SafeArea,
+ * `keyboardShouldPersistTaps="handled"` (bug 3 UX doble toque) y V6: back
+ * físico interceptado (pantalla raíz del stack anónimo → NO cierra la app).
  */
 export default function ServerCheckScreen() {
   const navigation = useNavigation<Navigation>();
@@ -64,6 +65,12 @@ export default function ServerCheckScreen() {
     probe();
   }, [probe]);
 
+  // V6: back físico en raíz del stack anónimo → interceptar (no cerrar).
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, []);
+
   const handleSaveAndProbe = async () => {
     setSaving(true);
     try {
@@ -81,62 +88,54 @@ export default function ServerCheckScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Verificando servidor</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <AppCard style={styles.card}>
+          <Text style={styles.title}>Verificando servidor</Text>
 
-        {status === 'checking' ? (
-          <>
-            <ActivityIndicator size="large" color="#1a5c2a" />
-            <Text style={styles.subtitle}>
-              Comprobando la conexión con el servidor…
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.subtitle}>
-              No se pudo conectar con el servidor. Verifique la dirección de
-              la API e intente de nuevo.
-            </Text>
-            {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
+          {status === 'checking' ? (
+            <>
+              <LoadingState message="Comprobando la conexión con el servidor…" />
+            </>
+          ) : (
+            <>
+              <Text style={styles.subtitle}>
+                No se pudo conectar con el servidor. Verifique la dirección de
+                la API e intente de nuevo.
+              </Text>
+              {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
 
-            <Text style={styles.label}>URL de la API</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="http://192.168.1.10:6101/api/v1"
-              placeholderTextColor="#999"
-              value={apiUrl}
-              onChangeText={setApiUrlInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              accessibilityLabel="URL de la API"
-            />
+              <AppInput
+                label="URL de la API"
+                placeholder="http://192.168.1.10:6101/api/v1"
+                value={apiUrl}
+                onChangeText={setApiUrlInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                accessibilityLabel="URL de la API"
+              />
 
-            <TouchableOpacity
-              style={[styles.button, saving && styles.buttonDisabled]}
-              onPress={handleSaveAndProbe}
-              disabled={saving}
-              accessibilityLabel="Guardar y probar servidor">
-              {saving ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Guardar y probar</Text>
-              )}
-            </TouchableOpacity>
+              <AppButton
+                label="Guardar y probar"
+                onPress={handleSaveAndProbe}
+                loading={saving}
+                accessibilityLabel="Guardar y probar servidor"
+              />
 
-            <TouchableOpacity
-              style={styles.resetButton}
-              onPress={handleReset}
-              accessibilityLabel="Restablecer URL por defecto">
-              <Text style={styles.resetText}>Restablecer</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-    </KeyboardAvoidingView>
+              <AppButton
+                label="Restablecer"
+                variant="text"
+                onPress={handleReset}
+                accessibilityLabel="Restablecer URL por defecto"
+              />
+            </>
+          )}
+        </AppCard>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -155,83 +154,46 @@ function describeError(err: unknown): string {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background.page,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#1a5c2a',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: theme.spacing[5],
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
     width: '100%',
     maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing[6],
+    marginHorizontal: theme.spacing[6],
+    backgroundColor: theme.colors.background.authOverlay,
+    ...theme.shadows.z2,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1a5c2a',
+    fontFamily: theme.typography.h2.fontFamily,
+    fontSize: theme.typography.h2.fontSize,
+    lineHeight: theme.typography.h2.lineHeight,
+    color: theme.colors.text.primary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: theme.spacing[4],
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontFamily: theme.typography.body1.fontFamily,
+    fontSize: theme.typography.body1.fontSize,
+    lineHeight: theme.typography.body1.lineHeight,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 13,
-    color: '#555',
-    marginBottom: 6,
-    fontWeight: '600',
-  },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 15,
-    color: '#333',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  button: {
-    backgroundColor: '#1a5c2a',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  resetButton: {
-    padding: 12,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  resetText: {
-    color: '#1a5c2a',
-    fontSize: 14,
-    fontWeight: '600',
+    marginBottom: theme.spacing[4],
   },
   error: {
-    color: '#d32f2f',
+    fontFamily: theme.typography.body2.fontFamily,
+    fontSize: theme.typography.body2.fontSize,
+    color: theme.colors.status.error,
     textAlign: 'center',
-    marginBottom: 12,
-    fontSize: 13,
+    marginBottom: theme.spacing[3],
   },
 });

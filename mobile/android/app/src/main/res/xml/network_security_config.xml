@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+  <!-- Modo desarrollo (H9 pendiente): permite HTTP cleartext hacia cualquier IP de la LAN
+       para pruebas en celular (el APK v1.0/v1.1 solo permitia 10.13.18.97 y la IP DHCP
+       cambio a 10.13.18.93; el Settings/ServerCheck de URL runtime requiere esta apertura). -->
+  <base-config cleartextTrafficPermitted="true" />
   <domain-config cleartextTrafficPermitted="true">
     <domain includeSubdomains="true">10.13.18.97</domain>
+    <domain includeSubdomains="true">10.13.18.93</domain>
   </domain-config>
 </network-security-config>

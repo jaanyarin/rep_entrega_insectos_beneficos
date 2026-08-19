@@ -1,0 +1,17 @@
+/**
+ * spacing.ts — Escala de espaciado del Sistema de Diseño Mobile Vanguard
+ * (docs_implementacion/DESIGN_SYSTEM_MOBILE_VANGUARD.md §6, escala base 4).
+ */
+
+export const spacing = {
+  0: 0,
+  1: 4,
+  2: 8,
+  3: 12,
+  4: 16,
+  5: 20,
+  6: 24,
+  8: 32,
+  10: 40,
+  12: 48,
+};
