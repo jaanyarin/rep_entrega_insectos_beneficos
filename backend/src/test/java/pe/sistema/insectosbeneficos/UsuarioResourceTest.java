@@ -22,9 +22,12 @@ import pe.sistema.insectosbeneficos.usuarios.EstadoUsuario;
 import pe.sistema.insectosbeneficos.usuarios.Usuario;
 
 /**
- * Tests del CRUD /api/usuarios: RBAC, soft delete, filtros, integridad.
+ * Tests del CRUD /api/v1/usuarios v2 (ADR-A003): RBAC por literales de rol,
+ * soft delete, filtros por rolId, y proteccion reforzada del seed id=1
+ * (no se desactiva ni se elimina, D-AUTH2-6).
  * La BD (Testcontainer) se comparte entre clases; los fixtures usan nombres
- * unicos por test y el estado de los SUPER_ADMIN se restaura dentro del test.
+ * unicos por test y los SUPER_ADMIN extra creados se desactivan al final del
+ * propio test para dejar el estado consistente (solo el seed activo).
  */
 @QuarkusTest
 @QuarkusTestResource(PostgresTestResource.class)
@@ -35,71 +38,70 @@ class UsuarioResourceTest {
     // ------------------------------------------------------------------
 
     @Test
-    void listar_conSuperAdminIncluyePerfilSuperAdmin() {
+    void listar_conSuperAdminIncluyeRolSuperAdmin() {
         given().auth().oauth2(TestSupport.seedToken())
-                .get("/api/usuarios")
+                .get("/api/v1/usuarios")
                 .then().statusCode(200)
-                .body("perfil", hasItem("SUPER_ADMIN"))               // seed visible para SA
+                .body("rol", hasItem("Super Admin"))               // seed visible para SA
+                .body("rolId", hasItem((int) TestSupport.ROL_SUPER_ADMIN_ID))
                 .body("usuario", hasItem(TestSupport.SEED_USUARIO));
     }
 
     @Test
-    void listar_adminNoVePerfilSuperAdmin() {
-        long adminId = TestSupport.crearUsuarioComoSeed("admin_vis_lista", "Admin Visor", "ADMIN");
-        org.junit.jupiter.api.Assertions.assertTrue(adminId > 0);
-        String adminToken = TestSupport.loginToken("admin_vis_lista", TestSupport.SEED_PASSWORD);
+    void listar_adminNoVeRolSuperAdmin() {
+        long adminId = TestSupport.crearUsuarioComoSeed("admin_vis_v2", "Admin Visor V2", TestSupport.ROL_ADMIN_ID);
+        String adminToken = TestSupport.localLoginToken(adminId, TestSupport.SEED_PASSWORD);
 
         given().auth().oauth2(adminToken)
-                .get("/api/usuarios")
+                .get("/api/v1/usuarios")
                 .then().statusCode(200)
-                .body("perfil", everyItem(not("SUPER_ADMIN")));
+                .body("rol", everyItem(not("Super Admin")));
 
-        // Con filtro explicito perfil=SUPER_ADMIN, el ADMIN no ve nada
+        // Con filtro explicito rolId=Super Admin, el ADMIN no ve nada
         given().auth().oauth2(adminToken)
-                .queryParam("perfil", "SUPER_ADMIN")
-                .get("/api/usuarios")
+                .queryParam("rolId", TestSupport.ROL_SUPER_ADMIN_ID)
+                .get("/api/v1/usuarios")
                 .then().statusCode(200)
                 .body("size()", is(0));
     }
 
     @Test
-    void listar_filtrosEstadoYPerfil() {
-        long id = TestSupport.crearUsuarioComoSeed("filtro_usr_1", "Filtro Uno", "USUARIO");
+    void listar_filtrosEstadoYRol() {
+        long id = TestSupport.crearUsuarioComoSeed("filtro_v2_1", "Filtro V2 Uno", TestSupport.ROL_USUARIO_ID);
         String token = TestSupport.seedToken();
 
-        given().auth().oauth2(token).queryParam("estado", "ACTIVO").get("/api/usuarios")
-                .then().statusCode(200).body("usuario", hasItem("filtro_usr_1"));
+        given().auth().oauth2(token).queryParam("estado", "ACTIVO").get("/api/v1/usuarios")
+                .then().statusCode(200).body("usuario", hasItem("filtro_v2_1"));
 
         TestSupport.eliminarComoSeed(id).then().statusCode(200); // -> INACTIVO
 
-        given().auth().oauth2(token).queryParam("estado", "ACTIVO").get("/api/usuarios")
-                .then().statusCode(200).body("usuario", not(hasItem("filtro_usr_1")));
+        given().auth().oauth2(token).queryParam("estado", "ACTIVO").get("/api/v1/usuarios")
+                .then().statusCode(200).body("usuario", not(hasItem("filtro_v2_1")));
 
-        given().auth().oauth2(token).queryParam("estado", "INACTIVO").get("/api/usuarios")
-                .then().statusCode(200).body("usuario", hasItem("filtro_usr_1"));
+        given().auth().oauth2(token).queryParam("estado", "INACTIVO").get("/api/v1/usuarios")
+                .then().statusCode(200).body("usuario", hasItem("filtro_v2_1"));
 
-        given().auth().oauth2(token).queryParam("perfil", "USUARIO").get("/api/usuarios")
-                .then().statusCode(200).body("perfil", everyItem(is("USUARIO")));
+        given().auth().oauth2(token).queryParam("rolId", TestSupport.ROL_USUARIO_ID).get("/api/v1/usuarios")
+                .then().statusCode(200).body("rol", everyItem(is("Usuario")));
 
         // valor invalido -> 400
-        given().auth().oauth2(token).queryParam("estado", "INVALIDO").get("/api/usuarios")
+        given().auth().oauth2(token).queryParam("estado", "INVALIDO").get("/api/v1/usuarios")
                 .then().statusCode(400).body("codigo", is("DATOS_INVALIDOS"));
     }
 
     @Test
-    void obtener_sinToken401_y_conTokenUsuarioSinPermiso403() {
-        given().get("/api/usuarios").then().statusCode(401);
-        given().get("/api/usuarios/1").then().statusCode(401);
+    void obtener_sinToken401_y_conRolUsuario403() {
+        given().get("/api/v1/usuarios").then().statusCode(401);
+        given().get("/api/v1/usuarios/1").then().statusCode(401);
 
-        long opId = TestSupport.crearUsuarioComoSeed("oper_sin_permiso", "Oper Sin Permiso", "USUARIO");
-        org.junit.jupiter.api.Assertions.assertTrue(opId > 0);
-        String opToken = TestSupport.loginToken("oper_sin_permiso", TestSupport.SEED_PASSWORD);
+        long opId = TestSupport.crearUsuarioComoSeed("oper_v2_sin_permiso", "Oper V2 Sin Permiso", TestSupport.ROL_USUARIO_ID);
+        String opToken = TestSupport.localLoginToken(opId, TestSupport.SEED_PASSWORD);
 
-        given().auth().oauth2(opToken).get("/api/usuarios").then().statusCode(403);
-        given().auth().oauth2(opToken).get("/api/usuarios/" + opId).then().statusCode(403);
+        given().auth().oauth2(opToken).get("/api/v1/usuarios").then().statusCode(403);
+        given().auth().oauth2(opToken).get("/api/v1/usuarios/" + opId).then().statusCode(403);
         // POST con Content-Type correcto para que la seguridad se evalue (sin
         // Content-Type RESTEasy responde 415 antes del chequeo de roles)
-        given().auth().oauth2(opToken).contentType(ContentType.JSON).body(Map.of()).post("/api/usuarios")
+        given().auth().oauth2(opToken).contentType(ContentType.JSON).body(Map.of()).post("/api/v1/usuarios")
                 .then().statusCode(403);
     }
 
@@ -109,63 +111,70 @@ class UsuarioResourceTest {
 
     @Test
     void crear_usuarioNaceConPasswordDefaultYDebeCambiar() {
-        Response r = TestSupport.crearUsuario(TestSupport.seedToken(), "nuevo_usr_crud", "Nuevo Usuario", "USUARIO");
+        Response r = TestSupport.crearUsuario(TestSupport.seedToken(), "nuevo_v2_crud", "Nuevo V2 Usuario", TestSupport.ROL_USUARIO_ID);
         r.then().statusCode(201)
-                .body("usuario", is("nuevo_usr_crud"))
-                .body("perfil", is("USUARIO"))
+                .body("usuario", is("nuevo_v2_crud"))
+                .body("rol", is("Usuario"))
+                .body("rolId", is((int) TestSupport.ROL_USUARIO_ID))
                 .body("estado", is("ACTIVO"))
                 .body("debeCambiarPassword", is(true))
                 .body("creadoPor", notNullValue());
 
         // password SIEMPRE 00000000 hasheado -> login funciona con el default
-        TestSupport.assertLoginOk("nuevo_usr_crud", TestSupport.SEED_PASSWORD);
+        long id = r.jsonPath().getLong("id");
+        TestSupport.assertLoginOk(id, TestSupport.SEED_PASSWORD);
     }
 
     @Test
     void crear_duplicado_devuelve409() {
-        TestSupport.crearUsuarioComoSeed("dup_usr", "Duplicado", "USUARIO");
-        TestSupport.crearUsuario(TestSupport.seedToken(), "dup_usr", "Duplicado", "USUARIO")
+        TestSupport.crearUsuarioComoSeed("dup_v2", "Duplicado V2", TestSupport.ROL_USUARIO_ID);
+        TestSupport.crearUsuario(TestSupport.seedToken(), "dup_v2", "Duplicado V2", TestSupport.ROL_USUARIO_ID)
                 .then().statusCode(409).body("codigo", is("USUARIO_YA_EXISTE"));
     }
 
     @Test
-    void crear_sinPerfil_devuelve400() {
+    void crear_sinRol_devuelve400() {
         Map<String, Object> body = new HashMap<>();
-        body.put("usuario", "sin_perfil_1");
-        body.put("nombre", "Sin Perfil");
+        body.put("usuario", "sin_rol_v2");
+        body.put("nombre", "Sin Rol V2");
         given().auth().oauth2(TestSupport.seedToken())
                 .contentType(ContentType.JSON).body(body)
-                .post("/api/usuarios")
+                .post("/api/v1/usuarios")
                 .then().statusCode(400).body("codigo", is("DATOS_INVALIDOS"));
     }
 
     @Test
+    void crear_rolInexistente_devuelve404() {
+        TestSupport.crearUsuario(TestSupport.seedToken(), "rol_inex_v2", "Rol Inexistente", 999999L)
+                .then().statusCode(404).body("codigo", is("ROL_NO_ENCONTRADO"));
+    }
+
+    @Test
     void crear_dniInvalido_devuelve400() {
-        Map<String, Object> conDniInvalido = TestSupport.crearBody("dni_abc_1", "Dni Abc", "USUARIO");
+        Map<String, Object> conDniInvalido = TestSupport.crearBody("dni_abc_v2", "Dni Abc V2", TestSupport.ROL_USUARIO_ID);
         conDniInvalido.put("dni", "abc");
         given().auth().oauth2(TestSupport.seedToken())
                 .contentType(ContentType.JSON).body(conDniInvalido)
-                .post("/api/usuarios")
+                .post("/api/v1/usuarios")
                 .then().statusCode(400).body("codigo", is("DATOS_INVALIDOS"));
 
-        Map<String, Object> conDniDefault = TestSupport.crearBody("dni_default_1", "Dni Default", "USUARIO");
+        Map<String, Object> conDniDefault = TestSupport.crearBody("dni_default_v2", "Dni Default V2", TestSupport.ROL_USUARIO_ID);
         conDniDefault.put("dni", "00000000");
         given().auth().oauth2(TestSupport.seedToken())
                 .contentType(ContentType.JSON).body(conDniDefault)
-                .post("/api/usuarios")
+                .post("/api/v1/usuarios")
                 .then().statusCode(400).body("codigo", is("DATOS_INVALIDOS"));
     }
 
     @Test
     void crear_adminPuedeCrearAdminYUsuario_peroNoSuperAdmin() {
-        long adminId = TestSupport.crearUsuarioComoSeed("admin_crea", "Admin Creador", "ADMIN");
-        org.junit.jupiter.api.Assertions.assertTrue(adminId > 0);
-        String adminToken = TestSupport.loginToken("admin_crea", TestSupport.SEED_PASSWORD);
+        long adminId = TestSupport.crearUsuarioComoSeed("admin_crea_v2", "Admin Creador V2", TestSupport.ROL_ADMIN_ID);
+        String adminToken = TestSupport.localLoginToken(adminId, TestSupport.SEED_PASSWORD);
 
-        TestSupport.crearUsuario(adminToken, "admin_hijo", "Admin Hijo", "ADMIN").then().statusCode(201);
-        TestSupport.crearUsuario(adminToken, "usr_hijo", "Usr Hijo", "USUARIO").then().statusCode(201);
+        TestSupport.crearUsuario(adminToken, "admin_hijo_v2", "Admin Hijo V2", TestSupport.ROL_ADMIN_ID).then().statusCode(201);
+        TestSupport.crearUsuario(adminToken, "usr_hijo_v2", "Usr Hijo V2", TestSupport.ROL_USUARIO_ID).then().statusCode(201);
 
-        TestSupport.crearUsuario(adminToken, "super_no_permitido", "Super No", "SUPER_ADMIN")
+        TestSupport.crearUsuario(adminToken, "super_no_v2", "Super No V2", TestSupport.ROL_SUPER_ADMIN_ID)
                 .then().statusCode(403).body("codigo", is("SIN_PERMISOS"));
     }
 
@@ -175,81 +184,71 @@ class UsuarioResourceTest {
 
     @Test
     void actualizar_cambiaDatosNoPassword() {
-        long id = TestSupport.crearUsuarioComoSeed("actualiza_usr", "Antes", "USUARIO");
+        long id = TestSupport.crearUsuarioComoSeed("actualiza_v2", "Antes V2", TestSupport.ROL_USUARIO_ID);
 
         Map<String, Object> body = new HashMap<>();
-        body.put("usuario", "actualiza_usr");
-        body.put("nombre", "Después");
-        body.put("perfil", "ADMIN");
+        body.put("usuario", "actualiza_v2");
+        body.put("nombre", "Después V2");
+        body.put("rolId", TestSupport.ROL_ADMIN_ID);
         body.put("estado", "ACTIVO");
 
         given().auth().oauth2(TestSupport.seedToken())
                 .contentType(ContentType.JSON).body(body)
-                .put("/api/usuarios/" + id)
+                .put("/api/v1/usuarios/" + id)
                 .then().statusCode(200)
-                .body("nombre", is("Después"))
-                .body("perfil", is("ADMIN"))
+                .body("nombre", is("Después V2"))
+                .body("rol", is("Admin"))
+                .body("rolId", is((int) TestSupport.ROL_ADMIN_ID))
                 .body("debeCambiarPassword", is(true)); // el password NO se toca
 
         // Duplicado de usuario por PUT -> 409
-        long otroId = TestSupport.crearUsuarioComoSeed("actualiza_otro", "Otro", "USUARIO");
+        long otroId = TestSupport.crearUsuarioComoSeed("actualiza_otro_v2", "Otro V2", TestSupport.ROL_USUARIO_ID);
         Map<String, Object> dup = new HashMap<>();
-        dup.put("usuario", "actualiza_usr");
-        dup.put("nombre", "Otro");
-        dup.put("perfil", "USUARIO");
+        dup.put("usuario", "actualiza_v2");
+        dup.put("nombre", "Otro V2");
+        dup.put("rolId", TestSupport.ROL_USUARIO_ID);
         dup.put("estado", "ACTIVO");
         given().auth().oauth2(TestSupport.seedToken())
                 .contentType(ContentType.JSON).body(dup)
-                .put("/api/usuarios/" + otroId)
+                .put("/api/v1/usuarios/" + otroId)
                 .then().statusCode(409);
     }
 
     @Test
     void actualizar_adminNoPuedeTocarSuperAdmin() {
-        long adminId = TestSupport.crearUsuarioComoSeed("admin_upd", "Admin Updater", "ADMIN");
-        org.junit.jupiter.api.Assertions.assertTrue(adminId > 0);
-        String adminToken = TestSupport.loginToken("admin_upd", TestSupport.SEED_PASSWORD);
-
-        long seedId = given().auth().oauth2(TestSupport.seedToken())
-                .queryParam("perfil", "SUPER_ADMIN")
-                .get("/api/usuarios")
-                .jsonPath().getList("id", Long.class).get(0);
+        long adminId = TestSupport.crearUsuarioComoSeed("admin_upd_v2", "Admin Updater V2", TestSupport.ROL_ADMIN_ID);
+        String adminToken = TestSupport.localLoginToken(adminId, TestSupport.SEED_PASSWORD);
 
         Map<String, Object> body = new HashMap<>();
         body.put("usuario", "Admin PowerApps");
         body.put("nombre", "Admin PowerApps");
-        body.put("perfil", "SUPER_ADMIN");
+        body.put("rolId", TestSupport.ROL_SUPER_ADMIN_ID);
         body.put("estado", "ACTIVO");
         given().auth().oauth2(adminToken).contentType(ContentType.JSON).body(body)
-                .put("/api/usuarios/" + seedId)
+                .put("/api/v1/usuarios/" + TestSupport.SEED_ID)
                 .then().statusCode(403).body("codigo", is("SIN_PERMISOS"));
 
         // Subir a SUPER_ADMIN desde ADMIN -> 403
         Map<String, Object> up = new HashMap<>();
-        up.put("usuario", "admin_upd");
-        up.put("nombre", "Admin Updater");
-        up.put("perfil", "SUPER_ADMIN");
+        up.put("usuario", "admin_upd_v2");
+        up.put("nombre", "Admin Updater V2");
+        up.put("rolId", TestSupport.ROL_SUPER_ADMIN_ID);
         up.put("estado", "ACTIVO");
         given().auth().oauth2(adminToken).contentType(ContentType.JSON).body(up)
-                .put("/api/usuarios/" + adminId)
+                .put("/api/v1/usuarios/" + adminId)
                 .then().statusCode(403);
     }
 
     @Test
-    void actualizar_ultimoSuperAdmin_noPuedeDesactivarse() {
-        long seedId = given().auth().oauth2(TestSupport.seedToken())
-                .queryParam("perfil", "SUPER_ADMIN")
-                .get("/api/usuarios")
-                .jsonPath().getList("id", Long.class).get(0);
-
+    void actualizar_seedNoPuedeDesactivarse() {
         Map<String, Object> body = new HashMap<>();
         body.put("usuario", "Admin PowerApps");
         body.put("nombre", "Admin PowerApps");
-        body.put("perfil", "SUPER_ADMIN");
+        body.put("rolId", TestSupport.ROL_SUPER_ADMIN_ID);
         body.put("estado", "INACTIVO");
         given().auth().oauth2(TestSupport.seedToken()).contentType(ContentType.JSON).body(body)
-                .put("/api/usuarios/" + seedId)
-                .then().statusCode(400).body("codigo", is("ULTIMO_SUPER_ADMIN"));
+                .put("/api/v1/usuarios/" + TestSupport.SEED_ID)
+                .then().statusCode(400).body("codigo", is("SEED_SUPER_ADMIN_INMUNE"));
     }
 
     // ------------------------------------------------------------------
@@ -258,10 +257,10 @@ class UsuarioResourceTest {
 
     @Test
     void eliminar_softDelete_mantieneElRegistroEnBD() {
-        long id = TestSupport.crearUsuarioComoSeed("borrar_soft", "Borrar Soft", "USUARIO");
+        long id = TestSupport.crearUsuarioComoSeed("borrar_soft_v2", "Borrar Soft V2", TestSupport.ROL_USUARIO_ID);
 
         given().auth().oauth2(TestSupport.seedToken())
-                .delete("/api/usuarios/" + id)
+                .delete("/api/v1/usuarios/" + id)
                 .then().statusCode(200).body("mensaje", notNullValue());
 
         // Consulta directa a BD: el registro SIGUE existiendo, solo cambio estado
@@ -271,72 +270,69 @@ class UsuarioResourceTest {
 
         // eliminar de nuevo -> 400 (ya inactivo)
         given().auth().oauth2(TestSupport.seedToken())
-                .delete("/api/usuarios/" + id)
+                .delete("/api/v1/usuarios/" + id)
                 .then().statusCode(400).body("codigo", is("USUARIO_YA_INACTIVO"));
     }
 
     @Test
     void eliminar_noExiste_devuelve404() {
         given().auth().oauth2(TestSupport.seedToken())
-                .delete("/api/usuarios/999999")
+                .delete("/api/v1/usuarios/999999")
                 .then().statusCode(404).body("codigo", is("USUARIO_NO_ENCONTRADO"));
     }
 
     @Test
     void eliminar_adminPuedeDesactivarAdminYUsuario_peroNoSuperAdmin() {
-        long adminId = TestSupport.crearUsuarioComoSeed("admin_borra", "Admin Borrador", "ADMIN");
-        long admin2Id = TestSupport.crearUsuarioComoSeed("admin_borra2", "Admin Borrador 2", "ADMIN");
-        long victimaId = TestSupport.crearUsuarioComoSeed("victima_borra", "Víctima", "USUARIO");
-        String adminToken = TestSupport.loginToken("admin_borra", TestSupport.SEED_PASSWORD);
+        long adminId = TestSupport.crearUsuarioComoSeed("admin_borra_v2", "Admin Borrador V2", TestSupport.ROL_ADMIN_ID);
+        long admin2Id = TestSupport.crearUsuarioComoSeed("admin_borra2_v2", "Admin Borrador 2 V2", TestSupport.ROL_ADMIN_ID);
+        long victimaId = TestSupport.crearUsuarioComoSeed("victima_v2", "Víctima V2", TestSupport.ROL_USUARIO_ID);
+        String adminToken = TestSupport.localLoginToken(adminId, TestSupport.SEED_PASSWORD);
 
-        given().auth().oauth2(adminToken).delete("/api/usuarios/" + victimaId).then().statusCode(200);
+        given().auth().oauth2(adminToken).delete("/api/v1/usuarios/" + victimaId).then().statusCode(200);
         // a OTRO ADMIN si (self-delete daria NO_AUTO_DESACTIVACION, regla aparte)
-        given().auth().oauth2(adminToken).delete("/api/usuarios/" + admin2Id).then().statusCode(200);
+        given().auth().oauth2(adminToken).delete("/api/v1/usuarios/" + admin2Id).then().statusCode(200);
 
         // pero a un SUPER_ADMIN -> 403 SIN_PERMISOS (ADMIN nunca gestiona SUPER_ADMIN)
-        long seedId = given().auth().oauth2(TestSupport.seedToken())
-                .queryParam("perfil", "SUPER_ADMIN")
-                .get("/api/usuarios")
-                .jsonPath().getList("id", Long.class).get(0);
-        given().auth().oauth2(adminToken).delete("/api/usuarios/" + seedId)
+        given().auth().oauth2(adminToken).delete("/api/v1/usuarios/" + TestSupport.SEED_ID)
                 .then().statusCode(403).body("codigo", is("SIN_PERMISOS"));
     }
 
     @Test
-    void eliminar_noSelfDelete_conMasDeUnSuperAdminActivo() {
-        // Seed crea un segundo SUPER_ADMIN (permitido: el creador es SUPER_ADMIN)
-        long saExtraId = TestSupport.crearUsuarioComoSeed("sa_extra_self", "SA Extra", "SUPER_ADMIN");
-        String saExtraToken = TestSupport.loginToken("sa_extra_self", TestSupport.SEED_PASSWORD);
+    void eliminar_seedSuperAdminInmune_niSeEliminaNiLoEliminan() {
+        // El propio seed no puede eliminarse
+        given().auth().oauth2(TestSupport.seedToken())
+                .delete("/api/v1/usuarios/" + TestSupport.SEED_ID)
+                .then().statusCode(400).body("codigo", is("SEED_SUPER_ADMIN_INMUNE"));
 
-        // Con 2 SUPER_ADMIN activos, auto-desactivacion -> 400 NO_AUTO_DESACTIVACION
-        given().auth().oauth2(saExtraToken).delete("/api/usuarios/" + saExtraId)
-                .then().statusCode(400).body("codigo", is("NO_AUTO_DESACTIVACION"));
+        // Otro SUPER_ADMIN tampoco puede eliminar al seed
+        long saExtraId = TestSupport.crearUsuarioComoSeed("sa_extra_v2", "SA Extra V2", TestSupport.ROL_SUPER_ADMIN_ID);
+        String saExtraToken = TestSupport.localLoginToken(saExtraId, TestSupport.SEED_PASSWORD);
+        given().auth().oauth2(saExtraToken).delete("/api/v1/usuarios/" + TestSupport.SEED_ID)
+                .then().statusCode(400).body("codigo", is("SEED_SUPER_ADMIN_INMUNE"));
 
         // Restaura el estado: el seed desactiva al SA extra (deja solo al seed activo)
         TestSupport.eliminarComoSeed(saExtraId).then().statusCode(200);
     }
 
     @Test
-    void eliminar_ultimoSuperAdminActivo_protegido() {
-        // En este punto el unico SUPER_ADMIN activo debe ser el seed (los demas
-        // tests restauran el estado). En ese escenario, incluso el seed no puede
-        // desactivarse: regla de integridad ULTIMO_SUPER_ADMIN.
-        long seedId = given().auth().oauth2(TestSupport.seedToken())
-                .queryParam("perfil", "SUPER_ADMIN")
-                .get("/api/usuarios")
-                .jsonPath().getList("id", Long.class).get(0);
+    void eliminar_noSelfDelete_adminNoSeDesactiva() {
+        long adminId = TestSupport.crearUsuarioComoSeed("admin_self_v2", "Admin Self V2", TestSupport.ROL_ADMIN_ID);
+        String adminToken = TestSupport.localLoginToken(adminId, TestSupport.SEED_PASSWORD);
 
-        given().auth().oauth2(TestSupport.seedToken())
-                .delete("/api/usuarios/" + seedId)
-                .then().statusCode(400).body("codigo", is("ULTIMO_SUPER_ADMIN"));
+        given().auth().oauth2(adminToken).delete("/api/v1/usuarios/" + adminId)
+                .then().statusCode(400).body("codigo", is("NO_AUTO_DESACTIVACION"));
     }
 
     @Test
-    void eliminar_reglaAutoDesactivacion_adminNoSeDesactivaSiNoEsElUltimoSA() {
-        long adminId = TestSupport.crearUsuarioComoSeed("admin_self_del", "Admin Self", "ADMIN");
-        String adminToken = TestSupport.loginToken("admin_self_del", TestSupport.SEED_PASSWORD);
+    void eliminar_noSelfDelete_superAdminExtra() {
+        long saExtraId = TestSupport.crearUsuarioComoSeed("sa_self_v2", "SA Self V2", TestSupport.ROL_SUPER_ADMIN_ID);
+        String saExtraToken = TestSupport.localLoginToken(saExtraId, TestSupport.SEED_PASSWORD);
 
-        given().auth().oauth2(adminToken).delete("/api/usuarios/" + adminId)
+        // Con el seed activo + el SA extra, la auto-desactivacion -> 400 NO_AUTO_DESACTIVACION
+        given().auth().oauth2(saExtraToken).delete("/api/v1/usuarios/" + saExtraId)
                 .then().statusCode(400).body("codigo", is("NO_AUTO_DESACTIVACION"));
+
+        // Restaura el estado
+        TestSupport.eliminarComoSeed(saExtraId).then().statusCode(200);
     }
 }

@@ -142,13 +142,17 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 
 > **Nota de reconciliación (ADR-A002, 2026-08-18):** el sistema adopta 3 perfiles
 > (`SUPER_ADMIN`, `ADMIN`, `USUARIO`) en sustitución del modelo binario `admin/user`.
-> El login se realiza por `usuario` (username) — el email queda descartado como identificador.
+> El email queda descartado como identificador de login.
+> **Reconciliado 2026-08-19 — ADR-A003 (login 3 pasos, roles en tabla, /api/v1):** los roles
+> viven en la tabla `roles` como literales con espacios ('Super Admin' / 'Admin' / 'Usuario')
+> con FK `usuarios.rol_id` (Flyway V3) y el login es de 3 pasos: selección de rol → usuario → DNI
+> (contraseña). La API expone rutas bajo `/api/v1` (+ OpenAPI).
 
-| Perfil | Área | Descripción |
+| Rol (tabla `roles`) | Área | Descripción |
 |---|---|---|
-| super_admin | Global | Control total: gestión de todos los usuarios, módulos y configuración |
-| admin | I+D | Gestión de usuarios de perfil admin y usuario; publicación de stock, proyecciones, despachos, reportes, dashboard, catálogos y monitoreo operativo |
-| usuario | Sanidad | Acceso operativo para registro de requerimientos, validación de recepción, liberación en campo y captura de evidencias fotográficas |
+| Super Admin | Global | Control total: gestión de todos los usuarios, módulos y configuración |
+| Admin | I+D | Gestión de usuarios de perfil admin y usuario; publicación de stock, proyecciones, despachos, reportes, dashboard, catálogos y monitoreo operativo |
+| Usuario | Sanidad | Acceso operativo para registro de requerimientos, validación de recepción, liberación en campo y captura de evidencias fotográficas |
 
 ---
 
@@ -183,7 +187,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 
 | Código | Módulo | Nombre | Descripción | Actor | Prioridad |
 |---|---|---|---|---|---|
-| RF-001 | Autenticación | Inicio de sesión local | El sistema deberá permitir el inicio de sesión mediante credenciales locales (usuario + contraseña) validadas contra la tabla de usuarios | super_admin, admin, usuario | Alta |
+| RF-001 | Autenticación | Inicio de sesión local | El sistema deberá permitir el inicio de sesión local en **3 pasos (rol → usuario → DNI)** validadas contra la tabla `usuarios` (ADR-A003): selección de rol ('Super Admin'/'Admin'/'Usuario'), selección de usuario del rol y contraseña (DNI, numérico máx 8) | super_admin, admin, usuario | Alta |
 | RF-002 | Autenticación | Validación de cuenta registrada | El sistema deberá validar que la cuenta (`usuario` + contraseña) corresponda a un usuario registrado en la tabla `usuarios` | super_admin, admin, usuario | Alta |
 | RF-003 | Autenticación | Validación de usuario registrado | El sistema deberá permitir el acceso únicamente a usuarios previamente registrados y habilitados | super_admin, admin, usuario | Alta |
 | RF-004 | Autenticación | Validación de usuario activo | El sistema deberá validar que el usuario se encuentre en estado activo | super_admin, admin, usuario | Alta |
@@ -191,7 +195,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RF-006 | Autenticación | Persistencia de sesión | El sistema deberá mantener la sesión activa mediante JWT mientras el token esté vigente | super_admin, admin, usuario | Alta |
 | RF-007 | Autenticación | Expiración de sesión | El sistema deberá cerrar automáticamente la sesión después de un periodo configurable de inactividad | super_admin, admin, usuario | Alta |
 | RF-008 | Autenticación | Cierre manual de sesión | El sistema deberá permitir al usuario cerrar sesión manualmente | super_admin, admin, usuario | Alta |
-| RF-009 | Autenticación | Registro de auditoría de acceso | El sistema deberá registrar eventos de autenticación (inicio, cierre, fecha, hora, usuario) | super_admin, admin, usuario | Alta |
+| RF-009 | Autenticación | Registro de auditoría de acceso | El sistema deberá registrar eventos de autenticación (inicio, cierre, fecha, hora, usuario) — **PENDIENTE / PARCIAL: registrado como deuda H13** | super_admin, admin, usuario | Alta |
 | RF-010 | Autenticación | Bloqueo de acceso no autorizado | El sistema deberá denegar el acceso a usuarios no registrados, inactivos o sin permisos | super_admin, admin, usuario | Alta |
 | RF-011 | Autenticación | Administración de usuarios | El sistema deberá permitir al super admin y admin registrar, habilitar, deshabilitar y actualizar usuarios (según RBAC del ADR-A002) | super_admin, admin | Alta |
 | RF-012 | Autenticación | Administración de perfiles | El sistema deberá permitir al administrador asignar y modificar perfiles de usuario | super_admin, admin | Alta |
@@ -200,7 +204,7 @@ Esto ocasiona confusiones operativas, errores en los pedidos, falta de trazabili
 | RF-015 | Autenticación | Restricción de navegación por perfil | El sistema deberá mostrar únicamente las funcionalidades autorizadas según el perfil | super_admin, admin, usuario | Alta |
 | RF-016 | Autenticación | Revocación inmediata de acceso | El sistema deberá invalidar sesiones activas cuando un usuario sea deshabilitado | super_admin, admin | Alta |
 | RF-017 | Autenticación | Mensajes de validación de acceso | El sistema deberá mostrar mensajes visuales de confirmación o error durante la autenticación | super_admin, admin, usuario | Media |
-| RF-191 | Autenticación | Migración de super admin | El sistema deberá incluir una migración de base de datos que inserte un usuario super admin por defecto (usuario: Admin PowerApps, contraseña por defecto 00000000 hasheada, debe_cambiar_password = true) permitiendo el primer acceso al sistema | System | Alta |
+| RF-191 | Autenticación | Migración de super admin | El sistema deberá incluir una migración de base de datos que inserte un usuario super admin por defecto (usuario: Admin PowerApps, rol **'Super Admin'**, contraseña por defecto 00000000 hasheada, debe_cambiar_password = true) permitiendo el primer acceso al sistema; el super admin seed (id=1) es **inmune** (no desactivable ni eliminable) | System | Alta |
 | RF-192 | Usuarios | Creación de usuarios por super admin | El usuario super admin debe poder crear usuarios con perfil admin y usuario desde el panel de administración | super_admin | Alta |
 
 ## MOD-02 — USUARIOS

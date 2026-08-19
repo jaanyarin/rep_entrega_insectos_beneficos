@@ -12,46 +12,50 @@ import {
 import {useAuth} from '../context/AuthContext';
 
 const MAX_DNI_LENGTH = 8;
-const DNI_REGEX = /^[0-9]+$/;
+const DEFAULT_PASSWORD = '00000000';
+
+/** Sanitización: solo dígitos (el teclado numérico ayuda, esta es la barrera real). */
+const sanitizar = (text: string) => text.replace(/[^0-9]/g, '');
 
 /**
- * Cambio de contraseña OBLIGATORIO (ADR-A002 D-AUTH-4): la nueva contraseña
- * es el DNI del usuario (numérico, máximo 8 dígitos, distinto de 00000000).
- * Solo se muestra cuando debeCambiarPassword = true; sin back (ver
- * RootNavigator: única pantalla del stack con gestureEnabled=false).
+ * Cambio de contraseña OBLIGATORIO (ADR-A003 D-AUTH2-2 / ADR-A002 D-AUTH-4):
+ * la nueva contraseña es el DNI del usuario (numérico, MÁXIMO 8 dígitos).
+ * POST /auth/change-password → el backend emite un JWT fresco (sin
+ * `passwordResetRequired`); AuthContext lo persiste y refresca `user`, por lo
+ * que la navegación pasa automáticamente al Home. Sin back (ver RootNavigator:
+ * única pantalla del stack con gestureEnabled=false).
  */
 export default function CambiarPasswordScreen() {
   const {cambiarPassword, loading, error} = useAuth();
-  const [dni, setDni] = useState('');
-  const [repetirDni, setRepetirDni] = useState('');
+  const [nuevaPassword, setNuevaPassword] = useState('');
+  const [repetirPassword, setRepetirPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
-  /** Sanitización: solo dígitos (el teclado numérico ayuda, esto es la barrera real). */
-  const sanitizar = (text: string) => text.replace(/[^0-9]/g, '');
-
   const handleSubmit = () => {
-    if (dni.length === 0) {
-      setLocalError('El DNI es obligatorio');
+    if (nuevaPassword.length === 0) {
+      setLocalError('La contraseña es obligatoria');
       return;
     }
-    if (!DNI_REGEX.test(dni)) {
+    if (!/^[0-9]+$/.test(nuevaPassword)) {
       setLocalError('Debe contener solo números');
       return;
     }
-    if (dni.length > MAX_DNI_LENGTH) {
+    if (nuevaPassword.length > MAX_DNI_LENGTH) {
       setLocalError('Máximo 8 dígitos');
       return;
     }
-    if (dni === '00000000') {
-      setLocalError('El DNI no puede ser la contraseña por defecto (00000000)');
+    if (nuevaPassword === DEFAULT_PASSWORD) {
+      setLocalError(
+        'La contraseña no puede ser la predeterminada (00000000)',
+      );
       return;
     }
-    if (repetirDni !== dni) {
-      setLocalError('Los DNI no coinciden');
+    if (repetirPassword !== nuevaPassword) {
+      setLocalError('Las contraseñas no coinciden');
       return;
     }
     setLocalError(null);
-    cambiarPassword(dni);
+    cambiarPassword(nuevaPassword);
   };
 
   return (
@@ -61,8 +65,8 @@ export default function CambiarPasswordScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>Cambio de Contraseña</Text>
         <Text style={styles.subtitle}>
-          Por seguridad debe cambiar su contraseña. La nueva contraseña será su
-          DNI (solo números, máximo 8 dígitos).
+          Por seguridad debe cambiar su contraseña. Use su número de DNI (8
+          dígitos) como nueva contraseña.
         </Text>
 
         {(error || localError) && (
@@ -71,28 +75,33 @@ export default function CambiarPasswordScreen() {
 
         <TextInput
           style={styles.input}
-          placeholder="DNI (nueva contraseña)"
+          placeholder="Contraseña (DNI)"
           placeholderTextColor="#999"
-          value={dni}
-          onChangeText={text => setDni(sanitizar(text))}
+          value={nuevaPassword}
+          onChangeText={text => setNuevaPassword(sanitizar(text))}
+          secureTextEntry
           keyboardType="number-pad"
           maxLength={MAX_DNI_LENGTH}
+          accessibilityLabel="Nueva contraseña (DNI)"
         />
 
         <TextInput
           style={styles.input}
-          placeholder="Repetir DNI"
+          placeholder="Repetir contraseña"
           placeholderTextColor="#999"
-          value={repetirDni}
-          onChangeText={text => setRepetirDni(sanitizar(text))}
+          value={repetirPassword}
+          onChangeText={text => setRepetirPassword(sanitizar(text))}
+          secureTextEntry
           keyboardType="number-pad"
           maxLength={MAX_DNI_LENGTH}
+          accessibilityLabel="Repetir nueva contraseña"
         />
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleSubmit}
-          disabled={loading}>
+          disabled={loading}
+          accessibilityLabel="Cambiar contraseña">
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (

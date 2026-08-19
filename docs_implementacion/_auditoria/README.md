@@ -19,3 +19,11 @@ Propósito de `docs_implementacion/_auditoria/`:
 |---|---|---|
 | [ADR-A001](ADRs_AUDITORIA/ADR-A001.md) | Decisiones de arquitectura vigentes | Aprobado |
 | [ADR-A002](ADRs_AUDITORIA/ADR-A002.md) | Módulo Usuarios y Autenticación (1ª vertical): login por usuario, 3 perfiles, password default 00000000, DNI máx 8, soft delete | Aprobado |
+| [ADR-A003](ADRs_AUDITORIA/ADR-A003.md) | Autenticación v2: login 3 pasos, roles en tabla (literales con espacios), URL runtime + SecureStore, /api/v1 + OpenAPI | Aprobado |
+
+## Paquetes de auditoría por HITO
+
+| HITO | Veredicto | Paquete |
+|---|---|---|
+| HITO-001 | PASS técnico condicionado (0 críticos) | `HITO-001` (hallazgos en `05_hito_001.md` §5) |
+| HITO-002 | **PASS técnico integral (0 críticos, 0 altos)** | `HITO-002` (informe completo) |

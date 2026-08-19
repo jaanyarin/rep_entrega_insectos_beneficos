@@ -17,14 +17,16 @@ evidencias fotográficas y acta PDF.
 | Infra | Docker / Docker Compose, Nginx, GitHub Actions, VPS Linux |
 
 Decisiones de arquitectura vigentes y decisiones descartadas: ver
-[`docs_implementacion/_auditoria/ADRs_AUDITORIA/ADR-A001.md`](docs_implementacion/_auditoria/ADRs_AUDITORIA/ADR-A001.md).
+[`docs_implementacion/_auditoria/ADRs_AUDITORIA/`](docs_implementacion/_auditoria/ADRs_AUDITORIA/)
+(`ADR-A001.md`, `ADR-A002.md`, `ADR-A003.md`).
 
 ## Estructura del repositorio
 
 ```text
-backend/      API Quarkus (HITO-001 pendiente de scaffold)
-mobile/       App React Native (bootstrap 0.86 / React 19.2.3)
-web/          Frontend React + Vite (HITO-001 pendiente de scaffold)
+backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, 32 tests
+mobile/       App React Native CLI 0.86 / React 19.2.3 — auth v2 (login 3 pasos, URL runtime,
+              SecureStore/keychain), 27 tests — versión 1.1.0
+web/          Frontend React + Vite (pendiente de scaffold)
 docs_implementacion/
 ├── _sdd/                      Especificación, plan, tareas e implementación
 ├── _perfiles/                 Perfiles de desarrollador y auditor (agentes IA)
@@ -37,11 +39,15 @@ docs_implementacion/
 
 ## Estado actual
 
-- Hito actual: **HITO-001 = Infraestructura base** (scaffold backend Quarkus +
-  mobile base + web base + autenticación JWT local + CI/CD base). Ver
+- **HITO-001 cerrado (2026-08-18) = Infraestructura base**: scaffold backend Quarkus + mobile
+  base (auth/navegación) + autenticación JWT local (tabla `usuarios` + super admin).
+- **HITO-002 cerrado (2026-08-19) = Auth v2**: login 3 pasos (rol→usuario→DNI), roles en tabla
+  (`roles` + `usuarios.rol_id`, Flyway V3), API `/api/v1` + OpenAPI, cambio de contraseña con nuevo
+  JWT, SecureStore/keychain + ServerCheck/Settings de URL runtime, Super Admin id=1 inmune
+  (ADR-A003). Versión de artefactos: **1.1.0** (32 tests BE · 27 tests MO · APK v2 61.5 MB).
+- **Pendientes**: frontend web (React/Vite), CI/CD (GitHub Actions), hitos funcionales
+  (requerimientos, programación de stock, evidencias). Ver
   [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).
-- El backend aún no tiene código de aplicación; mobile solo contiene el bootstrap
-  con login local; web no ha sido scaffoldada.
 
 ## Verificación por capa
 

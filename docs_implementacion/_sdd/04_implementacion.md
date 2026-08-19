@@ -10,9 +10,9 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | Vigente (vertical 1 implementada) |
-| Versión | 1.0.0 |
-| Fecha | 2026-08-18 |
+| Estado | HITO-002 en cierre |
+| Versión | 1.1.0 |
+| Fecha | 2026-08-19 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
 | Clasificación | Interno |
@@ -28,8 +28,9 @@ decisiones/avances por HITO. Se alimenta en cada tarea y se consulta antes de re
 
 # 3. Alcance del Documento
 
-Cubre el HITO-001 (infraestructura base + vertical 1: módulo de usuarios/autenticación) y
-será la base para hitos posteriores (requerimientos, programación, evidencias).
+Cubre el HITO-001 (infraestructura base + vertical 1: módulo de usuarios/autenticación) y el
+HITO-002 (auth v2: login 3 pasos, roles en tabla, /api/v1 + OpenAPI, SecureStore); será la base
+para hitos posteriores (requerimientos, programación, evidencias).
 
 ---
 
@@ -37,9 +38,10 @@ será la base para hitos posteriores (requerimientos, programación, evidencias)
 
 | Documento | Descripción |
 |---|---|
-| 01_especificacion.md | Especificación funcional v1.1 (RF reconciliados con ADR-A002) |
+| 01_especificacion.md | Especificación funcional v1.1 (RF reconciliados con ADR-A002 y ADR-A003) |
 | ADR-A001 | Decisiones de arquitectura vigentes (stack) |
-| ADR-A002 | Módulo Usuarios/Autenticación (login por usuario, 3 perfiles, soft delete) |
+| ADR-A002 | Módulo Usuarios/Autenticación (3 perfiles, soft delete) |
+| ADR-A003 | Auth v2: login 3 pasos (rol→usuario→DNI), roles en tabla `roles`, /api/v1 + OpenAPI, SecureStore |
 | perfil_desarrollador.md | Leyes 1-5 |
 | perfil_auditor.md | Catálogo de 32 gates |
 | 05_hito_001.md | Acta de cierre del HITO-001 (verificación y auditoría) |
@@ -53,7 +55,8 @@ será la base para hitos posteriores (requerimientos, programación, evidencias)
 | JWT | JSON Web Token (autenticación local, HS256 dev) |
 | Soft delete | Eliminación lógica vía `estado=INACTIVO`; nunca DELETE físico |
 | DNI | Contraseña del usuario tras primer ingreso; numérico, máx 8 dígitos (VARCHAR(8)) |
-| Perfil | SUPER_ADMIN / ADMIN / USUARIO |
+| Rol (perfil) | Literales con espacios en tabla `roles`: 'Super Admin' / 'Admin' / 'Usuario'; JWT claim `groups` con el literal |
+| Login 3 pasos | Selección de rol → usuario → DNI (contraseña); autocompleta `00000000` si `passwordResetRequired` |
 
 ---
 
@@ -70,7 +73,8 @@ artefactos de cierre → commit único coherente.
 
 ```text
 mobile (React Native CLI) ──► backend API Quarkus (:6101) ──► PostgreSQL 16 (Docker)
-        JWT local                                 Flyway V1/V2        (insectos_beneficos)
+        JWT local 8h                                 Flyway V1/V2/V3  (insectos_beneficos)
+        (SecureStore/keychain)
 ```
 
 ---
@@ -80,16 +84,31 @@ mobile (React Native CLI) ──► backend API Quarkus (:6101) ──► Postgr
 - Quarkus 3.38.x, Java 17 (Maven Wrapper `mvnw`).
 - Paquetes: controllers sin lógica; servicios con reglas de negocio; Panache (active record);
   excepciones globales → `{codigo, mensaje}` (ManejadorErrores).
-- Seguridad: smallrye-jwt HS256 (clave JWK dev), `@RolesAllowed` con claim `groups` → perfil.
+- Rutas bajo `/api/v1` (auth + usuarios) con OpenAPI activado (`quarkus-smallrye-openapi`,
+  Swagger `/q/swagger-ui`).
+- Login 3 pasos: `GET /api/v1/auth/roles` → `GET /api/v1/auth/usuarios-by-rol/{rolId}` →
+  `POST /api/v1/auth/local-login {usuarioId,password}` → `{token,passwordResetRequired}`;
+  `POST /api/v1/auth/change-password` emite un **nuevo JWT**.
+- JWT smallrye-jwt HS256 (clave JWK dev): claims `sub`, `groups` (rol literal con espacios),
+  `rolId`, `nombre`, `dni`, `passwordResetRequired`; expiración **8h**; sin correo/área.
+- Tabla `roles` (V3) + `usuarios.rol_id` FK; Super Admin seed id=1 **inmune**; soft delete por
+  estado ACTIVO/INACTIVO.
 
 ---
 
 # 9. Arquitectura Frontend Mobile
 
 - React Native CLI (sin Expo), TypeScript.
-- Navegación: react-navigation native-stack con auth flow condicional
-  (`Login` → `CambiarPassword` si debeCambiarPassword → `Home` por perfil → 4 placeholders).
-- Estado global: React Context (`AuthContext`) con token en memoria (deuda H9 pendiente).
+- Navegación: react-navigation native-stack con auth flow condicional:
+  anónimo → `ServerCheck`/`Login`/`Settings`; reset → `CambiarPassword`; sesión → `Home` por perfil.
+- Servicios: `ApiClient.ts` (axios + `react-native-keychain`; token y URL en SecureStore;
+  interceptor 401 → limpia SOLO el token y hace logout; timeout 15s; `parseToken` sin atob/Buffer).
+- Screens: `ServerCheckScreen`/`SettingsScreen` (URL runtime 'Configurar servidor'),
+  `LoginScreen` 3 pasos (rol→usuario→DNI máx 8, autocompleta `00000000` si passwordResetRequired),
+  `CambiarPasswordScreen` (→ nuevo JWT).
+- Estado global: React Context (`AuthContext`) con session restore desde Keychain y
+  `refreshUser` vía `parseToken`; `utils/roles.ts` (isSuperAdmin/isAdminOrSuperAdmin con
+  literales con espacios).
 - UI: componentes core + StyleSheet (deuda H8: paper MD3 pendiente).
 
 ---
@@ -104,23 +123,30 @@ No implementada (fuera de alcance del HITO-001). Pendiente de scaffold (React+Vi
 
 - PostgreSQL 16 en Docker (`docker-compose.yml` raíz, db `insectos_beneficos`).
 - Flyway: V1 `usuarios` (UNIQUE usuario, CHECK perfil/estado, timestamps, last_login_at,
-  dni VARCHAR(8), debe_cambiar_password) · V2 seed SUPER_ADMIN `Admin PowerApps` / 00000000 (BCrypt).
+  dni VARCHAR(8), debe_cambiar_password) · V2 seed SUPER_ADMIN `Admin PowerApps` / 00000000 (BCrypt)
+  · V3 tabla `roles` (literales 'Super Admin'/'Admin'/'Usuario') + `usuarios.rol_id` FK, con
+  migración de datos desde la columna `perfil` y rollback documentado (H12).
 
 ---
 
 # 12. Estrategia APIs REST
 
-- Versionado no aplicado aún (deuda H5: migrar a `/api/v1` + OpenAPI).
-- `POST /api/auth/login` (público) · `POST /api/auth/cambiar-password` (autenticado) ·
-  `GET/POST/PUT/DELETE /api/usuarios` (RBAC SUPER_ADMIN/ADMIN).
+- Versionado aplicado: rutas bajo `/api/v1` + OpenAPI (`quarkus-smallrye-openapi`, H5 resuelto).
+- `GET /api/v1/auth/roles` (público) · `GET /api/v1/auth/usuarios-by-rol/{rolId}` ·
+  `POST /api/v1/auth/local-login {usuarioId,password}` → `{token,passwordResetRequired}` ·
+  `POST /api/v1/auth/change-password` → nuevo JWT ·
+  `GET/POST/PUT/DELETE /api/v1/usuarios` (RBAC Super Admin/Admin).
 
 ---
 
 # 13. Seguridad
 
 - JWT local contra tabla `usuarios`; 401 anti-enumeración; inactivos → 403.
-- BCrypt (`at.favre.lib:bcrуpt`) para contraseñas incl. seed.
-- Deuda: refresh token/revocación, rate limiting, secrets env, CORS explícito (H9/H10).
+- Claims v2: `sub`, `groups` (rol literal con espacios), `rolId`, `nombre`, `dni`,
+  `passwordResetRequired`; expiración 8h; sin correo/área.
+- BCrypt (`at.favre.lib:bcrypt`) para contraseñas incl. seed; Super Admin id=1 inmune.
+- Mobile: token y URL en SecureStore (`react-native-keychain`); 401 → cleanup de token + logout (H9 parcial).
+- Deuda: revocación/refresh token, rate limiting, secrets env, CORS explícito, SSL Pinning/firma/cleartext (H9/H10).
 
 ---
 
@@ -133,7 +159,8 @@ No implementada (hito de evidencias). Lineamiento: filesystem + metadatos inmuta
 # 15. Estrategia Auditoría
 
 - `creado_por`, `created_at`, `updated_at`, `last_login_at` en `usuarios`.
-- Deuda H13: log de acciones críticas (crear/desactivar/cambio password) pendiente.
+- Deuda H13: log de acciones críticas (crear/desactivar/cambio password) y eventos de
+  autenticación (RF-009) pendiente.
 
 ---
 
@@ -189,8 +216,9 @@ Leyes 1-5 (perfil_desarrollador.md). Conventional Commits al cierre de HITO. UTF
 
 # 24. Estrategia Testing
 
-- Backend: Testcontainers Postgres 16, RestAssured — 26 tests (8 auth + 18 usuarios) PASS.
-- Mobile: jest + RNTL — smoke test del App (1) PASS; flujos críticos pendientes (H6).
+- Backend: Testcontainers Postgres 16, RestAssured — 32 tests (13 Auth + 19 Usuarios) PASS.
+- Mobile: jest + react-test-renderer (RNTL) — 27 tests (7 suites) PASS con `test-utils/helpers.ts`;
+  flujos críticos de auth cubiertos (H6 parcial, hallazgo F2 remediado).
 
 ---
 
@@ -201,23 +229,28 @@ Leyes 1-5 (perfil_desarrollador.md). Conventional Commits al cierre de HITO. UTF
 | mvn/gradle fuera de PATH | Build local | Maven Wrapper + gradlew integrados |
 | Versión desincronizada package↔gradle | Trazabilidad | Unificado a 1.0.0 + versionHistory (Ley 3) |
 | Secretos dev hardcodeados | Seguridad prod | Secrets por env en próxima fase (H10) |
-| FB token en memoria | Seguridad móvil | Secure Storage planificado (H9) |
+| FB token/URL en memoria | Seguridad móvil | SecureStore (keychain) implementado en HITO-002; SSL Pinning/firma/cleartext pendientes (H9 parcial) |
 
 ---
 
 # 26. Deuda Técnica Controlada
 
-Registrada en `05_hito_001.md` §5 (H5-H18) y en `MATRIZ_RIESGOS.md`(pendiente): API versionado/OpenAPI,
-tests FE flujos críticos, RHF+Zod, paper MD3, Secure Storage/firma release, rate limiting/CORS/secrets,
-RF-002..017 reconciliación, FK creado_por, rollback Flyway, log crítico, util DNI compartido,
-accessibilityLabel, health check, jacoco.
+Registrada en `05_hito_001.md` §5 (H5-H18) y en `MATRIZ_RIESGOS.md` (pendiente). Estado al
+cierre del HITO-002:
+- **H5 resuelto** (API `/api/v1` + OpenAPI).
+- **H9 parcial** (SecureStore/keychain implementado; pendientes SSL Pinning, firma release, cleartext HTTP).
+- **H6 parcial** → tests de flujos críticos de auth cubiertos (hallazgo F2 remediado).
+- **H12 resuelto** (migración V3 con FK `rol_id` y rollback documentado).
+- Siguen: H7 (RHF+Zod), H8 (paper MD3), H10 (rate limiting/CORS/secrets), H13 (log crítico/eventos de
+  autenticación RF-009), H14 (util DNI compartido — resuelto en su mayoría), H15 (accessibilityLabel),
+  H16 (health check), H17 (jacoco), H11 (reconciliación RF-002..RF-017).
 
 ---
 
 # 27. Roadmap Técnico Futuro
 
-1. Reconciliar RF-002..RF-017 (G-DOC-SYNC) + deuda alta (H5-H10).
-2. Web React+Vite (scaffold) + CI/CD base.
+1. Reconciliar RF-002..RF-017 (H11) + deuda alta restante (H10, H13, H16, H17).
+2. Web React+Vite (scaffold) y/o CI/CD base (pendientes).
 3. Próximo HITO funcional: requerimientos/programación (a coordinar con negocio).
 
 ---
@@ -236,3 +269,4 @@ detenerse y solicitar reconciliación (jamás trial/error, Ley 1).
 | Negocio | Jose Anyarin | Aprobado (2026-08-18) |
 | Orchestrator | — | Aprobado (cierre HITO-001) |
 | Auditor | — | PASS técnico integral (0 críticos) |
+| HITO-002 | Orchestrator | En cierre (auditoría integral pendiente) |

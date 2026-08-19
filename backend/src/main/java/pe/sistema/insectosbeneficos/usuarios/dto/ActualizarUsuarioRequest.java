@@ -5,12 +5,11 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import pe.sistema.insectosbeneficos.usuarios.EstadoUsuario;
-import pe.sistema.insectosbeneficos.usuarios.Perfil;
 
 /**
- * Cuerpo de PUT /api/usuarios/{id}.
+ * Cuerpo de PUT /api/v1/usuarios/{id}.
  * No permite cambiar password, dni ni debe_cambiar_password (reglas de la task
- * BE-USR-001): esos campos no existen en este DTO.
+ * BE-004): esos campos no existen en este DTO.
  */
 public class ActualizarUsuarioRequest {
 
@@ -22,8 +21,8 @@ public class ActualizarUsuarioRequest {
     @Size(max = 150, message = "El nombre no puede superar 150 caracteres")
     public String nombre;
 
-    @NotNull(message = "El perfil es obligatorio")
-    public Perfil perfil;
+    @NotNull(message = "El rol es obligatorio")
+    public Long rolId;
 
     @NotNull(message = "El estado es obligatorio")
     public EstadoUsuario estado;

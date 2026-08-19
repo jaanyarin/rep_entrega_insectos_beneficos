@@ -859,14 +859,37 @@ Web     : npm run lint · npm run build
 Docker  : docker-compose build
 ```
 
-### Regla de tiempo de build (obligatoria en toda delegación)
+### Protocolo de tiempos: timebox, corte y continuidad (obligatorio en TODA delegación)
+
+Principio rector: **no quemar tiempo innecesario**. Todo comando largo se ejecuta con timebox;
+si se excede el límite → **CORTAR → diagnosticar el PORQUÉ → documentar el hallazgo (Ley 5) →
+pasar a la siguiente tarea**. Nunca dejar un proceso colgado esperando; nunca reintentar
+indefinidamente un comando que falló por timeout.
+
+| Comando | Timebox | Si se excede → |
+|---|---|---|
+| `mvnw clean test` (cold/Testcontainers) | 8 min cold · 3 min warm | Cortar, leer logs/junit reports, documentar causa, reintentar 1× warm; si sigue FAIL, reportar hallazgo (no ocultar) |
+| `mvnw clean package` | 6 min | Cortar, documentar; jar "pendiente marcado" (Ley 3) si no genera |
+| `npm run lint` / `npm test` | 2 min c/u | Cortar, leer salida, corregir puntual o documentar deuda |
+| `gradle assembleRelease` | ver regla APK abajo | Ver regla APK |
+| `npx tsc --noEmit`, `docker compose build`, otros | ≤5 min c/u | Cortar, documentar causa y continuar con hallazgo registrado |
+| Levantamiento BD `docker compose up -d` / `ps` | 30 s | Diagnosticar logs, reintentar 1×; si sigue caída → BLOQUEAR (BD obligatoria) |
+
+### Regla de tiempo de build APK (obligatoria en toda delegación)
 
 - `gradle assembleRelease`: **si el APK release ya existe**
   (`mobile/android/app/build/outputs/apk/release/app-release.apk`) y el comando supera los
   **3 minutos**, el build se **detiene** y el Developer pasa a la siguiente tarea (no recompilar).
 - El APK existente vale como evidencia (Ley 3: artefacto marcado como reconstruido).
-- Si el APK NO existe y la tarea requiere APK, el build es obligatorio (timeout acorde, NO cortar).
-- El Orchestrator debe incluir esta regla en el campo `VERIFICACIÓN REQUERIDA` de cada tarea mobile.
+- Si el APK NO existe y la tarea requiere APK, el build es obligatorio (timeout acorde: **12 min cold**
+  para release; NO cortar sin causa).
+- **Excepción de rebuild obligatorio**: si la tarea agrega un **módulo nativo nuevo**
+  (ej. `react-native-keychain`), el APK existente queda desactualizado → el build es OBLIGATORIO
+  con timebox de **12 min cold**; si excede, cortar, diagnosticar (`gradle.log`, red/NDK),
+  documentar y dejar el artefacto "pendiente" (Ley 3) para resolver antes del commit final.
+- Verificar tras build: timestamp del APK y coherencia `versionName`/`versionCode` ↔ `package.json`.
+- El Orchestrator debe incluir este protocolo (timebox de cada comando) en el campo
+  `VERIFICACIÓN REQUERIDA` de cada tarea delegada.
 
 El Developer debe devolver:
 
@@ -950,6 +973,43 @@ Developer B → modifica UserService
 ```
 
 Debe evitarse.
+
+---
+
+## 25.1 Pipeline dev → auditor con solape (optimización de tiempos — obligatoria)
+
+**Objetivo**: no quemar tiempo de espera. Cuando el Developer **termina** una tarea (deja estado en
+disco, Ley 2), el ciclo NO es estrictamente secuencial (`dev → espera → audita → dev`).
+
+**Regla**: el Developer puede **arrancar la siguiente tarea de inmediato**, en paralelo con el
+gate review del Auditor, **solo si cumple TODAS estas condiciones** (si no las cumple → secuencial):
+
+1. **Ownership disjunto**: la siguiente tarea del Developer NO toca archivos que el Auditor
+   está revisando (regla §26). Ej. auditor revisa `backend/` → dev puede avanzar en `mobile/`.
+2. **Contrato/interfaz fijado**: la siguiente tarea depende del contrato (API, claims, DTOs) que
+   ya está **documentado y aprobado** (ADR/plan/LOGIN_MODELO), NO de la implementación en curso.
+   Si el contrato aún no está fijado en disco, la tarea dependiente **espera** (regla 2 AGENTS).
+3. **🔴 Crítico = pausa inmediata**: si el Auditor emite un hallazgo 🔴 **Crítico** que afecta
+   la tarea en paralelo (mismo contrato o archivos), el Orchestrator **pausa al Developer**,
+   el Developer remedia el crítico (y solo el crítico) y se continúa. Si el crítico NO afecta la
+   tarea en paralelo, el Developer sigue y el crítico se remedia en su propio slot.
+4. 🟠 Alto / 🟡 Medio / 🟢 Bajo → **no bloquean**; se registran (perfil_auditor: solo Crítico bloquea
+   cierre) y se remedian antes del cierre del HITO si corresponden a la regla "Alto no pasa al
+   siguiente HITO".
+5. **Gate de cierre del HITO sigue siendo secuencial**: la auditoría **integral** (fin de HITO) y
+   el **commit único** ocurren SOLO cuando todas las tareas están terminadas y todo crítico remediado.
+
+Flujo resultante (esperado):
+
+```text
+dev: INC-1 (backend) ──termita──> arranca INC-2 (mobile) ──termina──> arranca INC-3 (verif)...
+                                   ▲                                   ▲
+auditor:                     revisa INC-1                      revisa INC-2
+   (paralelo, ownership disjunto; 🔴 crítico → pausa del dev afectado)
+```
+
+Excepción de seguridad: si dos tareas comparten archivos críticos (ej. backend+backend) → **NO**
+solape; se ejecutan secuencialmente con gate PASS previo.
 
 ---
 
@@ -1205,9 +1265,16 @@ docs_implementacion/
 
 ## Línea base del proyecto
 
-El repositorio actual tiene `backend/` sin código de aplicación, `mobile/` con un proyecto React Native mínimo (login local) y **sin** frontend web. Por ello:
+El repositorio ya no parte de cero: `backend/` es la API Quarkus **v2** (auth/usuarios bajo
+`/api/v1`, login 3 pasos, tabla `roles`, 32 tests con Testcontainers), `mobile/` es la app RN CLI
+**v2** (login 3 pasos, `ApiClient.ts` + SecureStore/keychain, ServerCheck/Settings, 27 tests) y el
+frontend web sigue **sin** implementar. Por ello:
 
-- **HITO-001 = Infraestructura base**: scaffold backend Quarkus + Bootstrap mobile (navegación/auth) + frontend web React/Vite + autenticación local JWT (tabla de usuarios + super admin) + CI/CD base + convenciones verificadas.
+- **HITO-001 = Infraestructura base** (cerrado): scaffold backend Quarkus + Bootstrap mobile
+  (navegación/auth) + autenticación local JWT (tabla de usuarios + super admin) + convenciones verificadas.
+- **HITO-002 = Auth v2** (en cierre, 2026-08-19): login 3 pasos (rol→usuario→DNI), roles en tabla
+  (`roles` + `usuarios.rol_id` V3), `/api/v1` + OpenAPI, cambio de contraseña → nuevo JWT,
+  SecureStore/keychain + ServerCheck/Settings de URL runtime (ADR-A003).
 - **Ningún HITO funcional** (ej. "Gestión de Requerimientos") se planifica sobre infraestructura inexistente.
 - El Orchestrator siempre verifica la línea base real en disco antes de descomponer tareas (regla de no duplicidad, §10).
 

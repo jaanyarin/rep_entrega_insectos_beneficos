@@ -5,11 +5,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import pe.sistema.insectosbeneficos.usuarios.Perfil;
-
 /**
- * Cuerpo de POST /api/usuarios.
- * La contrasena SIEMPRE nace como 00000000 hasheada (ADR-A002 D-AUTH-3):
+ * Cuerpo de POST /api/v1/usuarios.
+ * La contrasena SIEMPRE nace como 00000000 hasheada con
+ * debeCambiarPassword = true (ADR-A002 D-AUTH-3 / ADR-A003 D-AUTH2-1):
  * no se acepta contrasena en la creacion.
  */
 public class CrearUsuarioRequest {
@@ -22,8 +21,8 @@ public class CrearUsuarioRequest {
     @Size(max = 150, message = "El nombre no puede superar 150 caracteres")
     public String nombre;
 
-    @NotNull(message = "El perfil es obligatorio")
-    public Perfil perfil;
+    @NotNull(message = "El rol es obligatorio")
+    public Long rolId;
 
     /** DNI opcional; si se indica debe ser numerico (0-9) y de hasta 8 digitos. */
     @Pattern(regexp = "[0-9]+", message = "El DNI debe ser numérico (solo dígitos 0-9)")

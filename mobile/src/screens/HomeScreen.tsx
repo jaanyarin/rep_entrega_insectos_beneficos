@@ -9,7 +9,7 @@ import {
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useAuth} from '../context/AuthContext';
-import type {Perfil} from '../services/api';
+import {isSuperAdmin} from '../utils/roles';
 import MenuButton from '../components/MenuButton';
 import type {RootStackParamList} from '../navigation/types';
 
@@ -21,26 +21,26 @@ interface MenuItem {
 }
 
 /**
- * Menú por perfil (ADR-A002 D-AUTH-2):
- * - USUARIO      → 2 botones: Nuevo Requerimiento / Historial de Requerimiento.
- * - ADMIN        → 2 botones: Programación / Solicitud de Requerimientos.
- * - SUPER_ADMIN  → 2 divs: [Programación + Solicitud] y [Nuevo + Historial].
+ * Menú por perfil (ADR-A002 D-AUTH-2, literales ADR-A003 D-AUTH2-1):
+ * - Usuario      → 2 botones: Nuevo Requerimiento / Historial de Requerimiento.
+ * - Admin        → 2 botones: Programación / Solicitud de Requerimientos.
+ * - Super Admin  → 2 divs: [Programación + Solicitud] y [Nuevo + Historial].
  * Los textos de los botones son EXACTOS al ADR.
  */
-const MENU_POR_PERFIL: Record<Perfil, MenuItem[][]> = {
-  USUARIO: [
+const MENU_POR_PERFIL: Record<string, MenuItem[][]> = {
+  Usuario: [
     [
       {label: 'Nuevo Requerimiento', screen: 'NuevoRequerimiento'},
       {label: 'Historial de Requerimiento', screen: 'HistorialRequerimiento'},
     ],
   ],
-  ADMIN: [
+  Admin: [
     [
       {label: 'Programación', screen: 'Programacion'},
       {label: 'Solicitud de Requerimientos', screen: 'SolicitudRequerimientos'},
     ],
   ],
-  SUPER_ADMIN: [
+  'Super Admin': [
     [
       {label: 'Programación', screen: 'Programacion'},
       {label: 'Solicitud de Requerimientos', screen: 'SolicitudRequerimientos'},
@@ -53,19 +53,19 @@ const MENU_POR_PERFIL: Record<Perfil, MenuItem[][]> = {
 };
 
 export default function HomeScreen() {
-  const {usuario, logout} = useAuth();
+  const {user, logout} = useAuth();
   const navigation = useNavigation<Navigation>();
 
-  if (!usuario) {
+  if (!user) {
     return null;
   }
 
-  const grupos = MENU_POR_PERFIL[usuario.perfil] ?? MENU_POR_PERFIL.USUARIO;
+  const grupos = MENU_POR_PERFIL[user.rol] ?? MENU_POR_PERFIL.Usuario;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.welcome}>Bienvenido(a), {usuario.nombre}</Text>
-      <Text style={styles.perfil}>Perfil: {usuario.perfil}</Text>
+      <Text style={styles.welcome}>Bienvenido(a), {user.nombre}</Text>
+      <Text style={styles.perfil}>Perfil: {user.rol}</Text>
 
       {grupos.map((grupo, index) => (
         <View
@@ -85,7 +85,19 @@ export default function HomeScreen() {
         </View>
       ))}
 
-      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+      {isSuperAdmin(user) ? (
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => navigation.navigate('ConfigurarServidor')}
+          accessibilityLabel="Configurar servidor">
+          <Text style={styles.settingsText}>Configurar servidor</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={logout}
+        accessibilityLabel="Cerrar sesión">
         <Text style={styles.logoutText}>Cerrar sesión</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -129,12 +141,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderColor: '#ccc',
   },
+  settingsButton: {
+    backgroundColor: '#1565c0',
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  settingsText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   logoutButton: {
     backgroundColor: '#b71c1c',
     borderRadius: 8,
     padding: 14,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 12,
   },
   logoutText: {
     color: '#fff',

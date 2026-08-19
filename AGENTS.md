@@ -49,9 +49,10 @@ convenciones de documentación y coordinación de agentes.
 ```text
 AGENTS.md
 README.md
-backend/                     (API Quarkus — HITO-001 pendiente de scaffold)
-mobile/                      (React Native CLI bootstrap 0.86 / React 19.2.3)
-web/                         (React + Vite — HITO-001 pendiente de scaffold)
+backend/                     (API Quarkus v2 — auth/usuarios bajo /api/v1, Flyway V1-V3, 32 tests)
+mobile/                      (React Native CLI 0.86 / React 19.2.3 — auth v2: login 3 pasos,
+                              ApiClient.ts + keychain, ServerCheck/Settings, 27 tests)
+web/                         (React + Vite — pendiente de scaffold)
 docs_implementacion/
 ├── _perfiles/
 │   ├── perfil_desarrollador.md   (Leyes 1-5, metodología SDD)
@@ -59,7 +60,7 @@ docs_implementacion/
 ├── _auditoria/
 │   ├── README.md                  (proceso de auditoría)
 │   └── ADRs_AUDITORIA/
-│       └── ADR-A001.md            (decisiones vigentes)
+│       └── ADR-A001.md .. ADR-A003.md (decisiones vigentes)
 ├── _sdd/
 │   ├── 01_especificacion.md
 │   ├── 02_plan.md
@@ -72,9 +73,11 @@ docs_implementacion/
 └── transcripcion.md
 ```
 
-`backend/` hoy está sin código de aplicación; `mobile/` solo contiene el bootstrap
-con login local (`src/services/api.ts` → `http://10.13.18.97:6101`, `/api/auth/login`).
-**HITO-001 = Infraestructura base** (ver §7).
+`backend/` es la API Quarkus v2 (auth/usuarios bajo `/api/v1`, login 3 pasos rol→usuario→DNI,
+tabla `roles` + `usuarios.rol_id` V3, Super Admin id=1 inmune, 32 tests con Testcontainers);
+`mobile/` es la app RN CLI v2 (`src/services/ApiClient.ts` → `/api/v1`, token y URL en SecureStore
+vía keychain, ServerCheck/Settings de URL runtime, login 3 pasos, 27 tests).
+**HITO-001 = Infraestructura base** (cerrado) y **HITO-002 = Auth v2** (ver §7).
 
 ## 4. No usar (prohibido por decisión vigente)
 
@@ -103,11 +106,20 @@ Mobile  : npm run lint · npm test · gradle assembleRelease · KBuild
 
 ### Regla de tiempo de build (obligatoria)
 
+> El **protocolo completo de timebox/corte** para TODOS los comandos de verificación
+> (mvn test/package, lint, npm test, tsc, docker) está definido en
+> `OPENCode_orquestacion_agentes_proyecto_v2.md` §17.x "Protocolo de tiempos: timebox, corte y
+> continuidad". Principio: **no quemar tiempo innecesario** — excedido el timebox → CORTAR,
+> diagnosticar el porqué, documentar (Ley 5) y pasar a la siguiente tarea.
+
 - `gradle assembleRelease` (release cold ≈ 2-6 min): **si el APK release ya existe**
   (`mobile/android/app/build/outputs/apk/release/app-release.apk`) y el comando supera los
   **3 minutos**, el build debe **detenerse** y pasar a la siguiente tarea sin recompilar.
 - El artefacto ya construido se considera **válido como evidencia** (Ley 3: artefacto existente
   marcado como reconstruido; no re-compilar sin necesidad).
+- Excepción: si la tarea agrega un **módulo nativo nuevo** (ej. `react-native-keychain`), el APK
+  existente queda desactualizado → el build es OBLIGATORIO (timebox 12 min cold; si excede, cortar,
+  diagnosticar y marcar artefacto pendiente — Ley 3).
 - Si el APK NO existe y la tarea requiere APK, el build es obligatorio (timeout acorde, NO cortar).
 
 Si un comando no está disponible o falla por causa pre-existente, documentarlo en el análisis (Ley 5)
@@ -115,10 +127,14 @@ y reportar al Orchestrator; no "arreglarlo" en silencio.
 
 ## 7. Hitos e infraestructura actual
 
-- El repositorio **no tiene aún línea base de producto**: se parte por
-  **HITO-001 = scaffold backend (Quarkus) + mobile base (auth/navegación) + web base (React/Vite)
-  + autenticación JWT local + CI/CD base + convenciones verificadas**.
-- Ninguna tarea dependiente del HITO-001 puede ejecutarse antes de su validación (gate review integral).
+- **HITO-001 (cerrado, 2026-08-18) = Infraestructura base**: scaffold backend (Quarkus) +
+  mobile base (auth/navegación) + autenticación JWT local (tabla `usuarios` + super admin) +
+  convenciones verificadas (versión 1.0.0).
+- **HITO-002 (cerrado, 2026-08-19) = Auth v2**: login 3 pasos (rol→usuario→DNI), roles en tabla
+  (`roles` + `usuarios.rol_id`, Flyway V3), API `/api/v1` + OpenAPI, cambio de contraseña con nuevo
+  JWT, SecureStore/keychain + ServerCheck/Settings de URL runtime, Super Admin id=1 inmune
+  (ADR-A003); versión 1.1.0 + APK v2 (32 tests BE · 27 tests MO).
+- Web (React/Vite) y CI/CD siguen pendientes (próxima fase).
 - Los hitos se cierran con **auditoría integral PASS + verificación + `05_hito_NNN.md` + commit** coherente.
 - `versionHistory.js` es la fuente del historial visible al usuario (mobile existente); web la adoptará.
 
@@ -150,4 +166,4 @@ Estado del trabajo se recupera **desde disco** (docs + git), no de memoria de se
 - Rutas antiguas (`docs_sdd/`, `docs_diagramas/`, `docs_usuario/`, `perfil_desarrollador.md` suelto)
   quedaron **reemplazadas** por las carpetas `_`-prefijadas; no recrear las antiguas.
 - Commit al cierre del HITO (único, coherente). WIP opcional `feat(wip,n):` documentado.
-- Sin README creado hasta acá: `README.md` raíz describe el proyecto (se incorpora como parte de este trabajo).
+- `README.md` raíz describe el proyecto (estado actual, stack y pendientes); se actualiza al cierre de hitos.

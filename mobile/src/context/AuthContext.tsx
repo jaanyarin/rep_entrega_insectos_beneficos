@@ -1,85 +1,124 @@
-import React, {createContext, useContext, useState, useCallback} from 'react';
-import {cambiarPasswordApi, loginApi, Usuario} from '../services/api';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  changePassword,
+  clearToken,
+  extractErrorMessage,
+  getToken,
+  localLogin,
+  parseToken,
+  setToken,
+  setUnauthorizedHandler,
+  type AuthUser,
+} from '../services/ApiClient';
 
-interface AuthState {
-  token: string | null;
-  usuario: Usuario | null;
+interface AuthContextType {
+  /** Usuario decodificado del JWT (null = sin sesión). */
+  user: AuthUser | null;
+  /** `true` mientras se restaura la sesión persistida al arrancar. */
   loading: boolean;
   error: string | null;
-}
-
-interface AuthContextType extends AuthState {
-  login: (usuario: string, contrasena: string) => Promise<void>;
-  cambiarPassword: (dni: string, contrasenaActual?: string) => Promise<void>;
+  login: (usuarioId: number, password: string) => Promise<void>;
+  cambiarPassword: (
+    newPassword: string,
+    contrasenaActual?: string,
+  ) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Estado global de autenticación (HITO-002 / modelo reutilizable §8.1):
+ * - Al arrancar restaura la sesión leyendo el token desde el SecureStore.
+ * - `login(usuarioId, password)` → POST /auth/local-login → guarda el JWT en
+ *   Keychain y decodifica `user` (no depende de una respuesta con datos).
+ * - `cambiarPassword(...)` → POST /auth/change-password → guarda el NUEVO
+ *   token (ya sin `passwordResetRequired`) y refresca `user`.
+ * - Ante cualquier 401 global, `setUnauthorizedHandler` limpia la sesión.
+ */
 export function AuthProvider({children}: {children: React.ReactNode}) {
-  const [state, setState] = useState<AuthState>({
-    token: null,
-    usuario: null,
-    loading: false,
-    error: null,
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const login = useCallback(async (usuario: string, contrasena: string) => {
-    setState(prev => ({...prev, loading: true, error: null}));
+  // Restauración de sesión al arrancar + suscripción a 401 global.
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const token = await getToken();
+        if (mounted && token) {
+          setUser(parseToken(token));
+        }
+      } catch {
+        // Sin sesión persistida: flujo normal de login.
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    setUnauthorizedHandler(() => {
+      if (mounted) {
+        setUser(null);
+      }
+    });
+    return () => {
+      mounted = false;
+      setUnauthorizedHandler(null);
+    };
+  }, []);
+
+  const login = useCallback(async (usuarioId: number, password: string) => {
+    setError(null);
     try {
-      const data = await loginApi(usuario, contrasena);
-      setState({
-        token: data.token,
-        usuario: data.usuario,
-        loading: false,
-        error: null,
-      });
-    } catch (err: any) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: err.message || 'Error de conexión',
-      }));
+      const data = await localLogin(usuarioId, password);
+      await setToken(data.token);
+      setUser(parseToken(data.token));
+    } catch (err) {
+      setError(extractErrorMessage(err));
     }
   }, []);
 
   const cambiarPassword = useCallback(
-    async (dni: string, contrasenaActual?: string) => {
-      if (!state.token) {
-        setState(prev => ({...prev, error: 'Sesión no iniciada'}));
+    async (newPassword: string, contrasenaActual?: string) => {
+      setError(null);
+      if (!user) {
+        setError('Sesión no iniciada');
         return;
       }
-      setState(prev => ({...prev, loading: true, error: null}));
       try {
-        await cambiarPasswordApi(state.token, dni, contrasenaActual);
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          error: null,
-          usuario: prev.usuario
-            ? {...prev.usuario, dni, debeCambiarPassword: false}
-            : prev.usuario,
-        }));
-      } catch (err: any) {
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          error: err.message || 'Error al cambiar la contraseña',
-        }));
+        const data = await changePassword(newPassword, contrasenaActual);
+        // El backend emite un JWT FRESCO (sin passwordResetRequired):
+        // se persiste y se refresca el user para salir del flujo de reset.
+        await setToken(data.token);
+        setUser(parseToken(data.token));
+      } catch (err) {
+        setError(extractErrorMessage(err));
       }
     },
-    [state.token],
+    [user],
   );
 
   const logout = useCallback(() => {
-    setState({token: null, usuario: null, loading: false, error: null});
+    clearToken().catch(() => {});
+    setUser(null);
   }, []);
 
-  return (
-    <AuthContext.Provider value={{...state, login, cambiarPassword, logout}}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({user, loading, error, login, cambiarPassword, logout}),
+    [user, loading, error, login, cambiarPassword, logout],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

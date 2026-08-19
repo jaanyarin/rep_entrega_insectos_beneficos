@@ -17,17 +17,22 @@ import pe.sistema.insectosbeneficos.usuarios.dto.CrearUsuarioRequest;
 import pe.sistema.insectosbeneficos.usuarios.dto.UsuarioDto;
 
 /**
- * CRUD de usuarios con soft delete y RBAC (ADR-A002 D-AUTH-2/D-AUTH-5):
- * - SUPER_ADMIN: gestiona cualquier perfil (incluido SUPER_ADMIN).
- * - ADMIN: gestiona solo ADMIN y USUARIO (nunca SUPER_ADMIN).
- * - USUARIO: no accede (protegido por @RolesAllowed en el recurso).
+ * CRUD de usuarios con soft delete y RBAC (ADR-A002 D-AUTH-2/D-AUTH-5,
+ * adaptado a ADR-A003 D-AUTH2-1 con roles en tabla):
+ * - SUPER_ADMIN ("Super Admin"): gestiona cualquier rol (incluido SUPER_ADMIN).
+ * - ADMIN ("Admin"): gestiona solo Admin y Usuario (nunca Super Admin).
+ * - USUARIO ("Usuario"): no accede (protegido por @RolesAllowed en el recurso).
  *
  * SOBRE EL DELETE FISICO: aqui NO existe ningun metodo que borre filas.
- * "Eliminar" = estado INACTIVO. Las escrituras requieren @Transactional;
- * nunca se invoca Usuario.delete()/deleteById() (regla de seguridad).
+ * "Eliminar" = estado INACTIVO (soft delete). Las escrituras requieren
+ * @Transactional; nunca se invoca Usuario.delete()/deleteById() (regla de
+ * seguridad).
  *
- * Reglas de integridad (task BE-USR-001):
- * - No se puede desactivar el ultimo SUPER_ADMIN activo (400).
+ * Reglas de integridad (ADR-A003 D-AUTH2-6 + task INC-1 BE-006):
+ * - El seed id=1 (Super Admin) es INMUNE: no puede desactivarse ni eliminarse
+ *   (400 SEED_SUPER_ADMIN_INMUNE), ni por si mismo ni por otro Super Admin.
+ * - No se puede desactivar el ultimo SUPER_ADMIN activo (400) — regla que con
+ *   el seed inmune queda como defensa en profundidad para escenarios sin seed.
  * - No se puede desactivar la propia cuenta (400).
  * - No se puede crear/actualizar a SUPER_ADMIN desde ADMIN (403).
  */
@@ -36,6 +41,15 @@ public class UsuarioService {
 
     /** Contrasena por defecto al crear usuarios (ADR-A002 D-AUTH-3). */
     public static final String PASSWORD_DEFAULT = "00000000";
+
+    /** Literales con espacios (ADR-A003 D-AUTH2-1) — deben coincidir con
+     *  @RolesAllowed y con el claim "groups" del JWT. */
+    public static final String ROL_SUPER_ADMIN = "Super Admin";
+    public static final String ROL_ADMIN = "Admin";
+    public static final String ROL_USUARIO = "Usuario";
+
+    /** Seed inmune (ADR-A003 D-AUTH2-6): id=1 nunca se desactiva ni elimina. */
+    public static final Long ID_SEED_SUPER_ADMIN = 1L;
 
     @Inject
     ActualUsuario actual;
@@ -50,28 +64,38 @@ public class UsuarioService {
     // RBAC
     // ------------------------------------------------------------------
 
-    /** Valida que el actor pueda gestionar al perfil objetivo (403 si no). */
-    private void verificarPuedeGestionar(Perfil perfilObjetivo) {
-        Perfil actor = actual.getPerfil();
-        if (actor == Perfil.SUPER_ADMIN) {
+    /** Valida que el actor pueda gestionar el rol objetivo (403 si no). */
+    private void verificarPuedeGestionar(String rolObjetivo) {
+        String actor = actual.getRol();
+        if (ROL_SUPER_ADMIN.equals(actor)) {
             return;
         }
-        if (actor == Perfil.ADMIN && (perfilObjetivo == Perfil.ADMIN || perfilObjetivo == Perfil.USUARIO)) {
+        if (ROL_ADMIN.equals(actor) && (ROL_ADMIN.equals(rolObjetivo) || ROL_USUARIO.equals(rolObjetivo))) {
             return;
         }
         throw new ApiException(Response.Status.FORBIDDEN, "SIN_PERMISOS",
-                "No tiene permisos para gestionar el perfil " + perfilObjetivo);
+                "No tiene permisos para gestionar el perfil " + rolObjetivo);
     }
 
-    /** Regla de integridad: no desactivar el ultimo SUPER_ADMIN activo (400). */
+    /** Regla de integridad: no desactivar el ultimo SUPER_ADMIN activo (400).
+     *  Con el seed inmune (id=1) no deberia dispararse en el estado normal,
+     *  pero se conserva como defensa en profundidad (escenario sin seed). */
     private void verificarNoEsUltimoSuperAdminActivo(Usuario objetivo) {
-        if (objetivo.perfil != Perfil.SUPER_ADMIN) {
+        if (!ROL_SUPER_ADMIN.equals(objetivo.rol.nombre)) {
             return;
         }
-        long activos = Usuario.count("perfil = ?1 and estado = ?2", Perfil.SUPER_ADMIN, EstadoUsuario.ACTIVO);
+        long activos = Usuario.count("rol.nombre = ?1 and estado = ?2", ROL_SUPER_ADMIN, EstadoUsuario.ACTIVO);
         if (activos <= 1) {
             throw new ApiException(Response.Status.BAD_REQUEST, "ULTIMO_SUPER_ADMIN",
                     "No se puede desactivar el último SUPER_ADMIN activo");
+        }
+    }
+
+    /** Regla reforzada (ADR-A003 D-AUTH2-6): el seed id=1 no se desactiva ni elimina. */
+    private void verificarSeedInmune(Usuario objetivo) {
+        if (ID_SEED_SUPER_ADMIN.equals(objetivo.id)) {
+            throw new ApiException(Response.Status.BAD_REQUEST, "SEED_SUPER_ADMIN_INMUNE",
+                    "El Super Admin inicial no puede desactivarse ni eliminarse");
         }
     }
 
@@ -81,6 +105,18 @@ public class UsuarioService {
             throw new ApiException(Response.Status.BAD_REQUEST, "NO_AUTO_DESACTIVACION",
                     "No puede desactivar su propio usuario");
         }
+    }
+
+    /** Busca el rol por id; null -> 404 (referencia invalida en la solicitud). */
+    private Rol buscarRol(Long rolId) {
+        if (rolId == null) {
+            throw new ApiException(Response.Status.BAD_REQUEST, "ROL_NO_ENCONTRADO", "El rol es obligatorio");
+        }
+        Rol r = Rol.findById(rolId);
+        if (r == null) {
+            throw new ApiException(Response.Status.NOT_FOUND, "ROL_NO_ENCONTRADO", "Rol no encontrado");
+        }
+        return r;
     }
 
     /**
@@ -108,40 +144,39 @@ public class UsuarioService {
     // Listado / detalle
     // ------------------------------------------------------------------
 
-    public List<UsuarioDto> listar(String estado, String perfil) {
-        List<Usuario> lista = buscar(estado, perfil);
-        Perfil actor = actual.getPerfil();
-        if (actor == Perfil.ADMIN) {
-            // ADMIN solo ve ADMIN/USUARIO (nunca SUPER_ADMIN)
-            lista = lista.stream().filter(u -> u.perfil != Perfil.SUPER_ADMIN).toList();
+    public List<UsuarioDto> listar(String estado, Long rolId) {
+        List<Usuario> lista = buscar(estado, rolId);
+        String actor = actual.getRol();
+        if (ROL_ADMIN.equals(actor)) {
+            // ADMIN solo ve Admin/Usuario (nunca Super Admin)
+            lista = lista.stream().filter(u -> !ROL_SUPER_ADMIN.equals(u.rol.nombre)).toList();
         }
         return lista.stream().map(mapper::toDto).toList();
     }
 
-    private List<Usuario> buscar(String estado, String perfil) {
-        EstadoUsuario est = parseEnum(EstadoUsuario.class, estado, "estado");
-        Perfil pf = parseEnum(Perfil.class, perfil, "perfil");
-        if (est != null && pf != null) {
-            return Usuario.list("estado = ?1 and perfil = ?2 order by id", est, pf);
+    private List<Usuario> buscar(String estado, Long rolId) {
+        EstadoUsuario est = parseEstado(estado);
+        if (est != null && rolId != null) {
+            return Usuario.list("estado = ?1 and rol.id = ?2 order by id", est, rolId);
         }
         if (est != null) {
             return Usuario.list("estado = ?1 order by id", est);
         }
-        if (pf != null) {
-            return Usuario.list("perfil = ?1 order by id", pf);
+        if (rolId != null) {
+            return Usuario.list("rol.id = ?1 order by id", rolId);
         }
         return Usuario.list("order by id");
     }
 
-    private <E extends Enum<E>> E parseEnum(Class<E> tipo, String valor, String nombreCampo) {
+    private EstadoUsuario parseEstado(String valor) {
         if (valor == null || valor.isBlank()) {
             return null;
         }
         try {
-            return Enum.valueOf(tipo, valor);
+            return EstadoUsuario.valueOf(valor);
         } catch (IllegalArgumentException e) {
             throw new ApiException(Response.Status.BAD_REQUEST, "DATOS_INVALIDOS",
-                    "Valor inválido para " + nombreCampo + ": " + valor);
+                    "Valor inválido para estado: " + valor);
         }
     }
 
@@ -150,7 +185,7 @@ public class UsuarioService {
         if (u == null) {
             throw new ApiException(Response.Status.NOT_FOUND, "USUARIO_NO_ENCONTRADO", "Usuario no encontrado");
         }
-        verificarPuedeGestionar(u.perfil);
+        verificarPuedeGestionar(u.rol.nombre);
         return mapper.toDto(u);
     }
 
@@ -163,7 +198,9 @@ public class UsuarioService {
         if (req.dni != null && !req.dni.isBlank()) {
             validarDni(req.dni);
         }
-        verificarPuedeGestionar(req.perfil);
+        Rol rol = buscarRol(req.rolId);
+        verificarPuedeGestionar(rol.nombre);
+
         Usuario existente = Usuario.find("usuario", req.usuario.trim()).firstResult();
         if (existente != null) {
             throw new ApiException(Response.Status.CONFLICT, "USUARIO_YA_EXISTE",
@@ -173,7 +210,7 @@ public class UsuarioService {
         Usuario u = new Usuario();
         u.usuario = req.usuario.trim();
         u.nombre = req.nombre.trim();
-        u.perfil = req.perfil;
+        u.rol = rol;
         // Password SIEMPRE el default 00000000 hasheado (no se acepta otro en creacion)
         u.contrasenaHash = bcrypt.hash(PASSWORD_DEFAULT);
         u.debeCambiarPassword = true;
@@ -194,8 +231,9 @@ public class UsuarioService {
         if (u == null) {
             throw new ApiException(Response.Status.NOT_FOUND, "USUARIO_NO_ENCONTRADO", "Usuario no encontrado");
         }
-        verificarPuedeGestionar(u.perfil);
-        verificarPuedeGestionar(req.perfil);
+        verificarPuedeGestionar(u.rol.nombre);
+        Rol nuevoRol = buscarRol(req.rolId);
+        verificarPuedeGestionar(nuevoRol.nombre);
 
         if (!u.usuario.equals(req.usuario.trim())) {
             Usuario existente = Usuario.find("usuario", req.usuario.trim()).firstResult();
@@ -207,13 +245,14 @@ public class UsuarioService {
 
         if (req.estado == EstadoUsuario.INACTIVO) {
             // Mismas reglas de integridad que el soft delete (DELETE): no bypass por PUT
+            verificarSeedInmune(u);
             verificarNoEsUltimoSuperAdminActivo(u);
             verificarNoAutoDesactivacion(u);
         }
 
         u.usuario = req.usuario.trim();
         u.nombre = req.nombre.trim();
-        u.perfil = req.perfil;
+        u.rol = nuevoRol;
         u.estado = req.estado;
         u.updatedAt = java.time.Instant.now();
         u.persist();
@@ -230,11 +269,12 @@ public class UsuarioService {
         if (u == null) {
             throw new ApiException(Response.Status.NOT_FOUND, "USUARIO_NO_ENCONTRADO", "Usuario no encontrado");
         }
-        verificarPuedeGestionar(u.perfil);
+        verificarPuedeGestionar(u.rol.nombre);
         if (u.estado == EstadoUsuario.INACTIVO) {
             throw new ApiException(Response.Status.BAD_REQUEST, "USUARIO_YA_INACTIVO", "El usuario ya está inactivo");
         }
-        // Integridad primero: ultimo SUPER_ADMIN activo, luego auto-desactivacion.
+        // Integridad primero: seed inmune -> ultimo SUPER_ADMIN -> auto-desactivacion.
+        verificarSeedInmune(u);
         verificarNoEsUltimoSuperAdminActivo(u);
         verificarNoAutoDesactivacion(u);
 

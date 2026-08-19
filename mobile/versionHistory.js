@@ -6,6 +6,17 @@
 
 const versionHistory = [
   {
+    version: '1.1.0',
+    fecha: '2026-08-19',
+    cambios: [
+      'Login en 3 pasos: rol → usuario → DNI, con roles Super Admin / Admin / Usuario.',
+      'URL del servidor configurable en runtime (ServerCheck / Settings).',
+      'SecureStore con react-native-keychain para el token JWT.',
+      'Axios con interceptores: 401 → cierre de sesión y timeout de 15 segundos.',
+      'Backend en /api/v1 con autenticación v2 (JWT local).',
+    ],
+  },
+  {
     version: '1.0.0',
     fecha: '2026-08-18',
     cambios: [

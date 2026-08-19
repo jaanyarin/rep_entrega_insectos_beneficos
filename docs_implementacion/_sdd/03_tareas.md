@@ -56,8 +56,9 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | Orden | Componente |
 |---|---|
 | 1 | Vertical 1: usuarios/autenticación (HITO-001) — CERRADA |
-| 2 | Web + CI/CD |
-| 3 | Requerimientos / programación / evidencias |
+| 2 | Auth v2: login 3 pasos + roles tabla + URL runtime + /api/v1 (HITO-002) — EN CURSO |
+| 3 | Web + CI/CD |
+| 4 | Requerimientos / programación / evidencias |
 
 ---
 
@@ -75,6 +76,7 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 |---|---|---|
 | BD-001 | Migración V1 usuarios (enums, timestamps, soft delete) | Alta — Completado |
 | BD-002 | Migración V2 seed SUPER_ADMIN (Admin PowerApps / 00000000) | Alta — Completado |
+| BD-003 | Migración V3: tabla `roles` (3 literales con espacios) + `usuarios.rol_id` FK + migración de datos + rollback documentado (H12) | Alta — Completado (HITO-002) |
 
 ---
 
@@ -83,10 +85,13 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | ID | Tarea | Prioridad |
 |---|---|---|
 | BE-001 | Scaffold Quarkus + Maven Wrapper | Alta — Completado |
-| BE-002 | Login JWT local por `usuario` (anti-enumeración, inactivo→403) | Alta — Completado |
+| BE-002 | Login JWT local por `usuario` (anti-enumeración, inactivo→403) | Alta — Completado (reemplazado por BE-006 en v2) |
 | BE-003 | Cambio de contraseña obligatorio (DNI máx 8) | Alta — Completado |
 | BE-004 | CRUD usuarios con RBAC y soft delete | Alta — Completado |
 | BE-005 | Tests REST (26) + package jar | Alta — Completado |
+| BE-006 | Auth v2 (ADR-A003): tabla roles, login 3 pasos (`roles`, `usuarios-by-rol/{rolId}`, `local-login`), `change-password` → nuevo JWT, claims (groups/rolId/dni/passwordResetRequired), Super Admin id=1 inmune | Alta — Completado (HITO-002) |
+| BE-007 | `/api/v1` en todo el API + `quarkus-smallrye-openapi` (resuelve H5) | Alta — Completado (HITO-002) |
+| BE-008 | Tests auth v2 actualizados/ampliados (roles, usuarios-by-rol, local-login, change-password+JWT, id=1 inmune) | Alta — Completado (HITO-002) |
 
 ---
 
@@ -95,10 +100,15 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | ID | Tarea | Prioridad | Estado |
 |---|---|---|---|
 | MO-001 | Navegación react-navigation (auth flow) | Alta | Completado |
-| MO-002 | Login por usuario+contraseña | Alta | Completado |
-| MO-003 | Cambio de contraseña obligatorio (DNI) | Alta | Completado |
+| MO-002 | Login por usuario+contraseña | Alta | Completado (reemplazado por MO-006 en v2) |
+| MO-003 | Cambio de contraseña obligatorio (DNI) | Alta | Completado (adaptado en v2: usa nuevo JWT) |
 | MO-004 | Homes por perfil (2 botones / 2 divs SUPER_ADMIN) | Alta | Completado |
 | MO-005 | Lint + tests + APK (evidencia existente) | Alta | Completado |
+| MO-006 | Login v2 3 pasos (rol→usuario→DNI, autocompleta 00000000) | Alta | Completado (HITO-002) |
+| MO-007 | `react-native-keychain` (token+URL seguros) + axios interceptors (baseURL, Bearer, 401→cleanup, timeout 15s) | Alta | Completado (HITO-002) |
+| MO-008 | ServerCheckScreen + SettingsScreen/Configurar servidor (URL runtime) | Alta | Completado (HITO-002) |
+| MO-009 | AuthContext `refreshUser(token)` + `utils/roles.js` (isSuperAdmin/isAdminOrSuperAdmin) + navegación condicional | Alta | Completado (HITO-002) |
+| MO-010 | Lint + tests + **APK v2 rebuild OBLIGATORIO** (keychain nativo) | Alta | Completado (HITO-002) |
 
 ---
 
@@ -116,7 +126,8 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 |---|---|---|
 | SEG-001 | JWT HS256 + RBAC por perfil | Alta — Completado |
 | SEG-002 | Secrets por env + rate limiting + CORS explícito | Alta — Pendiente (deuda H10) |
-| SEG-003 | Secure Storage + firma release móvil | Alta — Pendiente (deuda H9) |
+| SEG-003 | Secure Storage (keychain) + token/URL seguros + 401 cleanup | Alta — Completado (HITO-002, resuelve H9 parcial) |
+| SEG-004 | Super Admin seed id=1 inmune (no desactivar/eliminar) | Alta — Completado (HITO-002) |
 
 ---
 
@@ -125,6 +136,9 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | ID | Tarea | Prioridad |
 |---|---|---|
 | AUD-001 | Gate review integral HITO-001 | Alta — Completado (PASS condicionado, 0 críticos) |
+| AUD-002 | Gate review INC-1 (backend v2) | Alta — Completado (PASS condicionado: M1 remediado, M2-M4 deuda) |
+| AUD-003 | Gate review INC-2 (mobile v2) | Alta — Completado (PASS condicionado: F1/F2 remediados) |
+| AUD-004 | Auditoría integral HITO-002 | Alta — Completado (PASS técnico integral, 0 críticos/0 altos) |
 
 ---
 
@@ -158,6 +172,7 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 |---|---|---|
 | QA-001 | Tests flujos críticos mobile (RNTL) | Alta — Pendiente (deuda H6) |
 | QA-002 | Cobertura backend con jacoco | Media — Pendiente (deuda H17) |
+| QA-003 | Tests auth v2 mobile (login 3 pasos, ServerCheck, cambio password→nuevo JWT) | Alta — Completado (HITO-002) |
 
 ---
 

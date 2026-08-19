@@ -74,6 +74,11 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-arc</artifactId>
         </dependency>
+        <!-- OpenAPI / Swagger UI (ADR-A003 D-AUTH2-5; resuelve deuda H5) -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-openapi</artifactId>
+        </dependency>
         <!-- BCrypt (hash de contrasenas) -->
         <dependency>
             <groupId>at.favre.lib</groupId>

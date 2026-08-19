@@ -5,7 +5,8 @@
 
 # 1. Objetivo del Plan
 
-Plan del HITO-001 (línea base + vertical 1: usuarios/autenticación). Define alcance, estrategia,
+Plan del HITO-001 (línea base + vertical 1: usuarios/autenticación) y HITO-002
+(auth v2: login 3 pasos + roles en tabla + URL runtime + /api/v1). Define alcance, estrategia,
 fases y riesgos antes de tocar código (Ley 1 — análisis previo obligatorio).
 
 ---
@@ -83,6 +84,7 @@ mobile (RN CLI) ──► backend API Quarkus (:6101) ──► PostgreSQL 16 (D
 | Fase | Objetivo |
 |---|---|
 | F1 — Línea base + Vertical 1 (HITO-001) | Scaffold backend + BD Docker + auth + CRUD usuarios + homes mobile (CERRADO 2026-08-18) |
+| F1.5 — Auth v2 (HITO-002) | Login 3 pasos (Perfil→Usuario→DNI), tabla roles, URL runtime + SecureStore + ServerCheck/Settings, /api/v1 + OpenAPI, APK v2 (EN CURSO 2026-08-19, ADR-A003) |
 | F2 — Web + CI/CD | Scaffold web React/Vite + GitHub Actions (pendiente) |
 | F3 — Módulos funcionales | Requerimientos, programación, evidencias (pendiente, a coordinar) |
 
@@ -163,3 +165,25 @@ mobile (RN CLI) ──► backend API Quarkus (:6101) ──► PostgreSQL 16 (D
 ---
 
 # 20. Consideraciones Finales
+
+# 21. Protocolo de Checks con Tiempos (HITO-002 — Orquestación)
+
+> **Fuente única de la regla**: `OPENCode_orquestacion_agentes_proyecto_v2.md` §17.x
+> "Protocolo de tiempos: timebox, corte y continuidad" (puede ampliarse aquí solo con valores
+> específicos del HITO). Regla global: **todo comando largo con timebox; si se excede → CORTAR,
+> diagnosticar el PORQUÉ, documentar (Ley 5) y pasar al siguiente paso**, salvo pasos bloqueantes.
+
+| # | Chequeo | Comando | Timebox | Si excede el timebox |
+|---|---|---|---|---|
+| C1 | BD Docker arriba | `docker compose ps` | 30 s | Diagnosticar (`docker compose logs postgres`), documentar, reintentar 1×; si sigue caída → bloquear (BD obligatoria) |
+| C2 | Backend compila + tests | `.\mvnw.cmd test` (en `backend/`) | **8 min** (cold con Testcontainers) / 3 min (warm) | Cortar → leer logs/junit reports → documentar causa → decidir: fix rápido (Ley 4) o re-auditar; tests obligatorios para cierre |
+| C3 | Backend empaqueta | `.\mvnw.cmd clean package -DskipTests` | 6 min | Cortar → revisar errores Maven → documentar; si el jar no se genera, el artefacto queda "pendiente marcado" (Ley 3) |
+| C4 | Lint mobile | `npm run lint` (en `mobile/`) | 2 min | Cortar → leer errores → corregir puntuales o documentar deuda (Ley 5) |
+| C5 | Tests mobile | `npm test` (en `mobile/`) | 2 min | Cortar → leer reporte → documentar; test obligatorio para cierre |
+| C6 | APK release v2 | `gradlew.bat assembleRelease` (en `mobile/android/`) | **12 min cold** (regla AGENTS §6: APK nuevo con módulo nativo keychain = build OBLIGATORIO; si ya existiera un APK v2 y pasara 3 min → cortar y usar artefacto existente) | Cortar → verificar `app-release.apk` timestamp vs código, diagnóstico (¿keychain ndk?, ¿red Gradle?), documentar; artefacto v2 es evidencia de cierre (G-MOB-BUILD/G-APK) |
+| C7 | Docs sincronizadas (G-DOC-SYNC) | `grep` versión en package.json/build.gradle/versionHistory/04/05 | 2 min | Corregir discrepancias antes del commit (bloqueante solo al cierre) |
+| C8 | Gate review discreción (debido proceso: `npx tsc --noEmit`, `docker compose build`) | discrecional | ≤5 min c/u | Documentar causa y continuar con hallazgo registrado |
+
+Regla de decisión: C2/C5/C8 tienen veredicto **PASS/FAIL** (FAIL bloquea cierre). C3/C6/C7 pueden
+dejar **estado pendiente documentado** (Ley 3) y continuar el flujo; se resuelven antes del commit
+final. C1/C4 no bloquean el HITO pero se documentan.

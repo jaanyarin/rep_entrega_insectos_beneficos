@@ -1,8 +1,11 @@
 import React from 'react';
+import {ActivityIndicator, StyleSheet, View} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useAuth} from '../context/AuthContext';
+import ServerCheckScreen from '../screens/ServerCheckScreen';
 import LoginScreen from '../screens/LoginScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import CambiarPasswordScreen from '../screens/CambiarPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
@@ -11,26 +14,53 @@ import type {RootStackParamList} from './types';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 /**
- * Navegación condicional por estado de autenticación (patrón oficial de
- * react-navigation para auth flows):
- * - Sin token        → Login.
- * - Token + debe cambiar password → CambiarPassword (única pantalla del
- *   stack, sin header y sin gesto de retroceso: no se puede saltar).
- * - Token + normal   → Home según perfil + 4 placeholders.
+ * Navegación condicional por estado de autenticación (modelo reutilizable
+ * §8.3 + ADR-A003):
+ * - Sin sesión               → ServerCheck → Login (+ Configurar servidor).
+ * - Sesión con reset de pwd  → CambiarPassword (única pantalla, sin back).
+ * - Sesión normal            → Home según perfil + placeholders + Settings.
+ * La `key` del Navigator fuerza el remontaje del stack en cada transición de
+ * estado para evitar restos de historial entre flujos.
  */
 export default function RootNavigator() {
-  const {token, usuario} = useAuth();
+  const {user, loading} = useAuth();
+
+  if (loading) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" color="#1a5c2a" />
+      </View>
+    );
+  }
+
+  const navigationKey = !user
+    ? 'anon'
+    : user.passwordResetRequired
+      ? `reset-${user.sub ?? 'user'}`
+      : `home-${user.sub ?? 'user'}`;
 
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        {!token ? (
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{headerShown: false}}
-          />
-        ) : usuario?.debeCambiarPassword ? (
+      <Stack.Navigator key={navigationKey}>
+        {!user ? (
+          <>
+            <Stack.Screen
+              name="ServerCheck"
+              component={ServerCheckScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="ConfigurarServidor"
+              component={SettingsScreen}
+              options={{title: 'Configurar servidor'}}
+            />
+          </>
+        ) : user.passwordResetRequired ? (
           <Stack.Screen
             name="CambiarPassword"
             component={CambiarPasswordScreen}
@@ -63,9 +93,23 @@ export default function RootNavigator() {
               component={PlaceholderScreen}
               options={{title: 'Solicitud de Requerimientos'}}
             />
+            <Stack.Screen
+              name="ConfigurarServidor"
+              component={SettingsScreen}
+              options={{title: 'Configurar servidor'}}
+            />
           </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});

@@ -23,13 +23,14 @@ import pe.sistema.insectosbeneficos.usuarios.dto.CrearUsuarioRequest;
 import pe.sistema.insectosbeneficos.usuarios.dto.UsuarioDto;
 
 /**
- * CRUD de usuarios. Solo SUPER_ADMIN y ADMIN (la regla fina por perfil vive
- * en UsuarioService: ADMIN no gestiona SUPER_ADMIN).
+ * CRUD de usuarios bajo /api/v1 (ADR-A003 D-AUTH2-5). Solo SUPER_ADMIN y ADMIN
+ * (la regla fina por rol vive en UsuarioService: ADMIN no gestiona SUPER_ADMIN).
  * El soft delete es DELETE -> estado INACTIVO (nunca borrado fisico).
- * La validacion de los DTOs se hace via Validacion (formato {codigo,mensaje}).
+ * Los literales de @RolesAllowed coinciden EXACTAMENTE con los nombres de la
+ * tabla `roles` y con el claim "groups" del JWT (ADR-A003 D-AUTH2-1).
  */
-@Path("/api/usuarios")
-@RolesAllowed({ "SUPER_ADMIN", "ADMIN" })
+@Path("/api/v1/usuarios")
+@RolesAllowed({ "Super Admin", "Admin" })
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class UsuarioResource {
@@ -41,8 +42,8 @@ public class UsuarioResource {
     Validacion validacion;
 
     @GET
-    public List<UsuarioDto> listar(@QueryParam("estado") String estado, @QueryParam("perfil") String perfil) {
-        return service.listar(estado, perfil);
+    public List<UsuarioDto> listar(@QueryParam("estado") String estado, @QueryParam("rolId") Long rolId) {
+        return service.listar(estado, rolId);
     }
 
     @GET
