@@ -65,36 +65,40 @@ export default function BottomNavigation({active}: Props) {
       {tabs.map(tab => {
         const selected = isActive(tab.key);
         return (
-          <TouchableOpacity
-            key={tab.key}
-            style={styles.slot}
-            onPress={() => navigation.navigate(tab.key)}
-            accessibilityRole="tab"
-            accessibilityLabel={tab.label}
-            accessibilityState={{selected}}
-            testID={`bottom-tab-${tab.key}`}>
-            <MaterialCommunityIcons
-              name={selected ? tab.iconActive : tab.iconInactive}
-              size={24}
-              color={
-                selected
-                  ? theme.colors.action.secondary
-                  : theme.colors.text.tertiary
-              }
+          <React.Fragment key={tab.key}>
+            <TouchableOpacity
+              style={styles.slot}
+              onPress={() => navigation.navigate(tab.key)}
+              accessibilityRole="tab"
               accessibilityLabel={tab.label}
-            />
-            <Text
-              style={[
-                styles.label,
-                {color: selected ? theme.colors.action.secondary : theme.colors.text.tertiary},
-              ]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
+              accessibilityState={{selected}}
+              testID={`bottom-tab-${tab.key}`}>
+              <MaterialCommunityIcons
+                name={selected ? tab.iconActive : tab.iconInactive}
+                size={24}
+                color={
+                  selected
+                    ? theme.colors.action.secondary
+                    : theme.colors.text.tertiary
+                }
+                accessibilityLabel={tab.label}
+              />
+              <Text
+                style={[
+                  styles.label,
+                  {color: selected ? theme.colors.action.secondary : theme.colors.text.tertiary},
+                ]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+            {/* Slot 2 VACÍO (V4): tras Home, ocupa su 1/4 sin icono, sin
+                label y sin navegación. */}
+            {tab.key === 'Home' ? (
+              <View style={styles.slot} testID="bottom-tab-vacio" />
+            ) : null}
+          </React.Fragment>
         );
       })}
-      {/* Slot 2 VACÍO (V4): ocupa su 1/4 sin icono, sin label y sin navegación. */}
-      <View style={styles.slot} testID="bottom-tab-vacio" />
     </View>
   );
 }

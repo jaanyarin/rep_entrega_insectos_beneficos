@@ -28,9 +28,11 @@ type Status = 'checking' | 'error' | 'ready';
  * muestra el formulario para ingresar/guardar la URL de la API y reintentar.
  * Requiere conectividad (no existe capa offline — AGENTS.md §4).
  *
- * HITO-003: thema Vanguard (§18 card radius 16/shadow z2, tokens), SafeArea,
- * `keyboardShouldPersistTaps="handled"` (bug 3 UX doble toque) y V6: back
- * físico interceptado (pantalla raíz del stack anónimo → NO cierra la app).
+ * HITO-003: tema Vanguard (§18 card radius 16/shadow z2, tokens), SafeArea y
+ * V6: back físico interceptado (pantalla raíz del stack anónimo → NO cierra
+ * la app). El bug 3 (doble toque) se resuelve en LoginScreen: su ScrollView
+ * sí lleva `keyboardShouldPersistTaps="handled"`; en esta pantalla no aplica
+ * porque no tiene ScrollView.
  */
 export default function ServerCheckScreen() {
   const navigation = useNavigation<Navigation>();

@@ -12,6 +12,10 @@ const versionHistory = [
       'Nuevo sistema visual Vanguard con fuentes Poppins e iconos Material Community.',
       'Navegación inferior Home, slot vacío, Catálogos y Perfil.',
       'Perfil con información de versión y confirmación para cerrar sesión.',
+      'Corrección de doble toque en el inicio de sesión (el teclado ya no bloquea el botón Ingresar).',
+      'Pantallas respetan las barras del sistema (safe areas) y el botón atrás ya no cierra la aplicación.',
+      'Perfil completo: avatar, historial de versiones y cierre de sesión con confirmación.',
+      'Catálogos y navegación inferior con espacio reservado para un cuarto acceso.',
     ],
   },
   {

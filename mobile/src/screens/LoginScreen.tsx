@@ -1,15 +1,16 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useAuth} from '../context/AuthContext';
@@ -21,6 +22,10 @@ import {
   type UsuarioRolDto,
 } from '../services/ApiClient';
 import type {RootStackParamList} from '../navigation/types';
+import AppButton from '../components/AppButton';
+import AppCard from '../components/AppCard';
+import AppInput from '../components/AppInput';
+import {theme} from '../theme';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -34,6 +39,11 @@ const DEFAULT_PASSWORD = '00000000';
  *      si el usuario trae `passwordResetRequired`, se autocompleta `00000000`;
  *  (c) contraseña numérica (máx 8 dígitos) → POST /auth/local-login.
  * Incluye acceso a "Configurar servidor" (Settings) para primer uso.
+ *
+ * HITO-003 (delta): SafeArea (bug 1), `keyboardShouldPersistTaps="handled"`
+ * (corrige bug 3: doble toque al presionar "Iniciar sesión" — el primer tap
+ * solo descartaba el teclado) y tema Vanguard completo (tokens, AppCard,
+ * AppInput, AppButton; sin hardcodes de la paleta antigua).
  */
 export default function LoginScreen() {
   const navigation = useNavigation<Navigation>();
@@ -65,6 +75,13 @@ export default function LoginScreen() {
   useEffect(() => {
     loadRoles();
   }, [loadRoles]);
+
+  // V6: back físico en la raíz del stack anónimo (tras `replace` de
+  // ServerCheck) → interceptar (el back no debe cerrar la app).
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, []);
 
   const handleSelectRol = async (rolId: number) => {
     setSelectedRolId(rolId);
@@ -124,229 +141,202 @@ export default function LoginScreen() {
   const showError = error || localError;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Iniciar Sesión</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled">
+          <AppCard style={styles.card}>
+            <Text style={styles.title}>Iniciar Sesión</Text>
 
-          {showError && <Text style={styles.error}>{showError}</Text>}
+            {showError && <Text style={styles.error}>{showError}</Text>}
 
-          {fetching ? (
-            <ActivityIndicator size="large" color="#1a5c2a" />
-          ) : (
-            <>
-              {/* Paso (a): selección de perfil */}
-              {selectedRolId === null ? (
-                <View>
-                  <Text style={styles.stepTitle}>1. Seleccione su perfil</Text>
-                  {roles.length === 0 && !fetching ? (
-                    <Text style={styles.emptyText}>
-                      No hay perfiles disponibles.
+            {fetching ? (
+              <ActivityIndicator
+                size="large"
+                color={theme.colors.action.secondary}
+              />
+            ) : (
+              <>
+                {/* Paso (a): selección de perfil */}
+                {selectedRolId === null ? (
+                  <View>
+                    <Text style={styles.stepTitle}>
+                      1. Seleccione su perfil
                     </Text>
-                  ) : null}
-                  {roles.map(rol => (
-                    <TouchableOpacity
-                      key={rol.id}
-                      style={styles.optionButton}
-                      onPress={() => handleSelectRol(rol.id)}
-                      accessibilityLabel={`Perfil ${rol.nombre}`}>
-                      <Text style={styles.optionText}>{rol.nombre}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : (
-                <>
-                  {/* Paso (b): selección de usuario del rol */}
-                  {selectedUsuarioId === null ? (
-                    <View>
-                      <Text style={styles.stepTitle}>
-                        Paso 2 de 3 — Seleccione su usuario
+                    {roles.length === 0 && !fetching ? (
+                      <Text style={styles.emptyText}>
+                        No hay perfiles disponibles.
                       </Text>
-                      {usuarios.length === 0 && !fetching ? (
-                        <Text style={styles.emptyText}>
-                          No hay usuarios en este perfil.
+                    ) : null}
+                    {roles.map(rol => (
+                      <TouchableOpacity
+                        key={rol.id}
+                        style={styles.optionButton}
+                        onPress={() => handleSelectRol(rol.id)}
+                        accessibilityLabel={`Perfil ${rol.nombre}`}>
+                        <Text style={styles.optionText}>{rol.nombre}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <>
+                    {/* Paso (b): selección de usuario del rol */}
+                    {selectedUsuarioId === null ? (
+                      <View>
+                        <Text style={styles.stepTitle}>
+                          Paso 2 de 3 — Seleccione su usuario
                         </Text>
-                      ) : null}
-                      {usuarios.map(usuario => (
-                        <TouchableOpacity
-                          key={usuario.id}
-                          style={styles.optionButton}
-                          onPress={() => handleSelectUsuario(usuario)}
-                          accessibilityLabel={`Usuario ${usuario.nombre}`}>
-                          <Text style={styles.optionText}>
-                            {usuario.nombre}
+                        {usuarios.length === 0 && !fetching ? (
+                          <Text style={styles.emptyText}>
+                            No hay usuarios en este perfil.
                           </Text>
-                        </TouchableOpacity>
-                      ))}
-                      <TouchableOpacity
-                        style={styles.linkButton}
-                        onPress={backToRoles}
-                        accessibilityLabel="Volver a seleccionar perfil">
-                        <Text style={styles.linkText}>← Volver a perfiles</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    /* Paso (c): contraseña numérica (DNI, máx 8) */
-                    <View>
-                      <Text style={styles.stepTitle}>
-                        Paso 3 de 3 — Ingrese su contraseña
-                      </Text>
+                        ) : null}
+                        {usuarios.map(usuario => (
+                          <TouchableOpacity
+                            key={usuario.id}
+                            style={styles.optionButton}
+                            onPress={() => handleSelectUsuario(usuario)}
+                            accessibilityLabel={`Usuario ${usuario.nombre}`}>
+                            <Text style={styles.optionText}>
+                              {usuario.nombre}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                        <AppButton
+                          label="← Volver a perfiles"
+                          variant="text"
+                          onPress={backToRoles}
+                          accessibilityLabel="Volver a seleccionar perfil"
+                        />
+                      </View>
+                    ) : (
+                      /* Paso (c): contraseña numérica (DNI, máx 8) */
+                      <View>
+                        <Text style={styles.stepTitle}>
+                          Paso 3 de 3 — Ingrese su contraseña
+                        </Text>
 
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Contraseña (DNI)"
-                        placeholderTextColor="#999"
-                        value={password}
-                        onChangeText={text =>
-                          setPassword(
-                            text.replace(/[^0-9]/g, '').slice(0, MAX_PASSWORD_LENGTH),
-                          )
-                        }
-                        secureTextEntry
-                        keyboardType="number-pad"
-                        maxLength={MAX_PASSWORD_LENGTH}
-                        accessibilityLabel="Contraseña"
-                      />
+                        <AppInput
+                          placeholder="Contraseña (DNI)"
+                          value={password}
+                          onChangeText={text =>
+                            setPassword(
+                              text
+                                .replace(/[^0-9]/g, '')
+                                .slice(0, MAX_PASSWORD_LENGTH),
+                            )
+                          }
+                          secureTextEntry
+                          keyboardType="number-pad"
+                          maxLength={MAX_PASSWORD_LENGTH}
+                          accessibilityLabel="Contraseña"
+                        />
 
-                      <TouchableOpacity
-                        style={[
-                          styles.button,
-                          loading && styles.buttonDisabled,
-                        ]}
-                        onPress={handleLogin}
-                        disabled={loading}
-                        accessibilityLabel="Iniciar sesión">
-                        {loading ? (
-                          <ActivityIndicator color="#fff" />
-                        ) : (
-                          <Text style={styles.buttonText}>Iniciar sesión</Text>
-                        )}
-                      </TouchableOpacity>
+                        <AppButton
+                          label="Iniciar sesión"
+                          onPress={handleLogin}
+                          loading={loading}
+                          accessibilityLabel="Iniciar sesión"
+                        />
 
-                      <TouchableOpacity
-                        style={styles.linkButton}
-                        onPress={backToUsuarios}
-                        accessibilityLabel="Volver a seleccionar usuario">
-                        <Text style={styles.linkText}>← Volver a usuarios</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </>
-              )}
+                        <AppButton
+                          label="← Volver a usuarios"
+                          variant="text"
+                          onPress={backToUsuarios}
+                          accessibilityLabel="Volver a seleccionar usuario"
+                        />
+                      </View>
+                    )}
+                  </>
+                )}
 
-              {/* Configuración del servidor (runtime) */}
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={() => navigation.navigate('ConfigurarServidor')}
-                accessibilityLabel="Configurar servidor">
-                <Text style={styles.linkText}>Configurar servidor</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+                {/* Configuración del servidor (runtime) */}
+                <AppButton
+                  label="Configurar servidor"
+                  variant="text"
+                  onPress={() => navigation.navigate('ConfigurarServidor')}
+                  accessibilityLabel="Configurar servidor"
+                />
+              </>
+            )}
+          </AppCard>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background.page,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#1a5c2a',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: theme.spacing[5],
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
     width: '100%',
     maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing[6],
+    backgroundColor: theme.colors.background.authOverlay,
+    ...theme.shadows.z2,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1a5c2a',
+    fontFamily: theme.typography.h2.fontFamily,
+    fontSize: theme.typography.h2.fontSize,
+    lineHeight: theme.typography.h2.lineHeight,
+    color: theme.colors.text.primary,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: theme.spacing[5],
   },
   stepTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: 12,
+    fontFamily: theme.typography.subtitle2.fontFamily,
+    fontSize: theme.typography.subtitle2.fontSize,
+    lineHeight: theme.typography.subtitle2.lineHeight,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing[3],
     textAlign: 'center',
   },
   optionButton: {
-    backgroundColor: '#e8f2ea',
-    borderRadius: 8,
+    backgroundColor: theme.colors.background.neutral,
+    borderRadius: theme.radius.sm,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: theme.spacing[3],
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1a5c2a',
+    borderColor: theme.colors.action.secondary,
   },
   optionText: {
-    color: '#1a5c2a',
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.subtitle2.fontFamily,
     fontSize: 15,
-    fontWeight: '600',
-  },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  button: {
-    backgroundColor: '#1a5c2a',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkButton: {
-    padding: 12,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  linkText: {
-    color: '#1a5c2a',
-    fontSize: 14,
+    lineHeight: theme.typography.subtitle2.lineHeight,
     fontWeight: '600',
   },
   error: {
-    color: '#d32f2f',
+    fontFamily: theme.typography.body2.fontFamily,
+    fontSize: theme.typography.body2.fontSize,
+    lineHeight: theme.typography.body2.lineHeight,
+    color: theme.colors.status.error,
     textAlign: 'center',
-    marginBottom: 12,
-    fontSize: 14,
+    marginBottom: theme.spacing[3],
   },
   emptyText: {
-    color: '#888',
+    fontFamily: theme.typography.body2.fontFamily,
+    fontSize: theme.typography.body2.fontSize,
+    lineHeight: theme.typography.body2.lineHeight,
+    color: theme.colors.text.tertiary,
     textAlign: 'center',
-    marginBottom: 12,
-    fontSize: 14,
+    marginBottom: theme.spacing[3],
   },
 });

@@ -1,15 +1,17 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  ActivityIndicator,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
-  View,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {useAuth} from '../context/AuthContext';
+import AppButton from '../components/AppButton';
+import AppCard from '../components/AppCard';
+import AppInput from '../components/AppInput';
+import {theme} from '../theme';
 
 const MAX_DNI_LENGTH = 8;
 const DEFAULT_PASSWORD = '00000000';
@@ -24,12 +26,22 @@ const sanitizar = (text: string) => text.replace(/[^0-9]/g, '');
  * `passwordResetRequired`); AuthContext lo persiste y refresca `user`, por lo
  * que la navegación pasa automáticamente al Home. Sin back (ver RootNavigator:
  * única pantalla del stack con gestureEnabled=false).
+ *
+ * HITO-003 (delta): SafeArea (bug 1), tema Vanguard (AppCard/AppInput/
+ * AppButton, sin hardcodes) y V6: back físico interceptado (raíz del stack
+ * reset → NO cierra la app).
  */
 export default function CambiarPasswordScreen() {
   const {cambiarPassword, loading, error} = useAuth();
   const [nuevaPassword, setNuevaPassword] = useState('');
   const [repetirPassword, setRepetirPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+
+  // V6: back físico en raíz del stack reset → interceptar (no cerrar).
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, []);
 
   const handleSubmit = () => {
     if (nuevaPassword.length === 0) {
@@ -59,122 +71,94 @@ export default function CambiarPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Cambio de Contraseña</Text>
-        <Text style={styles.subtitle}>
-          Por seguridad debe cambiar su contraseña. Use su número de DNI (8
-          dígitos) como nueva contraseña.
-        </Text>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <AppCard style={styles.card}>
+          <Text style={styles.title}>Cambio de Contraseña</Text>
+          <Text style={styles.subtitle}>
+            Por seguridad debe cambiar su contraseña. Use su número de DNI (8
+            dígitos) como nueva contraseña.
+          </Text>
 
-        {(error || localError) && (
-          <Text style={styles.error}>{error || localError}</Text>
-        )}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Contraseña (DNI)"
-          placeholderTextColor="#999"
-          value={nuevaPassword}
-          onChangeText={text => setNuevaPassword(sanitizar(text))}
-          secureTextEntry
-          keyboardType="number-pad"
-          maxLength={MAX_DNI_LENGTH}
-          accessibilityLabel="Nueva contraseña (DNI)"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Repetir contraseña"
-          placeholderTextColor="#999"
-          value={repetirPassword}
-          onChangeText={text => setRepetirPassword(sanitizar(text))}
-          secureTextEntry
-          keyboardType="number-pad"
-          maxLength={MAX_DNI_LENGTH}
-          accessibilityLabel="Repetir nueva contraseña"
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-          accessibilityLabel="Cambiar contraseña">
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Cambiar contraseña</Text>
+          {(error || localError) && (
+            <Text style={styles.error}>{error || localError}</Text>
           )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+
+          <AppInput
+            label="Nueva contraseña (DNI)"
+            value={nuevaPassword}
+            onChangeText={text => setNuevaPassword(sanitizar(text))}
+            secureTextEntry
+            keyboardType="number-pad"
+            maxLength={MAX_DNI_LENGTH}
+            accessibilityLabel="Nueva contraseña (DNI)"
+          />
+
+          <AppInput
+            label="Repetir contraseña"
+            value={repetirPassword}
+            onChangeText={text => setRepetirPassword(sanitizar(text))}
+            secureTextEntry
+            keyboardType="number-pad"
+            maxLength={MAX_DNI_LENGTH}
+            accessibilityLabel="Repetir nueva contraseña"
+          />
+
+          <AppButton
+            label="Cambiar contraseña"
+            onPress={handleSubmit}
+            loading={loading}
+            accessibilityLabel="Cambiar contraseña"
+          />
+        </AppCard>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background.page,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#1a5c2a',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: theme.spacing[5],
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
     width: '100%',
     maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing[6],
+    backgroundColor: theme.colors.background.authOverlay,
+    ...theme.shadows.z2,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1a5c2a',
+    fontFamily: theme.typography.h2.fontFamily,
+    fontSize: theme.typography.h2.fontSize,
+    lineHeight: theme.typography.h2.lineHeight,
+    color: theme.colors.text.primary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing[2],
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontFamily: theme.typography.body1.fontFamily,
+    fontSize: theme.typography.body1.fontSize,
+    lineHeight: theme.typography.body1.lineHeight,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 16,
-  },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  button: {
-    backgroundColor: '#1a5c2a',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    marginBottom: theme.spacing[4],
   },
   error: {
-    color: '#d32f2f',
+    fontFamily: theme.typography.body2.fontFamily,
+    fontSize: theme.typography.body2.fontSize,
+    lineHeight: theme.typography.body2.lineHeight,
+    color: theme.colors.status.error,
     textAlign: 'center',
-    marginBottom: 12,
-    fontSize: 14,
+    marginBottom: theme.spacing[3],
   },
 });

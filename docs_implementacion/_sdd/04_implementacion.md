@@ -10,7 +10,7 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | HITO-003 cerrado técnicamente |
+| Estado | HITO-003 cerrado (auditoría integral PASS) |
 | Versión | 1.2.0 |
 | Fecha | 2026-08-19 |
 | Responsable | Orchestrator / Developer |
@@ -273,3 +273,55 @@ detenerse y solicitar reconciliación (jamás trial/error, Ley 1).
 | Orchestrator | — | Aprobado (cierre HITO-001) |
 | Auditor | — | PASS técnico integral (0 críticos) |
 | HITO-002 | Orchestrator | En cierre (auditoría integral pendiente) |
+| HITO-003 (fase 2) | Orchestrator | Pendiente auditoría final (delta UI completado, APK 1.2.0 reconstruido) |
+
+---
+
+# 30. Delta HITO-003 — Vanguard UI completado (2026-08-19)
+
+El commit `9a1bf0f` implementó la primera mitad del HITO-003 (theme, componentes
+base, ServerCheck/Home/Catalogos/Perfil base, bump 1.2.0). Este delta completa las
+pantallas pendientes y los bugs V1-V10. Todo en `mobile/`, sin commits (el commit
+lo realiza el Orchestrator tras auditoría).
+
+## 30.1 Cambios implementados (D1–D7)
+
+| # | Archivo | Cambio |
+|---|---|---|
+| D1 | `mobile/src/screens/LoginScreen.tsx` | **Bug 3 corregido**: `keyboardShouldPersistTaps="handled"` en el ScrollView (el primer tap ya no solo descarta teclado). **Bug 1**: SafeAreaView edges `['top','bottom']`. Re-thema Vanguard completo: AppCard (radius.lg + shadows.z2 + authOverlay), AppInput (contraseña), AppButton (primario + variant `text` para "← Volver…"/"Configurar servidor"), 0 hardcodes (`#1a5c2a/#f5f5f5/#e8f2ea/#999/#d32f2f` → tokens: background.page, text.primary/secondary/tertiary, action.primary/secondary, status.error, typography Poppins). Flujo 3 pasos, textos, validaciones y accessibilityLabels intactos. |
+| D2 | `mobile/src/screens/CambiarPasswordScreen.tsx` | SafeAreaView edges top/bottom + theme Vanguard (AppCard/AppInput×2 secureTextEntry/AppButton) + **V6**: BackHandler raíz del stack reset. Sin botón atrás (V7). Validaciones y textos del test intactos. |
+| D3 | `mobile/src/screens/SettingsScreen.tsx` | Theme Vanguard (AppCard + AppInput URL + AppButton Guardar + AppButton text Restablecer/Volver). Sin SafeAreaView: esta pantalla se muestra CON header del stack → el native-stack resuelve el inset superior (no duplica padding). Lógica `loadApiUrl/setApiUrl/resetApiUrl` y textos exactos intactos. |
+| D4 | `mobile/src/screens/PlaceholderScreen.tsx` | EmptyState Vanguard con icono `wrench-outline` (MaterialCommunityIcons, sin emojis). Se eliminó el falso `loading` de AuthContext (esta pantalla solo se alcanza autenticado). Título vía `options.title` del stack. |
+| D5 | `mobile/src/screens/HomeScreen.tsx` y `CambiarPasswordScreen.tsx` | **V6**: `BackHandler.addEventListener('hardwareBackPress', () => true)` con cleanup `sub.remove()` en las raíces de los stacks autenticado/reset → el botón físico NO cierra la app. |
+| D6 | `mobile/src/screens/PerfilScreen.tsx` | Elevado al estándar: ErrorBoundary envolvente; avatar circular con inicial del nombre (action.secondary + texto blanco, radius pill); nombre (h3) + "Perfil: {rol}" (body1 secondary); card "Información de la aplicación" (Versión {APP_VERSION}); card "Historial de versiones" con TODO `history` (versión + fecha + bullets de cambios); "Cerrar sesión" destructivo → ConfirmDialog tone danger; `paddingBottom = 32 + insets.bottom + 68` (useSafeAreaInsets). BottomNavigation active="Perfil". |
+| D7 | `mobile/src/screens/HomeScreen.tsx` | Logout con ConfirmDialog (título "Cerrar sesión", message "¿Deseas cerrar la sesión actual?", tone danger, confirmAccessibilityLabel). 0 hardcodes: `#e8f2ea`→status.neutralBackground, `#fff`→background.paper, `#ccc`→border.default, `#1565c0`→action.secondary, `#b71c1c`→status.error, `#fff` botones→text.inverse. "Configurar servidor" sigue solo para Super Admin. Textos del ADR y BottomNavigation intactos. |
+| — | `mobile/src/navigation/RootNavigator.tsx` | 1-línea: splash `#f5f5f5` → `theme.colors.background.page` (gate G-MOB 0 hardcodes). |
+
+## 30.2 Ajustes de tests (Ley 5)
+
+`mobile/__tests__/HomeScreen.test.tsx`: el logout ya no es directo (ahora pasa por
+ConfirmDialog — contrato funcional del ADR): el test presiona "Cerrar sesión"
+(abre el diálogo), verifica el mensaje y confirma con "Confirmar cierre de sesión".
+Contrato funcional preservado (limpia Keychain y desmonta Home); se documentó en
+el propio test. El resto de suites no requirió cambios.
+
+## 30.3 Verificación ejecutada (en `mobile/`)
+
+| Comando | Resultado |
+|---|---|
+| `git status` (inicio) | Limpio (HEAD = `9a1bf0f`) |
+| `npm run lint -- --no-fix` | PASS (exit 0). 1 error previo de `View` sin uso en SettingsScreen corregido en el mismo delta |
+| `npx tsc --noEmit` | PASS (exit 0) |
+| `npm test -- --runInBand --forceExit` | PASS — **7 suites / 27 tests** (LoginScreen, CambiarPasswordScreen, HomeScreen, AuthContext, App, roles, ApiClient) |
+| `gradlew.bat assembleRelease --no-daemon` | **BUILD SUCCESSFUL** (delta: 5m49s; post-remediación H-01..H-06: 2m19s — timebox 12 min OK) |
+| APK resultante | `mobile/android/app/build/outputs/apk/release/app-release.apk` — fecha 2026-08-19 21:30:03, 65.546.532 bytes (~62,5 MB) |
+
+## 30.4 Estado del artefacto
+
+- Versión se mantiene en **1.2.0 / versionCode 3** (sin bump — Ley 3).
+- `versionHistory.js` ya tenía la entrada 1.2.0 (commit `9a1bf0f`); no se duplicó.
+  El **AMEND autorizado por el Orchestrator** amplió la entrada 1.2.0 con los fixes
+  del delta (login doble toque, safe areas, back físico, logout con confirmación,
+  perfil completo, Catálogos con slot reservado) — sin crear versión nueva.
+- APK 1.2.0 **reconstruido** con el bundle JS del delta + remediación (evidencia de
+  Ley 3); auditoría integral PASS (0 críticos / 0 altos / 0 medios pendientes).

@@ -113,7 +113,7 @@ export default function RootNavigator() {
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background.page,
     justifyContent: 'center',
     alignItems: 'center',
   },

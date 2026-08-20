@@ -1,11 +1,12 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import {
+  BackHandler,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useAuth} from '../context/AuthContext';
@@ -13,6 +14,8 @@ import {isSuperAdmin} from '../utils/roles';
 import MenuButton from '../components/MenuButton';
 import type {RootStackParamList} from '../navigation/types';
 import BottomNavigation from '../components/BottomNavigation';
+import AppButton from '../components/AppButton';
+import ConfirmDialog from '../components/ConfirmDialog';
 import {theme} from '../theme';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -28,6 +31,10 @@ interface MenuItem {
  * - Admin        → 2 botones: Programación / Solicitud de Requerimientos.
  * - Super Admin  → 2 divs: [Programación + Solicitud] y [Nuevo + Historial].
  * Los textos de los botones son EXACTOS al ADR.
+ *
+ * HITO-003 (delta): ConfirmDialog para "Cerrar sesión" (acción destructiva),
+ * tokens Vanguard (0 hardcodes), V6: back físico interceptado (raíz del stack
+ * autenticado → NO cierra la app).
  */
 const MENU_POR_PERFIL: Record<string, MenuItem[][]> = {
   Usuario: [
@@ -57,6 +64,13 @@ const MENU_POR_PERFIL: Record<string, MenuItem[][]> = {
 export default function HomeScreen() {
   const {user, logout} = useAuth();
   const navigation = useNavigation<Navigation>();
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
+  // V6: back físico en raíz del stack autenticado → interceptar (no cerrar).
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, []);
 
   if (!user) {
     return null;
@@ -65,44 +79,60 @@ export default function HomeScreen() {
   const grupos = MENU_POR_PERFIL[user.rol] ?? MENU_POR_PERFIL.Usuario;
 
   return (
-    <View style={styles.root}><ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.welcome}>Bienvenido(a), {user.nombre}</Text>
-      <Text style={styles.perfil}>Perfil: {user.rol}</Text>
+    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}>
+        <Text style={styles.welcome}>Bienvenido(a), {user.nombre}</Text>
+        <Text style={styles.perfil}>Perfil: {user.rol}</Text>
 
-      {grupos.map((grupo, index) => (
-        <View
-          key={index}
-          style={[
-            styles.div,
-            index % 2 === 0 ? styles.divVarianteUno : styles.divVarianteDos,
-          ]}>
-          {grupo.map(item => (
-            <MenuButton
-              key={item.screen}
-              label={item.label}
-              screen={item.screen}
-              navigation={navigation}
-            />
-          ))}
-        </View>
-      ))}
+        {grupos.map((grupo, index) => (
+          <View
+            key={index}
+            style={[
+              styles.div,
+              index % 2 === 0 ? styles.divVarianteUno : styles.divVarianteDos,
+            ]}>
+            {grupo.map(item => (
+              <MenuButton
+                key={item.screen}
+                label={item.label}
+                screen={item.screen}
+                navigation={navigation}
+              />
+            ))}
+          </View>
+        ))}
 
-      {isSuperAdmin(user) ? (
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => navigation.navigate('ConfigurarServidor')}
-          accessibilityLabel="Configurar servidor">
-          <Text style={styles.settingsText}>Configurar servidor</Text>
-        </TouchableOpacity>
-      ) : null}
+        {isSuperAdmin(user) ? (
+          <AppButton
+            label="Configurar servidor"
+            variant="secondary"
+            onPress={() => navigation.navigate('ConfigurarServidor')}
+            accessibilityLabel="Configurar servidor"
+          />
+        ) : null}
 
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={logout}
-        accessibilityLabel="Cerrar sesión">
-        <Text style={styles.logoutText}>Cerrar sesión</Text>
-      </TouchableOpacity>
-    </ScrollView><BottomNavigation active="Home" /></View>
+        <AppButton
+          label="Cerrar sesión"
+          variant="destructive"
+          onPress={() => setConfirmLogout(true)}
+          accessibilityLabel="Cerrar sesión"
+          style={styles.logoutMargin}
+        />
+      </ScrollView>
+      <BottomNavigation active="Home" />
+      <ConfirmDialog
+        visible={confirmLogout}
+        title="Cerrar sesión"
+        message="¿Deseas cerrar la sesión actual?"
+        confirmLabel="Cerrar sesión"
+        tone="danger"
+        onCancel={() => setConfirmLogout(false)}
+        onConfirm={logout}
+        confirmAccessibilityLabel="Confirmar cierre de sesión"
+      />
+    </SafeAreaView>
   );
 }
 
@@ -116,59 +146,41 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.default,
   },
   content: {
-    padding: 20,
+    padding: theme.spacing[5],
     paddingBottom: 40,
   },
   welcome: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontFamily: theme.typography.h2.fontFamily,
+    fontSize: theme.typography.h2.fontSize,
+    lineHeight: theme.typography.h2.lineHeight,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
   perfil: {
-    fontSize: 14,
+    fontFamily: theme.typography.body1.fontFamily,
+    fontSize: theme.typography.body1.fontSize,
+    lineHeight: theme.typography.body1.lineHeight,
     color: theme.colors.text.secondary,
-    marginBottom: 20,
+    marginBottom: theme.spacing[5],
     textTransform: 'capitalize',
   },
   // "dvs" del SUPER_ADMIN: grupos visuales diferenciados por estilo de
   // contenedor (sin texto extra; los textos exactos del ADR son los botones).
   div: {
-    borderRadius: 12,
+    borderRadius: theme.radius.md,
     borderWidth: 1,
-    padding: 16,
-    marginBottom: 16,
+    padding: theme.spacing[4],
+    marginBottom: theme.spacing[4],
   },
   divVarianteUno: {
-    backgroundColor: '#e8f2ea',
+    backgroundColor: theme.colors.status.neutralBackground,
     borderColor: theme.colors.action.secondary,
   },
   divVarianteDos: {
-    backgroundColor: '#ffffff',
-    borderColor: '#ccc',
+    backgroundColor: theme.colors.background.paper,
+    borderColor: theme.colors.border.default,
   },
-  settingsButton: {
-    backgroundColor: '#1565c0',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  settingsText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  logoutButton: {
-    backgroundColor: '#b71c1c',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  logoutText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  logoutMargin: {
+    marginTop: theme.spacing[3],
   },
 });

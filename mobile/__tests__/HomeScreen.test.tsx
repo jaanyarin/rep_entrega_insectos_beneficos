@@ -135,8 +135,16 @@ describe('HomeScreen (menú por perfil)', () => {
     const tree = await renderHome('Usuario', 3);
     expect(contarTexto(tree, 'Bienvenido(a), Persona Test')).toBeGreaterThan(0);
 
+    // HITO-003 delta: el botón "Cerrar sesión" abre el ConfirmDialog
+    // (acción destructiva requiere confirmación, §17) en lugar de cerrar
+    // sesión directamente (contrato funcional actualizado — Ley 5).
     await act(async () => {
       findByLabel(tree, 'Cerrar sesión').props.onPress();
+    });
+    expect(contarTexto(tree, '¿Deseas cerrar la sesión actual?')).toBeGreaterThan(0);
+
+    await act(async () => {
+      findByLabel(tree, 'Confirmar cierre de sesión').props.onPress();
       await flushPromises();
     });
 
