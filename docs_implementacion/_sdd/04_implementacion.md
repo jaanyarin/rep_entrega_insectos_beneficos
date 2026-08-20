@@ -365,3 +365,18 @@ el propio test. El resto de suites no requirió cambios.
   pierde sesión/URL guardada en el keychain (se reconfigura en ServerCheck).
 - Pendiente del H9 tras este cambio: **SSL Pinning** y restricción del cleartext
   HTTP en release (hoy `base-config cleartextTrafficPermitted="true"` modo dev).
+
+## 31.4 Corrección de fallback (2026-08-19, tras reporte "No se pudo conectar")
+
+- **Causa raíz:** al desinstalar la app se limpia el SecureStore (`apiUrl`); el
+  ServerCheck prueba contra `BUILT_IN_API_URL` (fallback en `mobile/src/config.ts`),
+  que aún apuntaba a la IP del HITO-001 (`10.13.18.97:6101`) → red inalcanzable.
+- **Fix:** `mobile/src/config.ts` → `API_BASE_URL = 'http://192.168.18.229:6101/api/v1'`
+  (IP actual de la laptop del responsable, red LUZ - 5G; histórico documentado).
+- **Verificación:** `gradlew assembleRelease` BUILD SUCCESSFUL 2m42s; APK
+  `app-release.apk` 2026-08-19 22:22:22, 65.546.560 bytes; firma de producción
+  `CN=InsectosBeneficios, O=VanguardFresh` (SHA-256 `356e...`).
+- **Para el usuario:** en el ServerCheck del celular debe presionar
+  **"Restablecer"** (vuelve al fallback corregido) o escribir manualmente
+  `http://192.168.18.229:6101/api/v1` y **"Guardar y probar"**. Alternativa: si la
+  laptop cambia de IP (DHCP), configurarla manualmente en Settings.
