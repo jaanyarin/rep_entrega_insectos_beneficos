@@ -111,7 +111,7 @@ export default function ServerCheckScreen() {
 
               <AppInput
                 label="URL de la API"
-                placeholder="http://192.168.1.10:6101/api/v1"
+                placeholder="10.13.18.93 (solo su IP de la laptop)"
                 value={apiUrl}
                 onChangeText={setApiUrlInput}
                 autoCapitalize="none"
@@ -120,11 +120,23 @@ export default function ServerCheckScreen() {
                 accessibilityLabel="URL de la API"
               />
 
+              <Text style={styles.hint}>
+                Escriba solo la IP (ej. 10.13.18.93). App completa
+                http://IP:6101/api/v1 automáticamente.
+              </Text>
+
               <AppButton
                 label="Guardar y probar"
                 onPress={handleSaveAndProbe}
                 loading={saving}
                 accessibilityLabel="Guardar y probar servidor"
+              />
+
+              <AppButton
+                label="Reintentar"
+                variant="secondary"
+                onPress={() => probe()}
+                accessibilityLabel="Reintentar verificación del servidor"
               />
 
               <AppButton
@@ -195,6 +207,14 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.body2.fontFamily,
     fontSize: theme.typography.body2.fontSize,
     color: theme.colors.status.error,
+    textAlign: 'center',
+    marginBottom: theme.spacing[3],
+  },
+  hint: {
+    fontFamily: theme.typography.body2.fontFamily,
+    fontSize: theme.typography.body2.fontSize,
+    lineHeight: theme.typography.body2.lineHeight,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: theme.spacing[3],
   },

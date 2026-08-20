@@ -11,6 +11,8 @@ import HomeScreen from '../screens/HomeScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import CatalogosScreen from '../screens/CatalogosScreen';
+import ProgramacionScreen from '../screens/ProgramacionScreen';
+import ProgramacionEdicionScreen from '../screens/ProgramacionEdicionScreen';
 import {theme} from '../theme';
 import type {RootStackParamList} from './types';
 
@@ -90,8 +92,13 @@ export default function RootNavigator() {
             />
             <Stack.Screen
               name="Programacion"
-              component={PlaceholderScreen}
-              options={{title: 'Programación'}}
+              component={ProgramacionScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="ProgramacionEdicion"
+              component={ProgramacionEdicionScreen}
+              options={{headerShown: false}}
             />
             <Stack.Screen
               name="SolicitudRequerimientos"

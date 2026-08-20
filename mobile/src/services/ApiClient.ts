@@ -20,9 +20,43 @@ import API_BASE_URL from '../config';
 export const TOKEN_KEY = 'accessToken';
 export const API_URL_KEY = 'apiUrl';
 
-/** Normaliza la URL: recorta espacios y elimina la barra final. */
+/**
+ * Normaliza la URL del backend: acepta IP simple, host o URL completa y
+ * completa el resto con puerto 6101 y base path `/api/v1`.
+ *
+ * Reglas (en orden): trim + quita barras finales; sin esquema → antepone
+ * `http://` (soporte https conservado para producción futura); sin puerto
+ * explícito en host[:puerto] → añade `:6101`; sin `/api/v1` → lo añade al
+ * final. Idempotente: URLs ya completas (`http://host:6101/api/v1`) no se
+ * modifican (p. ej. las ya guardadas en el Keychain). Ejemplos:
+ *   '10.13.18.93'                    → 'http://10.13.18.93:6101/api/v1'
+ *   'localhost'                      → 'http://localhost:6101/api/v1'
+ *   'http://miservidor:8080'         → 'http://miservidor:8080/api/v1'
+ *   'http://miservidor:8080/api/v1'  → sin cambios
+ */
 export function normalizeApiUrl(url: string): string {
-  return String(url || '').trim().replace(/\/+$/, '');
+  let out = String(url || '').trim().replace(/\/+$/, '');
+  if (!out) {
+    return out;
+  }
+  if (!/^https?:\/\//i.test(out)) {
+    out = `http://${out}`;
+  }
+  // Separa esquema / host[:puerto] / resto para aplicar las reglas c y d
+  // solo sobre la parte correcta (sin romper URLs ya completas).
+  const schemeMatch = out.match(/^https?:\/\//i);
+  const scheme = schemeMatch ? schemeMatch[0] : '';
+  const afterScheme = out.slice(scheme.length);
+  const slashIndex = afterScheme.indexOf('/');
+  const hostPort = slashIndex === -1 ? afterScheme : afterScheme.slice(0, slashIndex);
+  const rest = slashIndex === -1 ? '' : afterScheme.slice(slashIndex);
+  if (hostPort && hostPort.indexOf(':') === -1) {
+    out = `${scheme}${hostPort}:6101${rest}`;
+  }
+  if (!/\/api\/v1(\/|$)/.test(out)) {
+    out = `${out.replace(/\/+$/, '')}/api/v1`;
+  }
+  return out;
 }
 
 /** URL base embebida (fallback), normalizada. */
@@ -343,4 +377,185 @@ export async function changePassword(
   }
   const res = await api.post('/auth/change-password', body);
   return res.data as ChangePasswordResponse;
+}
+
+/* ------------------------------------------------------------------ */
+/* CRUD de usuarios (/api/v1/usuarios — UsuarioResource)               */
+/* ------------------------------------------------------------------ */
+
+/** Respuesta del CRUD de usuarios. Nunca incluye contraseña. */
+export interface UsuarioDto {
+  id: number;
+  usuario: string;
+  nombre: string;
+  rolId: number;
+  /** Literal con espacios: 'Super Admin' | 'Admin' | 'Usuario'. */
+  rol: string;
+  estado: 'ACTIVO' | 'INACTIVO';
+  debeCambiarPassword: boolean;
+  dni: string | null;
+  creadoPor: number | null;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string | null;
+}
+
+/** Cuerpo de POST /api/v1/usuarios (password siempre el default 00000000). */
+export interface CrearUsuarioRequest {
+  usuario: string;
+  nombre: string;
+  rolId: number;
+  dni?: string;
+}
+
+/** Cuerpo de PUT /api/v1/usuarios/{id} (no permite cambiar dni ni password). */
+export interface ActualizarUsuarioRequest {
+  usuario: string;
+  nombre: string;
+  rolId: number;
+  estado: 'ACTIVO' | 'INACTIVO';
+}
+
+export async function listarUsuarios(
+  estado?: 'ACTIVO' | 'INACTIVO',
+  rolId?: number,
+): Promise<UsuarioDto[]> {
+  const params: Record<string, string | number> = {};
+  if (estado) {
+    params.estado = estado;
+  }
+  if (rolId != null) {
+    params.rolId = rolId;
+  }
+  const res = await api.get('/usuarios', {params});
+  const data = res.data as UsuarioDto[] | {data?: UsuarioDto[]};
+  return unwrap(data);
+}
+
+export async function crearUsuario(
+  req: CrearUsuarioRequest,
+): Promise<UsuarioDto> {
+  const res = await api.post('/usuarios', req);
+  return res.data as UsuarioDto;
+}
+
+export async function actualizarUsuario(
+  id: number,
+  req: ActualizarUsuarioRequest,
+): Promise<UsuarioDto> {
+  const res = await api.put(`/usuarios/${id}`, req);
+  return res.data as UsuarioDto;
+}
+
+export async function desactivarUsuario(
+  id: number,
+): Promise<{mensaje: string}> {
+  const res = await api.delete(`/usuarios/${id}`);
+  return res.data as {mensaje: string};
+}
+
+/* ------------------------------------------------------------------ */
+/* Programación (/api/v1/programaciones + /api/v1/especies)            */
+/* ------------------------------------------------------------------ */
+
+/** Estados de una programación semanal (RF-186 / RN-038). */
+export type EstadoProgramacion = 'EN_PROCESO' | 'PUBLICADO';
+
+/** Especie de insecto benéfico (catálogo del módulo Programación). */
+export interface EspecieDto {
+  id: number;
+  nombre: string;
+  estado: boolean | string;
+}
+
+/** Detalle por semana de una programación (RF-187 / RN-037). */
+export interface DetalleProgramacionDto {
+  id: number;
+  /** Número de semana dentro del mes (1..n). */
+  semana: number;
+  /** Fecha de la semana (ISO). */
+  fecha: string;
+  /** Stock inicial de la semana en millares (remanente de la semana anterior). */
+  stockInicial: number;
+  /** Cantidad en papel con postura (millares). */
+  papelConPostura: number;
+  /** Cantidad en sobre con cascarilla (millares). */
+  sobreConCascarilla: number;
+  /** Suma de papel + sobre (RF-134). */
+  total: number;
+  /** Stock final de la semana en millares. */
+  stockFinal: number;
+  /** Estado individual de la semana (RF-186). */
+  estado: EstadoProgramacion;
+}
+
+/** Programación de stock del mes (resumen de listado + detalle al editar). */
+export interface ProgramacionDto {
+  id: number;
+  anio: number;
+  mes: number;
+  especieId: number;
+  especie: string;
+  fechaRegistro: string;
+  fechaPublicacion: string | null;
+  estado: EstadoProgramacion;
+  /** Proyección base del mes en millares (RF-187). */
+  stockInicialBase: number;
+  /** Cantidad total programada en el mes (todas las semanas). */
+  totalMes: number;
+  /** Detalle semanal (solo cuando el endpoint devuelve el detalle). */
+  detalles: DetalleProgramacionDto[];
+}
+
+/** Cuerpo de PUT /api/v1/programaciones/{id} (persistir valores editados). */
+export interface ActualizarProgramacionRequest {
+  stockInicialBase: number;
+  detalles: Array<{
+    id?: number;
+    semana: number;
+    fecha: string;
+    papelConPostura: number;
+    sobreConCascarilla: number;
+  }>;
+}
+
+/** GET /api/v1/especies — catálogo de especies de insectos benéficos. */
+export async function listarEspecies(): Promise<EspecieDto[]> {
+  const res = await api.get('/especies');
+  return unwrap(res.data as EspecieDto[] | {data?: EspecieDto[]});
+}
+
+/**
+ * GET /api/v1/programaciones?anio=YYYY&mes=M — programaciones del mes
+ * (todas las especies; incluye detalles semanales para la edición).
+ */
+export async function listarProgramaciones(
+  anio: number,
+  mes: number,
+): Promise<ProgramacionDto[]> {
+  const res = await api.get('/programaciones', {params: {anio, mes}});
+  return unwrap(res.data as ProgramacionDto[] | {data?: ProgramacionDto[]});
+}
+
+/** GET /api/v1/programaciones/{id} — detalle completo de una programación. */
+export async function obtenerProgramacion(id: number): Promise<ProgramacionDto> {
+  const res = await api.get(`/programaciones/${id}`);
+  return res.data as ProgramacionDto;
+}
+
+/** PUT /api/v1/programaciones/{id} — persiste los valores editados. */
+export async function actualizarProgramacion(
+  id: number,
+  req: ActualizarProgramacionRequest,
+): Promise<ProgramacionDto> {
+  const res = await api.put(`/programaciones/${id}`, req);
+  return res.data as ProgramacionDto;
+}
+
+/** POST /api/v1/programaciones/{id}/publicar — publica y notifica (RF-145/146). */
+export async function publicarProgramacion(
+  id: number,
+): Promise<{mensaje: string}> {
+  const res = await api.post(`/programaciones/${id}/publicar`);
+  return res.data as {mensaje: string};
 }

@@ -1,0 +1,72 @@
+/**
+ * programacion.ts — Helpers del módulo Programación (HITO Programación).
+ *
+ * Convenciones del dominio (01_especificacion.md MOD-17):
+ *  - Los meses se enumeran 1..12 (Enero..Diciembre).
+ *  - La edición de programación SOLO está permitida los días lunes y jueves
+ *    (RF-147/RF-148), de 00:00 a 23:59. Fuera de eso NO se habilita "Enviar stock".
+ */
+
+/** Nombres largos de los meses (es-PE), índice 0 = Enero. */
+export const MESES_LARGOS = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+];
+
+/** Mes (1..12) → nombre largo, p. ej. 1 → 'Enero'. */
+export function nombreMes(mes: number): string {
+  return MESES_LARGOS[mes - 1] ?? '';
+}
+
+/** Año actual (huso local del dispositivo). */
+export function anioActual(): number {
+  return new Date().getFullYear();
+}
+
+/** Mes actual (1..12, huso local). */
+export function mesActual(): number {
+  return new Date().getMonth() + 1;
+}
+
+/** Etiqueta corta del periodo: 'Agosto 2026'. */
+export function etiquetaPeriodo(mes: number, anio: number): string {
+  return `${nombreMes(mes)} ${anio}`;
+}
+
+/**
+ * Día de la semana de una fecha (0=Domingo .. 6=Sábado) usando el huso local.
+ * Inyectable en tests mediante `fecha`.
+ */
+export function diaSemana(fecha: Date = new Date()): number {
+  return fecha.getDay();
+}
+
+/** `true` si la fecha es lunes (1) o jueves (4) — RF-147. */
+export function esDiaEditable(fecha: Date = new Date()): boolean {
+  const dia = diaSemana(fecha);
+  return dia === 1 || dia === 4;
+}
+
+/** Formatea ISO → 'dd/mm/yyyy' (o '—' si inválido). */
+export function formatFecha(iso: string | null | undefined): string {
+  if (!iso) {
+    return '—';
+  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return '—';
+  }
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}

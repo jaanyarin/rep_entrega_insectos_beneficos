@@ -17,5 +17,16 @@ export type RootStackParamList = {
   NuevoRequerimiento: undefined;
   HistorialRequerimiento: undefined;
   Programacion: undefined;
+  ProgramacionEdicion: {id: number; anio: number; mes: number};
   SolicitudRequerimientos: undefined;
 };
+
+/**
+ * Pantallas navegables desde el menú del Home (sin parámetros). El resto de
+ * rutas (p. ej. ProgramacionEdicion) requieren params y se navega con ellos.
+ */
+export type MenuScreen =
+  | 'NuevoRequerimiento'
+  | 'HistorialRequerimiento'
+  | 'Programacion'
+  | 'SolicitudRequerimientos';

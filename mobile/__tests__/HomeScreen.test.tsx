@@ -2,9 +2,10 @@
  * Home por perfil (ADR-A002 D-AUTH-2 / ADR-A003 D-AUTH2-1, hallazgo F2):
  *  - Usuario      → 2 botones: Nuevo Requerimiento / Historial de Requerimiento.
  *  - Admin        → 2 botones: Programación / Solicitud de Requerimientos.
- *  - Super Admin  → 2 divs: [Programación + Solicitud] y [Nuevo + Historial]
- *                   (+ "Configurar servidor").
- *  - Logout limpia la sesión (Keychain) y desmonta el Home.
+ *  - Super Admin  → 2 divs: [Programación + Solicitud] y [Nuevo + Historial].
+ *  - El Home NO incluye "Configurar servidor" ni "Cerrar sesión" (decisión del
+ *    usuario 2026-08-20: el logout vive en Perfil, cubierto por
+ *    PerfilScreen.test.tsx).
  * Literales exactos con espacios: 'Super Admin' | 'Admin' | 'Usuario'.
  *
  * Approach (react-test-renderer + mocks globales):
@@ -21,7 +22,7 @@ import * as Keychain from 'react-native-keychain';
 import {AuthProvider} from '../src/context/AuthContext';
 import HomeScreen from '../src/screens/HomeScreen';
 import {clearToken} from '../src/services/ApiClient';
-import {contarTexto, findByLabel, flushPromises, makeToken} from '../test-utils/helpers';
+import {contarTexto, flushPromises, makeToken} from '../test-utils/helpers';
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
@@ -126,34 +127,9 @@ describe('HomeScreen (menú por perfil)', () => {
       expect(contarTexto(tree, 'Solicitud de Requerimientos')).toBe(1);
       expect(contarTexto(tree, 'Nuevo Requerimiento')).toBe(1);
       expect(contarTexto(tree, 'Historial de Requerimiento')).toBe(1);
-      expect(contarTexto(tree, 'Configurar servidor')).toBe(1);
+      expect(contarTexto(tree, 'Configurar servidor')).toBe(0);
+      expect(contarTexto(tree, 'Cerrar sesión')).toBe(0);
       expect(contarDivs(tree)).toBe(2);
     }
-  });
-
-  test('logout limpia el token y desmonta el Home', async () => {
-    const tree = await renderHome('Usuario', 3);
-    expect(contarTexto(tree, 'Bienvenido(a), Persona Test')).toBeGreaterThan(0);
-
-    // HITO-003 delta: el botón "Cerrar sesión" abre el ConfirmDialog
-    // (acción destructiva requiere confirmación, §17) en lugar de cerrar
-    // sesión directamente (contrato funcional actualizado — Ley 5).
-    await act(async () => {
-      findByLabel(tree, 'Cerrar sesión').props.onPress();
-    });
-    expect(contarTexto(tree, '¿Deseas cerrar la sesión actual?')).toBeGreaterThan(0);
-
-    await act(async () => {
-      findByLabel(tree, 'Confirmar cierre de sesión').props.onPress();
-      await flushPromises();
-    });
-
-    // Sesión limpiada: token borrado del Keychain y Home desmontado
-    // (el flujo anónimo de ServerCheck/Login se cubre en App.test.tsx).
-    expect(Keychain.resetGenericPassword).toHaveBeenCalledWith({
-      service: 'accessToken',
-    });
-    expect(contarTexto(tree, 'Cerrar sesión')).toBe(0);
-    expect(contarTexto(tree, 'Bienvenido(a), Persona Test')).toBe(0);
   });
 });

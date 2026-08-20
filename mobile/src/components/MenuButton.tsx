@@ -13,15 +13,15 @@ import {StyleSheet, Text, TouchableOpacity} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {theme} from '../theme';
-import type {RootStackParamList} from '../navigation/types';
+import type {MenuScreen, RootStackParamList} from '../navigation/types';
 
 interface Props {
   label: string;
-  screen: keyof RootStackParamList;
+  screen: MenuScreen;
   navigation: NativeStackNavigationProp<RootStackParamList>;
 }
 
-const ICONS: Partial<Record<keyof RootStackParamList, string>> = {
+const ICONS: Partial<Record<MenuScreen, string>> = {
   NuevoRequerimiento: 'text-box-plus-outline',
   HistorialRequerimiento: 'history',
   Programacion: 'calendar-week-outline',

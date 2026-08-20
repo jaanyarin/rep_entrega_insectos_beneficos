@@ -1,6 +1,6 @@
 # Sistema de Diseño Mobile Vanguard
 
-> **Proyecto:** Control de Equipos de Apilamiento Packing  
+> **Proyecto:** Control de Insectos Benéficos  
 > **Plataforma:** React Native Android  
 > **Objetivo:** Definir reglas visuales y de interacción para que un agente de IA pueda implementar o refactorizar directamente las vistas móviles del proyecto, manteniendo consistencia con la identidad visual de Grupo Vanguard.
 
@@ -1053,4 +1053,4 @@ La aplicación debe verse corporativa, sobria y consistente con Vanguard:
 
 **Versión:** 1.0  
 **Fecha:** 2026-07-21  
-**Aplicación:** Control de Equipos de Apilamiento Packing
+**Aplicación:** Control de Insectos Benéficos

@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect} from 'react';
 import {
   BackHandler,
   ScrollView,
@@ -10,19 +10,16 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useAuth} from '../context/AuthContext';
-import {isSuperAdmin} from '../utils/roles';
 import MenuButton from '../components/MenuButton';
-import type {RootStackParamList} from '../navigation/types';
+import type {MenuScreen, RootStackParamList} from '../navigation/types';
 import BottomNavigation from '../components/BottomNavigation';
-import AppButton from '../components/AppButton';
-import ConfirmDialog from '../components/ConfirmDialog';
 import {theme} from '../theme';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 interface MenuItem {
   label: string;
-  screen: keyof RootStackParamList;
+  screen: MenuScreen;
 }
 
 /**
@@ -32,9 +29,10 @@ interface MenuItem {
  * - Super Admin  → 2 divs: [Programación + Solicitud] y [Nuevo + Historial].
  * Los textos de los botones son EXACTOS al ADR.
  *
- * HITO-003 (delta): ConfirmDialog para "Cerrar sesión" (acción destructiva),
- * tokens Vanguard (0 hardcodes), V6: back físico interceptado (raíz del stack
- * autenticado → NO cierra la app).
+ * HITO-003 (delta): tokens Vanguard (0 hardcodes), V6: back físico
+ * interceptado (raíz del stack autenticado → NO cierra la app). Sin bloques
+ * de "Configurar servidor"/"Cerrar sesión" en el Home (decisión del usuario
+ * 2026-08-20 — el logout vive en Perfil).
  */
 const MENU_POR_PERFIL: Record<string, MenuItem[][]> = {
   Usuario: [
@@ -62,9 +60,8 @@ const MENU_POR_PERFIL: Record<string, MenuItem[][]> = {
 };
 
 export default function HomeScreen() {
-  const {user, logout} = useAuth();
+  const {user} = useAuth();
   const navigation = useNavigation<Navigation>();
-  const [confirmLogout, setConfirmLogout] = useState(false);
 
   // V6: back físico en raíz del stack autenticado → interceptar (no cerrar).
   useEffect(() => {
@@ -103,35 +100,8 @@ export default function HomeScreen() {
             ))}
           </View>
         ))}
-
-        {isSuperAdmin(user) ? (
-          <AppButton
-            label="Configurar servidor"
-            variant="secondary"
-            onPress={() => navigation.navigate('ConfigurarServidor')}
-            accessibilityLabel="Configurar servidor"
-          />
-        ) : null}
-
-        <AppButton
-          label="Cerrar sesión"
-          variant="destructive"
-          onPress={() => setConfirmLogout(true)}
-          accessibilityLabel="Cerrar sesión"
-          style={styles.logoutMargin}
-        />
       </ScrollView>
       <BottomNavigation active="Home" />
-      <ConfirmDialog
-        visible={confirmLogout}
-        title="Cerrar sesión"
-        message="¿Deseas cerrar la sesión actual?"
-        confirmLabel="Cerrar sesión"
-        tone="danger"
-        onCancel={() => setConfirmLogout(false)}
-        onConfirm={logout}
-        confirmAccessibilityLabel="Confirmar cierre de sesión"
-      />
     </SafeAreaView>
   );
 }
@@ -173,14 +143,11 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing[4],
   },
   divVarianteUno: {
-    backgroundColor: theme.colors.status.neutralBackground,
+    backgroundColor: theme.colors.background.paper,
     borderColor: theme.colors.action.secondary,
   },
   divVarianteDos: {
     backgroundColor: theme.colors.background.paper,
-    borderColor: theme.colors.border.default,
-  },
-  logoutMargin: {
-    marginTop: theme.spacing[3],
+    borderColor: theme.colors.action.secondary,
   },
 });

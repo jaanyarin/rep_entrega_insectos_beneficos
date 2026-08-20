@@ -4,9 +4,13 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
+    "android:debug": "react-native run-android --mode=debug",
+    "android:release": "cd android && gradlew.bat assembleRelease",
     "ios": "react-native run-ios",
     "lint": "eslint .",
+    "reverse": "adb reverse tcp:8081 tcp:8081",
     "start": "react-native start",
+    "start:lan": "react-native start --host 0.0.0.0",
     "test": "jest"
   },
   "dependencies": {

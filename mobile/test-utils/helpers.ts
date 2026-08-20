@@ -61,6 +61,8 @@ export function getMockApi() {
   return result.value as {
     get: jest.Mock;
     post: jest.Mock;
+    put: jest.Mock;
+    delete: jest.Mock;
     interceptors: {
       request: {use: jest.Mock};
       response: {use: jest.Mock};

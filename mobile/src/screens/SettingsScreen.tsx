@@ -67,7 +67,7 @@ export default function SettingsScreen() {
           <>
             <AppInput
               label="URL de la API"
-              placeholder="http://192.168.1.10:6101/api/v1"
+              placeholder="10.13.18.93 (solo su IP de la laptop)"
               value={apiUrl}
               onChangeText={setApiUrlInput}
               autoCapitalize="none"
@@ -75,6 +75,11 @@ export default function SettingsScreen() {
               keyboardType="url"
               accessibilityLabel="URL de la API"
             />
+
+            <Text style={styles.hint}>
+              Escriba solo la IP (ej. 10.13.18.93). App completa
+              http://IP:6101/api/v1 automáticamente.
+            </Text>
 
             {message ? <Text style={styles.message}>{message}</Text> : null}
 
@@ -141,6 +146,14 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body2.fontSize,
     lineHeight: theme.typography.body2.lineHeight,
     color: theme.colors.status.success,
+    textAlign: 'center',
+    marginBottom: theme.spacing[3],
+  },
+  hint: {
+    fontFamily: theme.typography.body2.fontFamily,
+    fontSize: theme.typography.body2.fontSize,
+    lineHeight: theme.typography.body2.lineHeight,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: theme.spacing[3],
   },
