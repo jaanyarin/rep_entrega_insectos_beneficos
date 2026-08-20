@@ -325,3 +325,43 @@ el propio test. El resto de suites no requirió cambios.
   perfil completo, Catálogos con slot reservado) — sin crear versión nueva.
 - APK 1.2.0 **reconstruido** con el bundle JS del delta + remediación (evidencia de
   Ley 3); auditoría integral PASS (0 críticos / 0 altos / 0 medios pendientes).
+
+---
+
+# 31. Release de producción — firma propia (H9, 2026-08-19)
+
+## 31.1 Cambio
+
+- Cierre parcial de la deuda **H9** (firma release): el `release` deja de usar
+  `signingConfigs.debug` (keystore debug, password `android`) y pasa a un
+  **keystore de producción propio**.
+- `mobile/android/app/build.gradle`: nuevo `signingConfigs.release` que lee
+  credenciales desde `mobile/android/keystore.properties` (**ignorado por git**);
+  si el archivo no existe, cae a debug solo en desarrollo local (dev, no distribuir).
+- `.gitignore`: añadidos `mobile/android/keystore.properties` y
+  `mobile/android/app/insectos-beneficios-release.keystore` (nunca se suben).
+- Keystore generado con `keytool` (RSA 2048, PKCS12, validez 10 000 días ≈ hasta
+  2054): alias `insectos`, DN `CN=InsectosBeneficios, OU=ID, O=VanguardFresh, L=Lima, C=PE`.
+- Ruta del keystore: `mobile/android/app/insectos-beneficios-release.keystore`.
+  **Obligación del responsable:** respaldar el keystore y `keystore.properties`
+  en al menos 2 lugares (bóveda + copia offline); su pérdida impide firmar
+  actualizaciones futuras.
+
+## 31.2 Verificación
+
+| Comando | Resultado |
+|---|---|
+| `gradlew.bat assembleRelease --no-daemon` | **BUILD SUCCESSFUL** (3m7s; timebox 12 min OK) |
+| `apksigner verify --print-certs` | **V2 Signer: `CN=InsectosBeneficios, OU=ID, O=VanguardFresh, L=Lima, C=PE`** (NO es Android Debug) |
+| APK | `app-release.apk` — 2026-08-19 22:11:23, 65.546.556 bytes — versionName 1.2.0 / versionCode 3 |
+| `git check-ignore` | keystore + keystore.properties ignorados correctamente |
+| Firma SHA-256 | `356e07892a11479905cb8d23ea81a8dcae78abd368cab7b78a49a770f91d3d07` |
+
+## 31.3 Instalación (cambio de firma)
+
+- **Desinstalar la app instalada** (firmada con debug key) antes de instalar el
+  APK de producción: firmas distintas → la instalación directa falla en Android.
+- Los datos de negocio viven en el backend PostgreSQL (no en el celular); solo se
+  pierde sesión/URL guardada en el keychain (se reconfigura en ServerCheck).
+- Pendiente del H9 tras este cambio: **SSL Pinning** y restricción del cleartext
+  HTTP en release (hoy `base-config cleartextTrafficPermitted="true"` modo dev).

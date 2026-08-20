@@ -60,6 +60,20 @@ react {
 def enableProguardInReleaseBuilds = false
 
 /**
+ * Credenciales de firma de produccion (H9). Se leen desde
+ * `mobile/android/keystore.properties` (IGNORADO por git; nunca commitear).
+ * Si el archivo no existe al compilar release, se cae a la firma debug
+ * (solo desarrollo local; NO apto para distribuir).
+ */
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+} else {
+    println "WARN: mobile/android/keystore.properties no existe -> release usara firma DEBUG."
+}
+
+/**
  * The preferred build flavor of JavaScriptCore (JSC)
  *
  * For example, to use the international variant, you can use:
@@ -92,15 +106,26 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // H9: keystore de produccion propio (insectos-beneficios-release.keystore).
+            // Cae a la firma debug SOLO si keystore.properties falta (dev local).
+            // rootProject.file() resuelve relativo a mobile/android/ (donde vive
+            // keystore.properties y el keystore esta en app/).
+            storeFile rootProject.file(keystoreProperties.getProperty(
+                'storeFile', 'app/debug.keystore'))
+            storePassword keystoreProperties.getProperty(
+                'storePassword', 'android')
+            keyAlias keystoreProperties.getProperty('keyAlias', 'androiddebugkey')
+            keyPassword keystoreProperties.getProperty(
+                'keyPassword', 'android')
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
