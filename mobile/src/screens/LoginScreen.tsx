@@ -2,6 +2,7 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {
   ActivityIndicator,
   BackHandler,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -26,6 +27,8 @@ import AppButton from '../components/AppButton';
 import AppCard from '../components/AppCard';
 import AppInput from '../components/AppInput';
 import {theme} from '../theme';
+
+const loginBackground = require('../assets/login-background.jpg');
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -142,6 +145,12 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <ImageBackground
+        source={loginBackground}
+        style={styles.background}
+        resizeMode="cover"
+      />
+      <View style={styles.overlay} />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -272,7 +281,22 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.background.page,
+    backgroundColor: 'transparent',
+  },
+  background: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: theme.colors.background.backdrop,
   },
   container: {
     flex: 1,

@@ -793,3 +793,55 @@ Evidencia (tests `toybox nc -w 4` desde el celular contra `192.168.18.229:puerto
 > la red queda en perfil **Privada**; (3) reescribir la IP actual de la laptop en el ServerCheck.
 > El `remoteip` de las reglas de firewall queda bajo `192.168.18.0/24`; si la laptop cambia de subred,
 > debe actualizarse a la nueva.
+
+---
+
+# 35. Branding de la app — icono, fondo de login y nombre (2026-08-21)
+
+> Aplicado sobre la línea base HITO-004 (cerrado). Desarrollo visual/branding: se reemplaza el icono
+> genérico de la app, se añade el fondo corporativo al LoginScreen y se renombra la app visible.
+
+## 35.1 Cambios implementados
+
+### Icono de la app Android (`_img_icono_2.jpg`)
+- Origen: `docs_implementacion/_img/_img_icono_2.jpg` (1024×1024, crisopa/Chrysopa sobre hoja celeste).
+- Se recortó al sujeto central (crop cuadrado 660×660, origen (183,175)) para eliminar el marco del
+  mockup y maximizar el sujeto; redimensionado `HighQualityBicubic`, PNG opaco `Format24bppRgb`.
+- Reemplazados `ic_launcher.png` y `ic_launcher_round.png` en las 5 densidades de
+  `mobile/android/app/src/main/res/mipmap-*/`:
+  | Densidad | Resolución |
+  |---|---|
+  | mdpi | 48×48 |
+  | hdpi | 72×72 |
+  | xhdpi | 96×96 |
+  | xxhdpi | 144×144 |
+  | xxxhdpi | 192×192 |
+- `AndroidManifest.xml` ya referenciaba `@mipmap/ic_launcher` y `@mipmap/ic_launcher_round` (sin cambios).
+
+### Fondo del LoginScreen (`1749049338170.jpg`)
+- Nuevo asset: `mobile/src/assets/login-background.jpg` (94 KB, copia de
+  `docs_implementacion/_img/1749049338170.jpg` — vista aérea de campos Vanguard).
+- `mobile/src/screens/LoginScreen.tsx`: se añadió `ImageBackground` + `View` overlay (absolutos)
+  dentro del `SafeAreaView`; `styles.safeArea` → `transparent`; nuevos `styles.background` y
+  `styles.overlay` (overlay = `theme.colors.background.backdrop`, sin hardcode de color — §26 design system).
+  La `AppCard` conserva `authOverlay` blanco 0.88 → el formulario queda legible sobre la imagen.
+
+### Nombre de la app
+- `mobile/android/app/src/main/res/values/strings.xml`: `app_name` → **"Insectos Beneficos"** (label del launcher).
+- `mobile/app.json`: `displayName` → **"Insectos Beneficos"**.
+- Se mantienen sin cambios: `applicationId`/`namespace` `com.insectosbeneficios` (técnico, no admite
+  espacios; cambiarlo rompería instalación/firma) y `name` interno npm (clave de paquete, no visible).
+
+## 35.2 Verificación (Ley 5)
+
+| Paso | Comando | Resultado |
+|---|---|---|
+| 1 | Icono (5 densidades) | `ic_launcher`+`ic_launcher_round` 48/72/96/144/192 confirmados |
+| 2 | `npx tsc --noEmit` (mobile) | exit 0 |
+| 3 | `npx jest __tests__/LoginScreen.test.tsx --runInBand` | PASS 2/2, 0 snapshots |
+| 4 | `npm run lint` (mobile) | PASS |
+| 5 | `.\gradlew.bat assembleRelease` | **BUILD SUCCESSFUL** — APK reconstruido (62.8 MB, versionCode 4 / versionName 1.3.0) |
+
+> **Nota:** el icono de launcher y el label son recursos nativos → solo se ven con el APK release
+> reconstruido (no con hot-reload de Metro). El fondo del login sí se actualiza con Metro/recarga de JS.
+> El commit del HITO debe incluir el artefacto opaco y documentar que el APK fue reconstruido.
