@@ -722,3 +722,74 @@ en HITO-002, id H7; no se amplía aquí).
 - El seed `id=1` de la BD local ya no responde a "00000000" (hash cambiado), por lo que el POST `{}`
   en vivo requirió token del DB de test (Testcontainers) donde sí fue **400**. Es estado de datos
   pre-existente (ya documentado en §33.4).
+
+---
+
+# 34. Diagnóstico y corrección — "Unable to load script" + backend inaccesible desde el celular (2026-08-21)
+
+> **Síntoma reportado:** al abrir la app en el celular (192.168.18.239, misma subred Wi-Fi que la
+> laptop 192.168.18.229) se mostraba una **pantalla de error** en lugar de la pantalla
+> `ServerCheck` ("Verificando servidor") que el usuario creó; e incluso escribiendo la IP correcta en
+> el formulario "Verificando servidor", la app no lograba conectarse.
+>
+> **Confirmación importante:** el código del ServerCheck **está correcto** (validado en dispositivo;
+> 27 tests mobile PASS, incluido `ServerCheckScreen.test.tsx`). El problema NO era de la app sino del
+> **entorno de la laptop**: dos bloqueos independientes (Metro y firewall de Windows). La app solo
+> mostraba "Unable to load script" porque era un build **debug** que carga el JS desde Metro.
+
+## 34.1 Causa raíz #1 — "Unable to load script" (RedBox nativo de React Native)
+
+- El APK instalado es **debug** (flag `DEBUGGABLE`, sin bundle embebido) → carga el JavaScript desde
+  **Metro (puerto 8081)**.
+- En el dispositivo, el bundle location por defecto es `localhost:8081`. Al estar conectado por
+  **WiFi** (no USB), ese `localhost` apunta al propio celular, no a la laptop → Metro no alcanzable →
+  RedBox "Unable to load script".
+- **Fix operativo:** `adb reverse tcp:8081 tcp:8081` (redirige `localhost:8081` del celular a Metro de
+  la laptop). **Alternativa fija:** instalar el APK **release** (`assembleRelease`) que trae el bundle
+  embebido (`assets/index.android.bundle`) y no depende de Metro — recomendado para prueba de campo.
+
+## 34.2 Causa raíz #2 — Backend (6101) bloqueado para la red Wi-Fi
+
+Evidencia (tests `toybox nc -w 4` desde el celular contra `192.168.18.229:puerto`):
+
+| Puerto | Servicio | Estado desde el celular |
+|---|---|---|
+| 8081 | Metro (Node) | **OPEN** |
+| 8082 | Backend Apilamiento (para comparar) | **OPEN** |
+| 6101 | Backend Insectos (Java) | **CLOSED** (timeout) |
+
+- El backend de Insectos responde **200** en `localhost:6101` y escucha en `0.0.0.0:6101` (IPv4+IPv6),
+  y `ping` desde el celular a `192.168.18.229` da 0% pérdida → el bloqueo es de **acceso a puerto
+  entrante**, no de la IP ni del proceso.
+- La diferencia con Apilamiento (que sí funciona) es que su puerto `8082` tiene **reglas de firewall
+  explícitas y persistentes**: `Apilamiento Backend 8082 LAN` y `Apilamiento Docker Backend 8082 Allow`
+  (Allow / Inbound / perfil `Dominio,Privada,Pública` / **`RemoteIP 192.168.18.0/24`**). El 6101 no
+  tenía regla equivalente.
+- Agravante: la red Wi-Fi **"LUZ - 5G" estaba en perfil `Public`**, donde Windows bloquea todo tráfico
+  entrante por defecto (Metro y Apilamiento pasaban por excepciones ya aprobadas, Insectos no).
+
+## 34.3 Correcciones aplicadas (para que no vuelva a pasar)
+
+1. **Reglas de firewall persistentes** (mismo shape que Apilamiento, con `remoteip=192.168.18.0/24`):
+   - `Insectos Backend 6101 LAN` (programa `java.exe` del backend) — Allow / Inbound / Any / TCP 6101.
+   - `Insectos Backend 6101 Puerto LAN` (por puerto, a prueba de cambio de exe) — Allow / Inbound / Any.
+   - El formato con `remoteip` de subred LAN es el que **persiste** (a diferencia de un `remoteip=any`,
+     que era revertido por la política de Sophos Endpoint Defense / EDR).
+2. **Perfil de red:** `Set-NetConnectionProfile -Name "LUZ - 5G" -NetworkCategory Private`
+   (la red Wi-Fi pasó de `Public` a `Private`; es la categoría que usan las redes con acceso LAN).
+3. **Metro:** `adb reverse tcp:8081 tcp:8081` (mientras se desarrolle con APK debug).
+
+## 34.4 Verificación final (Ley 5)
+
+| Chequeo | Resultado |
+|---|---|
+| Desde el celular, `toybox nc -w 4 192.168.18.229 6101` | **OPEN** |
+| `toybox nc -w 4 192.168.18.229 8081` | **OPEN** |
+| App en el celular (debug + Metro) tras `adb reverse` | Carga la pantalla **ServerCheck "Verificando servidor"** (ya NO el RedBox) |
+| ServerCheck con la IP `192.168.18.229` | Pasa del estado `checking` a `ready` → **"Iniciar Sesión"** (paso 1 de 3: Super Admin / Admin / Usuario) |
+
+> **Nota operativa:** al reconectar por WiFi/USB o al cambiar de red, `adb reverse` y la categoría de
+> red pueden restablecerse. Si vuelve a fallar: (1) `adb reverse tcp:8081 tcp:8081`; (2) confirmar que
+> la red queda en perfil **Privada**; (3) reescribir la IP actual de la laptop en el ServerCheck.
+> El `remoteip` de las reglas de firewall queda bajo `192.168.18.0/24`; si la laptop cambia de subred,
+> debe actualizarse a la nueva.

@@ -26,6 +26,11 @@ Fuentes normativas (léelas antes de operar):
 6. El commit ocurre solo tras gate review integral PASS (Ley 3 + perfiles). Sigue la política de
    commits del doc de orquestación: todo avance deja estado en disco en 04_implementacion.md/hito (Ley 2),
    WIP opcional `feat(wip,n):`.
+7. **Push automático a GitHub (obligatorio al cerrar HITO)**: tras el COMMIT ÚNICO de cierre validado,
+   ejecuta de inmediato `git push origin main`. Remoto:
+   `https://github.com/jaanyarin/rep_entrega_insectos_beneficos.git`. Verifica la sincronización con
+   `git status -sb` (sin "ahead") y `git log origin/main..HEAD` (vacío). NO hacer push por cada commit
+   intermedio/WIP, solo al cierre validado del HITO.
 
 ### Método por tarea
 
@@ -33,6 +38,7 @@ Fuentes normativas (léelas antes de operar):
 2. **Delegar** a `developer` via task con contexto estructurado (HITO/TASK/OBJETIVO/ALCANCE/ARCHIVOS
    RELEVANTES/DEPENDENCIAS/PATRONES/RESTRICCIONES/GATES ESPERADOS/VERIFICACIÓN/CRITERIOS DE TERMINACIÓN).
 3. **Auditar**: solicitar gate review al `auditor` por cada tarea/HITO (puedes usar el comando `/auditoria`).
-4. **Cerrar HITO**: auditoría integral PASS + verificación + `05_hito_NNN.md` + commit coherente.
+4. **Cerrar HITO**: auditoría integral PASS + verificación + `05_hito_NNN.md` + commit coherente
+   + **push `git push origin main`** inmediato (regla 7).
 
 Nunca resuelvas contradicciones entre fuentes por prueba/error: detente y solicita reconciliación humana.

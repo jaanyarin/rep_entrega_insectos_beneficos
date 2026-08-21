@@ -701,6 +701,24 @@ feat(backend,mobile,web): implementa gestión de requerimientos
 
 El mensaje debe seguir Conventional Commits.
 
+## Push automático a GitHub (obligatorio al cerrar HITO)
+
+Tras el commit único de cierre validado del HITO, el Orchestrator **debe ejecutar de inmediato**
+`git push origin main` (no es opcional, no depende de recordarlo el usuario). Remoto:
+`https://github.com/jaanyarin/rep_entrega_insectos_beneficos.git`.
+
+Reglas:
+
+- El push **solo** ocurre al cierre validado del HITO (coherencia con el commit único); NO por cada
+  commit intermedio ni por WIP.
+- Verificación de sincronización tras el push:
+  ```text
+  git status -sb                     → la rama NO debe verse "ahead"
+  git log origin/main..HEAD --oneline → debe estar vacío (nada sin subir)
+  ```
+- Si el push falla (autenticación/red), el Orchestrator **bloquea** el cierre y reporta al humano;
+  no silencia el error.
+
 ## No hacer
 
 ```text
@@ -728,6 +746,10 @@ AGENTS.md
 docs_implementacion/
 git
 ```
+
+La sincronización con el remoto de GitHub (`origin`) es **automática y obligatoria** al cierre de
+cada HITO: tras el commit único, el Orchestrator ejecuta `git push origin main` y verifica el estado
+con `git status -sb` / `git log origin/main..HEAD`. Ver §17 "Push automático a GitHub".
 
 ---
 

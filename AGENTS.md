@@ -156,6 +156,11 @@ Reglas de operación no negociables:
 4. El gate list proviene del perfil auditor (32 gates); el Auditor no inventa criterios.
 5. Los bloqueos humanos detienen la automatización (nunca se silencian).
 6. El commit solo ocurre después del gate review integral PASS (Ley 3 + perfiles).
+7. **Push automático a GitHub**: tras el commit único de cierre del HITO, el Orchestrator
+   **debe `git push origin main`** de inmediato (no es opcional). El remoto es
+   `https://github.com/jaanyarin/rep_entrega_insectos_beneficos.git`. El push NO se
+   hace por cada commit intermedio/WIP, solo al cierre validado del HITO (coherencia con el
+   commit único). Verificar con `git status -sb` (sin "ahead") y `git log origin/main..HEAD` (vacío).
 
 Estado del trabajo se recupera **desde disco** (docs + git), no de memoria de sesión.
 
@@ -166,4 +171,5 @@ Estado del trabajo se recupera **desde disco** (docs + git), no de memoria de se
 - Rutas antiguas (`docs_sdd/`, `docs_diagramas/`, `docs_usuario/`, `perfil_desarrollador.md` suelto)
   quedaron **reemplazadas** por las carpetas `_`-prefijadas; no recrear las antiguas.
 - Commit al cierre del HITO (único, coherente). WIP opcional `feat(wip,n):` documentado.
+- Tras el commit único de cierre del HITO, **push automático `git push origin main`** (obligatorio).
 - `README.md` raíz describe el proyecto (estado actual, stack y pendientes); se actualiza al cierre de hitos.
