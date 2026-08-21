@@ -14,6 +14,7 @@
 import React from 'react';
 import ReactTestRenderer, {act} from 'react-test-renderer';
 import * as Keychain from 'react-native-keychain';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import {AuthProvider} from '../src/context/AuthContext';
 import ProgramacionEdicionScreen from '../src/screens/ProgramacionEdicionScreen';
 import {clearToken} from '../src/services/ApiClient';
@@ -264,5 +265,72 @@ describe('ProgramacionEdicionScreen — edición (Admin)', () => {
         'La edición solo está permitida los lunes y jueves de 00:00 a 23:59.',
       ),
     ).toBe(1);
+  });
+
+  test('modo crear: selecciona especie, hace POST /programaciones y replace a editar', async () => {
+    (useRoute as unknown as jest.Mock).mockReturnValue({
+      params: {anio: 2026, mes: 8, modo: 'crear'},
+    });
+    const mockReplace = jest.fn();
+    (useNavigation as unknown as jest.Mock).mockReturnValue({
+      goBack: jest.fn(),
+      replace: mockReplace,
+    });
+
+    const tree = await renderEdicion();
+    await act(async () => {
+      await flushPromises();
+    });
+
+    // Modo crear: no debe existir programación del periodo+especie (lista vacía).
+    api.get.mockImplementation((url: string) => {
+      if (url === '/especies') {
+        return Promise.resolve({data: ESPECIES});
+      }
+      return Promise.resolve({data: []});
+    });
+    api.post.mockResolvedValue({
+      data: {
+        id: 9,
+        anio: 2026,
+        mes: 8,
+        especieId: 1,
+        estado: 'EN_PROCESO',
+        stockInicialBase: 5000,
+        totalMes: 0,
+        detalles: [],
+      },
+    });
+
+    // Seleccionar una especie del catálogo.
+    await act(async () => {
+      findByLabel(tree, 'Especie Chrysopa sp.').props.onPress();
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+
+    // Presionar "Crear programación".
+    await act(async () => {
+      findByLabel(tree, 'Crear nueva programación').props.onPress();
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+
+    expect(api.post).toHaveBeenCalledWith('/programaciones', {
+      anio: 2026,
+      mes: 8,
+      especieId: 1,
+    });
+    expect(mockReplace).toHaveBeenCalledWith('ProgramacionEdicion', {
+      id: 9,
+      anio: 2026,
+      mes: 8,
+      modo: 'editar',
+    });
   });
 });

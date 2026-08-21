@@ -29,6 +29,7 @@ import {
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {RouteProp} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import AppButton from '../components/AppButton';
 import AppHeader from '../components/AppHeader';
 import AppIconButton from '../components/AppIconButton';
@@ -40,6 +41,7 @@ import StatusChip from '../components/StatusChip';
 import type {RootStackParamList} from '../navigation/types';
 import {
   actualizarProgramacion,
+  crearProgramacion,
   extractErrorMessage,
   listarEspecies,
   listarProgramaciones,
@@ -58,6 +60,7 @@ import {
 } from '../utils/programacion';
 
 type Route = RouteProp<RootStackParamList, 'ProgramacionEdicion'>;
+type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 /** Fila editable de la tabla semanal (strings para los inputs numéricos). */
 interface FilaEditable {
@@ -78,10 +81,16 @@ function aNumero(texto: string): number {
 }
 
 export default function ProgramacionEdicionScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const {id: idInicial, anio: anioInicial, mes: mesInicial} = route.params;
+
+  // Extraer params: modo puede ser 'crear' o 'editar' (por defecto 'editar')
+  const params = route.params;
+  const modo: 'crear' | 'editar' = params.modo ?? 'editar';
+  const idInicial = 'id' in params ? params.id : undefined;
+  const anioInicial = params.anio;
+  const mesInicial = params.mes;
 
   const [anio, setAnio] = useState(anioInicial ?? anioActual());
   const [mes, setMes] = useState(mesInicial ?? mesActual());
@@ -89,7 +98,7 @@ export default function ProgramacionEdicionScreen() {
   const [especieId, setEspecieId] = useState<number | null>(null);
   const [programacion, setProgramacion] = useState<ProgramacionDto | null>(null);
   const [filas, setFilas] = useState<FilaEditable[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(modo === 'editar'); // En modo 'crear' no hay carga inicial
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [notificacion, setNotificacion] = useState<{
@@ -149,8 +158,11 @@ export default function ProgramacionEdicionScreen() {
   }, []);
 
   useEffect(() => {
-    cargarDetalle(idInicial);
-  }, [idInicial, cargarDetalle]);
+    // Solo cargar detalle en modo 'editar' con id válido
+    if (modo === 'editar' && idInicial) {
+      cargarDetalle(idInicial);
+    }
+  }, [idInicial, cargarDetalle, modo]);
 
   /** Al cambiar mes/anio/especie: busca la programación de ese periodo. */
   const seleccionarProgramacionDelPeriodo = useCallback(
@@ -256,6 +268,38 @@ export default function ProgramacionEdicionScreen() {
           'Programación publicada. Se notificó a Sanidad por correo.',
       });
       await cargarDetalle(programacion.id);
+    } catch (e) {
+      setNotificacion({tipo: 'error', texto: extractErrorMessage(e)});
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Crea una nueva programacion (modo 'crear') y navega al modo 'editar'. */
+  const crearNuevaProgramacion = async () => {
+    if (!especieId) {
+      setNotificacion({tipo: 'error', texto: 'Selecciona una especie'});
+      return;
+    }
+    setSaving(true);
+    setNotificacion(null);
+    try {
+      const nueva = await crearProgramacion({
+        anio,
+        mes,
+        especieId,
+      });
+      setNotificacion({
+        tipo: 'ok',
+        texto: 'Programación creada. Ahora puedes editarla.',
+      });
+      // Navegar al modo 'editar' con el id creado (replace para no acumular en stack)
+      navigation.replace('ProgramacionEdicion', {
+        id: nueva.id,
+        anio: nueva.anio,
+        mes: nueva.mes,
+        modo: 'editar',
+      });
     } catch (e) {
       setNotificacion({tipo: 'error', texto: extractErrorMessage(e)});
     } finally {
@@ -385,7 +429,11 @@ export default function ProgramacionEdicionScreen() {
       fallbackTitle="No se pudo editar la programación"
       fallbackMessage="Reintente nuevamente o cierre su sesión.">
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <AppHeader title="Editar programación" showBack onBack={navigation.goBack} />
+        <AppHeader
+          title={modo === 'crear' ? 'Nueva programación' : 'Editar programación'}
+          showBack
+          onBack={navigation.goBack}
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -394,8 +442,26 @@ export default function ProgramacionEdicionScreen() {
           ]}>
           {renderPeriodo}
           {renderNotificacion}
-          {error ? (
-            <ErrorState onRetry={() => cargarDetalle(idInicial)} />
+          {modo === 'crear' ? (
+            // MODO CREAR: formulario con selector de especie y botón "Crear"
+            <>
+              {renderEspecies}
+              {!esDiaEditable() ? (
+                <Text style={styles.avisoEdicion}>
+                  La creación solo está permitida los lunes y jueves de 00:00 a 23:59.
+                </Text>
+              ) : null}
+              <AppButton
+                label="Crear programación"
+                icon="plus"
+                loading={saving}
+                disabled={!especieId || !esDiaEditable()}
+                onPress={crearNuevaProgramacion}
+                accessibilityLabel="Crear nueva programación"
+              />
+            </>
+          ) : error ? (
+            <ErrorState onRetry={() => idInicial && cargarDetalle(idInicial)} />
           ) : loading ? (
             <LoadingState message="Cargando programación…" />
           ) : programacion ? (

@@ -598,3 +598,127 @@ permanece **untracked** (sin stage por el developer; la incorporará el commit
 | 5 | `npm test -- --runInBand --forceExit` (2ª pasada, tras fix del mock) | **PASS — 9 suites / 39 tests** (36 previos + 3 nuevos de PerfilScreen) |
 | — | `npm run lint` + `npx tsc` (re-verificación post-fix del test) | **PASS (exit 0)** en ambos |
 | 6 | `git status` (final) | 8 M + 3 untracked: mis cambios = `PerfilScreen.tsx` (144+/30-), `__tests__/PerfilScreen.test.tsx` (nuevo) y este doc §32.6; el resto es del Orchestrator/delta §32.5 (incl. `HomeScreen.tsx`, 2+/2-, restaurado en paralelo — NO lo toqué). **SIN commit** (HEAD = `241a57d`) |
+
+---
+
+# 33. Delta Módulo Programación — endpoint POST crear + botón "Nuevo" (2026-08-21)
+
+> Este delta se aplica sobre la línea base HITO-003 (cerrado) y los commits
+> `80b271f` (mobile: screens programación) + `cd3ef0f` (backend: programaciones).
+> Cierra la brecha: el módulo listaba/leía/publicaba programaciones pero **no
+> permitía crear una nueva desde la app**, y el usuario reportó que no veía el
+> botón para ello y que aparecía "sin conexión".
+
+## 33.1 Análisis — causa raíz del reporte
+
+1. **"Sin conexión con el servidor"** → el backend del commit `cd3ef0f` tenía los
+   archivos de programación y la migración V4, pero el JAR en ejecución era de
+   `2026-08-19 13:22` (anterior a esos cambios) y la BD local solo tenía
+   migraciones V1-V3. Por eso `/api/v1/especies` y `/api/v1/programaciones`
+   devolvían **404**. Se reconstruyó el JAR (`mvnw clean package -DskipTests`),
+   se reinició el backend y se aplicó la **migración V4** (crea `especies`,
+   `programaciones`, `detalle_programaciones`).
+2. **Falta botón "Nuevo"** → `ProgramacionScreen` no tenía ninguna acción de
+   creación (solo Ver/Editar sobre registros existentes) y el backend no exponía
+   el `POST`. Se añadió el endpoint y el botón.
+
+## 33.2 Cambios implementados (delta sin commitear)
+
+### Backend (2 modificados + 1 nuevo)
+| Archivo | Cambio |
+|---|---|
+| `programacion/dto/CrearProgramacionRequest.java` (nuevo) | DTO con `anio`, `mes`, `especieId` (getters/setters). |
+| `ProgramacionResource.java` | Método `@POST @RolesAllowed({"Super Admin","Admin"}) crearProgramacion(...)` → valida campos requeridos y devuelve `201 CREATED` con el `ProgramacionDto`. |
+| `ProgramacionService.java` | Método `@Transactional crearProgramacion(anio, mes, especieId)`: valida que la especie exista (`404 ESPECIE_NO_ENCONTRADA`), que no exista ya programación para mes+año+especie (`409 PROGRAMACION_YA_EXISTE`) y delega en `crearProgramacionInicial` (4 semanas, stock base 5000, estado EN_PROCESO). |
+
+### Mobile (5 modificados)
+| Archivo | Cambio |
+|---|---|
+| `services/ApiClient.ts` | Interfaz `CrearProgramacionRequest` + función `crearProgramacion(req)` → `POST /programaciones`. |
+| `navigation/types.ts` | `ProgramacionEdicion` pasa a `union`: `{id,anio,mes,modo?:'editar'}` \| `{anio,mes,modo:'crear'}`. |
+| `screens/ProgramacionScreen.tsx` | `renderBotonNuevo` (AppButton "Nuevo", icono `plus`) visible para admin, navega a `ProgramacionEdicion` con `{modo:'crear', anio, mes}`. |
+| `screens/ProgramacionEdicionScreen.tsx` | Soporta ambos modos: `modo='crear'` → selector de especie + botón "Crear programación" (deshabilitado si no hay especie o no es día editable); al crear usa `navigation.replace` para ir a modo 'editar' con el id creado. `modo='editar'` → comportamiento previo. Título dinámico ("Nueva programación"/"Editar programación"). |
+| `docs_implementacion/OPENCode_orquestacion_agentes_proyecto_v2.md` | Nueva §25.1.1 "Desarrollo mobile: Hot Reload obligatorio" (Metro 8081, APK debug, no release para desarrollo). |
+
+> ⚠️ **Nota de coherencia:** el PUT (`updateProgramacion`) valida día de edición
+> (lunes/jueves). Hoy (2026-08-21, viernes) el PUT responde **400
+> EDICION_NO_PERMITIDA** — comportamiento esperado según RF-147/148, no un bug.
+
+## 33.3 Verificación ejecutada (Ley 5)
+
+### Backend (en `backend/`)
+| Paso | Comando | Resultado |
+|---|---|---|
+| 1 | `.\mvnw.cmd clean package -DskipTests` | **BUILD SUCCESS** (41 sources) |
+| 2 | `.\mvnw.cmd test -Dtest=ProgramacionResourceTest` | **PASS — Tests run: 2, Failures: 0, Errors: 0** (Testcontainers Postgres fresco) |
+| 3 | `GET /api/v1/especies` | **200** con 2 especies |
+| 4 | `POST /api/v1/programaciones` (sin token) | **401** (RBAC activo) |
+| 5 | `POST /api/v1/programaciones` (con token Admin, mes 10 esp 1) | **201** → programación id=5, 4 semanas, stock 5000, EN_PROCESO |
+| 6 | `POST` duplicado (mes 10 esp 1) | **409 PROGRAMACION_YA_EXISTE** |
+| 7 | `GET /api/v1/programaciones?anio=2026&mes=10` | **200** — 2 programaciones (una por especie, auto-creadas) |
+| 8 | `GET /api/v1/programaciones/5` | **200** (detalle semanal, totalMes 0) |
+| 9 | `PUT /api/v1/programaciones/5` | **400 EDICION_NO_PERMITIDA** (hoy viernes — esperado, RF-147/148) |
+
+Los datos de prueba (usuario `verif_post` y programaciones de octubre) fueron
+**eliminados de la BD** para no contaminar el estado real (quedan solo las
+programaciones de julio/agosto).
+
+### Mobile (validado en Delta previo y por el Developer)
+| Paso | Resultado |
+|---|---|
+| `npm run lint` | PASS |
+| `npx tsc --noEmit` | PASS |
+| `npm test` (ProgramacionScreen + ProgramacionEdicionScreen) | **12/12 PASS** |
+
+## 33.4 Estado del artefacto y pendientes
+
+- **Estado backend:** JAR recompilado y backend **corriendo en puerto 6101**.
+- **Estado mobile:** cambios en disco; **hot reload** (Metro 8081) los refleja en
+  el dispositivo sin reconstruir APK (no se agregó módulo nativo nuevo).
+- **Pendiente de auditoría:** el delta (2 archivos backend modificados + 1 DTO
+  nuevo + 5 archivos mobile modificados) está **sin commit**, a la espera de
+  gate review PASS y el commit único del HITO.
+- **Hallazgo operativo (no del delta):** el login con el usuario seed `id=1`
+  devuelve 401 en la BD local porque su hash ya fue cambiado (contraseña
+  distinta de "00000000"). Es estado de datos de la BD de test, no un defecto
+  del módulo Programación; la autenticación fue validada en HITO-002.
+- **Artefacto `install.ps1` (untracked):** script bash con extensión `.ps1` ajeno
+  al proyecto — requiere decisión del Orchestrator (trackear/ignorar).
+
+## 33.5 Resolución de hallazgos MEDIO/BAJO del gate review (G-VAL/G-EXC, G-SEC, G-TEST-BE, G-TEST-FE, G-DOC-SYNC)
+
+El Auditor emitió **PASS técnico** con hallazgos MEDIO/BAJO. Se resolvieron los siguientes (el
+developer NO hace commit; el Orchestrator cierra el HITO).
+
+| ID | Hallazgo | Resolución aplicada |
+|---|---|---|
+| **H1** | G-VAL/G-EXC: DTO sin Bean Validation → input inválido daba 500 | `CrearProgramacionRequest` con `@NotNull @Positive` (anio, especieId) y `@NotNull @Min(1) @Max(12)` (mes); `@Valid` en `crearProgramacion`. Eliminada la validación manual de nulos. Confirmado (ManejadorErrores maneja `ConstraintViolationException`): **POST `{}` → HTTP 400** (body RESTEasy `validation-exception:true`; no 500). |
+| **H6** | G-SEC: asimetría RBAC — solo `crearProgramacion` tenía `@RolesAllowed` | `@RolesAllowed({"Super Admin","Admin"})` añadido a `updateProgramacion` (PUT) y `publicarProgramacion` (POST /publicar). Los **GET quedan sin `@RolesAllowed`** (coherencia con `EspecieResource`, que también es lectura pública, y porque el test existente `testListProgramacionesReturnsMobileContractFields` hace GET sin token; el listado de la pantalla Programación es de solo lectura para ambos roles). |
+| **H3** | G-TEST-BE: sin test del POST crear | 5 tests JUnit/RestAssured añadidos en `ProgramacionResourceTest`: 201 (super admin), 409 (duplicado mes+año+especie), 404 (especie inexistente), 401 (sin token) y 400 (body `{}`). **Tests run: 7, Failures: 0, Errors: 0**. |
+| **H4** | G-TEST-FE: sin test del botón "Nuevo" ni del flujo crear | `ProgramacionScreen.test.tsx`: test "Nuevo navega a ProgramacionEdicion en modo crear (anio/mes actuales)". `ProgramacionEdicionScreen.test.tsx`: test "modo crear: selecciona especie, POST /programaciones y replace a editar". |
+| **H5** | G-DOC-SYNC: re-numeración §25.1→§25.2 rota referencias | Se restaura el **"Pipeline dev→auditor" como `§25.1`** (refs de `05_hito_002.md`) y el **"Hot Reload" pasa a `§25.1.1`** (subsección, sin colisión). Refs de `05_hito_002.md` a "§25.1" siguen apuntando al pipeline dev→auditor. `04_implementacion.md` §33.2 actualizado a "§25.1.1". |
+
+**H8 (BAJO, G-MOB-FORM):** el formulario de creación no usa React Hook Form + Zod. Es un selector
+simple (especie + mes/año), por lo que adoptar RHF+Zod implicaría un cambio desproporcionado frente
+al valor. **No resuelto** — se registra como deuda con el Orchestrator (patrón ya es deuda mayor
+en HITO-002, id H7; no se amplía aquí).
+
+### Verificación (Ley 5 — comandos reales)
+
+| Comando | Resultado |
+|---|---|
+| `.\mvnw.cmd clean package` (backend) | **BUILD SUCCESS** — Tests run: 39 (13 Auth + 7 Programación + 19 Usuarios), Failures: 0, Errors: 0 — jar reconstruido |
+| `.\mvnw.cmd test` (backend) | **BUILD SUCCESS** — Tests run: 39, Failures: 0, Errors: 0 |
+| Live backend (puerto 6101, jar reconstruido) | `GET /especies` 200 · `GET /programaciones?anio=2026&mes=8` 200 (sin token) · `POST /programaciones` sin token **401** · `PUT /programaciones/1` sin token **401** · `POST /programaciones/1/publicar` sin token **401** (con `Content-Type: application/json`) |
+| `npm run lint` (mobile) | **EXIT 0** |
+| `npx tsc --noEmit` (mobile) | **EXIT 0** |
+| `npx jest __tests__/ProgramacionScreen.test.tsx __tests__/ProgramacionEdicionScreen.test.tsx __tests__/ApiClient.test.ts --runInBand` | **PASS — 3 suites / 29 tests** |
+| `npx jest --runInBand` (suite completa) | **PASS — 12 suites / 63 tests** |
+
+**Observaciones (no bloqueantes):**
+- `npm test` (paralelo por defecto) es *flaky* en este entorno (LoginScreen/PerfilScreen/CatalogosScreen
+  superan el timeout de 5 s por contención de CPU con 12 suites). En serie (`--runInBand`) todo pasa;
+  no es un defecto de código ni fue introducido por este delta.
+- El seed `id=1` de la BD local ya no responde a "00000000" (hash cambiado), por lo que el POST `{}`
+  en vivo requirió token del DB de test (Testcontainers) donde sí fue **400**. Es estado de datos
+  pre-existente (ya documentado en §33.4).

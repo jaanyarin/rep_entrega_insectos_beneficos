@@ -74,6 +74,29 @@ public class ProgramacionService {
         return p;
     }
 
+    /**
+     * Crea una nueva programacion validando que no exista para el mismo mes+año+especie.
+     * Solo Admin/Super Admin pueden crear programaciones (validado en Resource).
+     */
+    @Transactional
+    public ProgramacionDto crearProgramacion(Integer anio, Integer mes, Long especieId) {
+        // Validar que la especie exista
+        Especie especie = especieRepository.findByIdOptional(especieId)
+                .orElseThrow(() -> new ApiException(jakarta.ws.rs.core.Response.Status.NOT_FOUND,
+                        "ESPECIE_NO_ENCONTRADA", "Especie no encontrada"));
+
+        // Validar que no exista ya una programacion para ese mes+año+especie
+        if (programacionRepository.findByAnioAndMesAndEspecieId(anio, mes, especieId).isPresent()) {
+            throw new ApiException(jakarta.ws.rs.core.Response.Status.CONFLICT,
+                    "PROGRAMACION_YA_EXISTE",
+                    "Ya existe una programación para este mes, año y especie");
+        }
+
+        // Crear la programacion inicial
+        Programacion programacion = crearProgramacionInicial(anio, mes, especie);
+        return mapper.toDto(programacion);
+    }
+
     public ProgramacionDto getProgramacion(Long id) {
         Programacion p = programacionRepository.findByIdOptional(id)
                 .orElseThrow(() -> new ApiException(jakarta.ws.rs.core.Response.Status.NOT_FOUND, "PROGRAMACION_NO_ENCONTRADA", "Programacion no encontrada"));
@@ -128,7 +151,7 @@ public class ProgramacionService {
         for (DetalleProgramacion d : p.getDetalles()) {
             d.setEstado("PUBLICADO");
         }
-        
+
         System.out.println("Email sent: Programación " + id + " publicada.");
         return mapper.toDto(p);
     }

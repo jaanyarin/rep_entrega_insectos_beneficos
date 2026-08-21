@@ -519,6 +519,13 @@ export interface ActualizarProgramacionRequest {
   }>;
 }
 
+/** Cuerpo de POST /api/v1/programaciones (crear nueva programacion). */
+export interface CrearProgramacionRequest {
+  anio: number;
+  mes: number;
+  especieId: number;
+}
+
 /** GET /api/v1/especies — catálogo de especies de insectos benéficos. */
 export async function listarEspecies(): Promise<EspecieDto[]> {
   const res = await api.get('/especies');
@@ -558,4 +565,12 @@ export async function publicarProgramacion(
 ): Promise<{mensaje: string}> {
   const res = await api.post(`/programaciones/${id}/publicar`);
   return res.data as {mensaje: string};
+}
+
+/** POST /api/v1/programaciones — crea una nueva programacion (solo Admin/Super Admin). */
+export async function crearProgramacion(
+  req: CrearProgramacionRequest,
+): Promise<ProgramacionDto> {
+  const res = await api.post('/programaciones', req);
+  return res.data as ProgramacionDto;
 }

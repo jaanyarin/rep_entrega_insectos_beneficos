@@ -202,6 +202,23 @@ describe('ProgramacionScreen — listado por mes (Admin)', () => {
     });
   });
 
+  test('Nuevo navega a ProgramacionEdicion en modo crear (anio/mes actuales)', async () => {
+    const tree = await renderProgramacion(TOKEN_ADMIN);
+    await act(async () => {
+      await flushPromises();
+    });
+
+    await act(async () => {
+      findByLabel(tree, 'Crear nueva programación').props.onPress();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('ProgramacionEdicion', {
+      modo: 'crear',
+      anio: 2026,
+      mes: 8,
+    });
+  });
+
   test('sin programaciones muestra EmptyState', async () => {
     const tree = await renderProgramacion(TOKEN_ADMIN, []);
     await act(async () => {

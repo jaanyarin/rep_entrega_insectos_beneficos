@@ -195,6 +195,21 @@ export default function ProgramacionScreen() {
     </View>
   );
 
+  const renderBotonNuevo = puedeGestionar ? (
+    <AppButton
+      label="Nuevo"
+      icon="plus"
+      onPress={() =>
+        navigation.navigate('ProgramacionEdicion', {
+          modo: 'crear',
+          anio,
+          mes,
+        })
+      }
+      accessibilityLabel="Crear nueva programación"
+    />
+  ) : null;
+
   const renderContenido = () => {
     if (loading) {
       return <LoadingState message="Cargando programaciones…" />;
@@ -278,6 +293,7 @@ export default function ProgramacionScreen() {
           {puedeGestionar ? (
             <>
               {renderPeriodo}
+              {renderBotonNuevo}
               {renderContenido()}
             </>
           ) : (

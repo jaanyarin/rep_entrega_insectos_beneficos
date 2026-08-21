@@ -17,7 +17,14 @@ export type RootStackParamList = {
   NuevoRequerimiento: undefined;
   HistorialRequerimiento: undefined;
   Programacion: undefined;
-  ProgramacionEdicion: {id: number; anio: number; mes: number};
+  /**
+   * ProgramacionEdicion: soporta modo 'editar' (con id) y modo 'crear' (sin id).
+   * - modo='editar': requiere id, anio, mes (comportamiento actual).
+   * - modo='crear': requiere anio, mes, modo='crear' (crea nueva programacion).
+   */
+  ProgramacionEdicion:
+    | {id: number; anio: number; mes: number; modo?: 'editar'}
+    | {anio: number; mes: number; modo: 'crear'};
   SolicitudRequerimientos: undefined;
 };
 

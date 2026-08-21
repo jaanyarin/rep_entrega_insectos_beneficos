@@ -6,6 +6,17 @@
 
 const versionHistory = [
   {
+    version: '1.3.0',
+    fecha: '2026-08-21',
+    cambios: [
+      'Módulo Programación: listado por mes con selector de periodo y detalle de semanas.',
+      'Edición de programación con filtro de mes y especie, tabla editable de proyección y envío de stock.',
+      'Creación de programación (botón "Nuevo") para Admin/Super Admin con validación de duplicados.',
+      'Proyección mensual con stock inicial (5,000 millares), cálculo automático de Total y stock final.',
+      'Backend: endpoint POST /api/v1/programaciones con RBAC y migración V4.',
+    ],
+  },
+  {
     version: '1.2.0',
     fecha: '2026-08-19',
     cambios: [

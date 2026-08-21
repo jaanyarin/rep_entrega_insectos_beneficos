@@ -23,9 +23,9 @@ Decisiones de arquitectura vigentes y decisiones descartadas: ver
 ## Estructura del repositorio
 
 ```text
-backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, 32 tests
+backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, + programaciones/especies (V4)
 mobile/       App React Native CLI 0.86 / React 19.2.3 — auth v2 (login 3 pasos, URL runtime,
-              SecureStore/keychain), 27 tests — versión 1.2.0
+              SecureStore/keychain) + módulo Programación — versión 1.3.0
 web/          Frontend React + Vite (pendiente de scaffold)
 docs_implementacion/
 ├── _sdd/                      Especificación, plan, tareas e implementación
@@ -48,8 +48,12 @@ docs_implementacion/
 - **HITO-003 cerrado técnicamente (2026-08-19) = UI Vanguard y navegación mobile**: tema con tokens,
   fuentes Poppins, iconos Material Community, componentes base, navegación Home/slot vacío/Catálogos/
   Perfil, Perfil con historial y logout confirmado. Versión de artefactos: **1.2.0**, `versionCode 3`.
+- **HITO-004 cerrado (2026-08-21) = Módulo Programación de Stock**: listado por mes, edición con
+  restricción de días (lunes/jueves), creación de programaciones (botón "Nuevo"), endpoint
+  `POST /api/v1/programaciones` con RBAC y migración V4. Versión de artefactos: **1.3.0**, `versionCode 4`
+  (39 tests BE · 63 tests MO).
 - **Pendientes**: frontend web (React/Vite), CI/CD (GitHub Actions), hitos funcionales
-  (requerimientos, programación de stock, evidencias). Ver
+  (requerimientos, evidencias fotográficas). Ver
   [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).
 
 ## Verificación por capa

@@ -1013,6 +1013,41 @@ solape; se ejecutan secuencialmente con gate PASS previo.
 
 ---
 
+### 25.1.1 Desarrollo mobile: Hot Reload obligatorio
+
+**Política**: Durante el desarrollo mobile, **SIEMPRE** se debe usar Metro con hot reload para ver cambios de forma inmediata en el dispositivo.
+
+**Reglas**:
+1. **Metro bundler**: Debe estar corriendo en puerto 8081 (`npm start` o `npm run start:lan`).
+2. **APK debug**: Se usa `react-native run-android` (modo debug), NO `assembleRelease` para desarrollo.
+3. **Hot reload**: Los cambios en código se reflejan automáticamente en el dispositivo sin reconstruir APK.
+4. **Rebuild solo cuando**:
+   - Se agrega un módulo nativo nuevo (ej. `react-native-keychain`).
+   - Se modifica `android/` o `ios/` (configuración nativa).
+   - Se cambia `package.json` (dependencias nuevas).
+5. **Verificación**: Antes de implementar cambios, verificar que Metro esté corriendo:
+   ```powershell
+   Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue
+   ```
+   Si no está corriendo, iniciarlo con `npm start` en `mobile/`.
+
+**Flujo de desarrollo mobile**:
+```text
+1. Metro corriendo (puerto 8081)
+2. APK debug instalado en dispositivo
+3. Dispositivo conectado por WiFi/USB
+4. Modificar código → hot reload automático
+5. Ver cambios en dispositivo
+6. Solo rebuild cuando sea estrictamente necesario
+```
+
+**No hacer**:
+- Reconstruir APK release para cada cambio.
+- Detener Metro durante desarrollo.
+- Usar `assembleRelease` para pruebas de UI/UX.
+
+---
+
 # 26. Regla de propiedad de archivos
 
 El Orchestrator debe evitar que dos agentes modifiquen simultáneamente el mismo archivo.
