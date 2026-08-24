@@ -5,10 +5,12 @@
  * D-AUTH2-5). La URL real se configura en runtime y se persiste en el
  * SecureStore (Keychain, service `apiUrl`); este valor solo se usa cuando el
  * usuario aún no ha guardado una URL o al "Restablecer" (Settings/ServerCheck).
- * Mantiene el host del HITO-003 (2026-08-19): IP actual de la laptop del
- * responsable — 192.168.18.229:6101 (red LUZ - 5G). Histórico: 10.13.18.97
- * (HITO-001), 10.13.18.93 y 192.168.18.229 (HITO-003).
+ * Mantiene el host de la red activa de la laptop del responsable — IP actual
+ * 10.13.18.103:6101 (red 10.13.18.0/23). Histórico: 10.13.18.97 (HITO-001),
+ * 10.13.18.93, 192.168.18.229 (HITO-003, red LUZ - 5G) y 10.13.18.103.
+ * La IP cambia según la red; la URL es runtime (ServerCheck/Settings) y este
+ * valor solo se usa como fallback al no haber URL guardada o al "Restablecer".
  */
-const API_BASE_URL = 'http://192.168.18.229:6101/api/v1';
+const API_BASE_URL = 'http://10.13.18.103:6101/api/v1';
 
 export default API_BASE_URL;

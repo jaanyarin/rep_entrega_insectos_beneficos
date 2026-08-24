@@ -574,3 +574,177 @@ export async function crearProgramacion(
   const res = await api.post('/programaciones', req);
   return res.data as ProgramacionDto;
 }
+
+/* ------------------------------------------------------------------ */
+/* Requerimientos (/api/v1/requerimientos + catálogos)                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Estados de un requerimiento (transcripcion.md Screen 7/8, RF-152..188).
+ * Orden del ciclo: Registrado → Pendiente → Aprobado → Entregado → Recibido → Liberado.
+ */
+export type EstadoRequerimiento =
+  | 'REGISTRADO'
+  | 'PENDIENTE'
+  | 'APROBADO'
+  | 'ENTREGADO'
+  | 'RECIBIDO'
+  | 'LIBERADO';
+
+/** Fundo agrícola (catálogo). */
+export interface FundoDto {
+  id: number;
+  nombre: string;
+  estado: boolean | string;
+}
+
+/** Lote dentro de un fundo (catálogo). */
+export interface LoteDto {
+  id: number;
+  fundoId: number;
+  nombre: string;
+  estado: boolean | string;
+}
+
+/** Etapa fenológica (catálogo). */
+export interface EtapaFenologicaDto {
+  id: number;
+  nombre: string;
+  estado: boolean | string;
+}
+
+/** Plaga objetivo (catálogo). */
+export interface PlagaDto {
+  id: number;
+  nombre: string;
+  estado: boolean | string;
+}
+
+/** Requerimiento de stock (Screen 7/8/10/12/13). */
+export interface RequerimientoDto {
+  id: number;
+  fecha: string;
+  fundoId: number;
+  fundo: string;
+  loteId: number;
+  lote: string;
+  especieId: number;
+  especie: string;
+  etapaFenologicaId: number | null;
+  etapaFenologica: string | null;
+  cantidad: number;
+  plagaId: number | null;
+  plaga: string | null;
+  estado: EstadoRequerimiento;
+  /** Stock disponible en el momento (solo lectura, Screen 10). */
+  stockDisponible: number;
+  fechaLiberacion: string | null;
+  horaLiberacion: string | null;
+  observaciones: string | null;
+  /** Presentaciones entregadas (solo cuando estado = ENTREGADO). */
+  papelConPostura: number | null;
+  sobreConCascarilla: number | null;
+  creadoPor: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Cuerpo de POST /api/v1/requerimientos (crear, Screen 10). */
+export interface CrearRequerimientoRequest {
+  fecha: string;
+  fundoId: number;
+  loteId: number;
+  especieId: number;
+  etapaFenologicaId: number | null;
+  cantidad: number;
+  plagaId: number | null;
+  observaciones?: string | null;
+}
+
+/** Cuerpo de PUT /api/v1/requerimientos/{id} (editar, Screen 8/13). */
+export interface ActualizarRequerimientoRequest {
+  fecha: string;
+  fundoId: number;
+  loteId: number;
+  especieId: number;
+  etapaFenologicaId: number | null;
+  cantidad: number;
+  plagaId: number | null;
+  estado: EstadoRequerimiento;
+  papelConPostura?: number | null;
+  sobreConCascarilla?: number | null;
+  fechaLiberacion?: string | null;
+  horaLiberacion?: string | null;
+  observaciones?: string | null;
+}
+
+/** GET /api/v1/fundos — catálogo de fundos. */
+export async function listarFundos(): Promise<FundoDto[]> {
+  const res = await api.get('/fundos');
+  return unwrap(res.data as FundoDto[] | {data?: FundoDto[]});
+}
+
+/** GET /api/v1/lotes?fundoId=X — catálogo de lotes de un fundo. */
+export async function listarLotes(fundoId: number): Promise<LoteDto[]> {
+  const res = await api.get('/lotes', {params: {fundoId}});
+  return unwrap(res.data as LoteDto[] | {data?: LoteDto[]});
+}
+
+/** GET /api/v1/etapas-fenologicas — catálogo de etapas. */
+export async function listarEtapasFenologicas(): Promise<EtapaFenologicaDto[]> {
+  const res = await api.get('/etapas-fenologicas');
+  return unwrap(res.data as EtapaFenologicaDto[] | {data?: EtapaFenologicaDto[]});
+}
+
+/** GET /api/v1/plagas — catálogo de plagas. */
+export async function listarPlagas(): Promise<PlagaDto[]> {
+  const res = await api.get('/plagas');
+  return unwrap(res.data as PlagaDto[] | {data?: PlagaDto[]});
+}
+
+/** GET /api/v1/requerimientos?fechaDesde&fechaHasta&estado — listado (Screen 7/12). */
+export async function listarRequerimientos(params: {
+  fechaDesde?: string;
+  fechaHasta?: string;
+  estado?: EstadoRequerimiento;
+  creadoPor?: number;
+}): Promise<RequerimientoDto[]> {
+  const query: Record<string, string | number> = {};
+  if (params.fechaDesde) query.fechaDesde = params.fechaDesde;
+  if (params.fechaHasta) query.fechaHasta = params.fechaHasta;
+  if (params.estado) query.estado = params.estado;
+  if (params.creadoPor != null) query.creadoPor = params.creadoPor;
+  const res = await api.get('/requerimientos', {params: query});
+  return unwrap(res.data as RequerimientoDto[] | {data?: RequerimientoDto[]});
+}
+
+/** GET /api/v1/requerimientos/{id} — detalle de un requerimiento. */
+export async function obtenerRequerimiento(id: number): Promise<RequerimientoDto> {
+  const res = await api.get(`/requerimientos/${id}`);
+  return res.data as RequerimientoDto;
+}
+
+/** POST /api/v1/requerimientos — crea un requerimiento (Screen 10). */
+export async function crearRequerimiento(
+  req: CrearRequerimientoRequest,
+): Promise<RequerimientoDto> {
+  const res = await api.post('/requerimientos', req);
+  return res.data as RequerimientoDto;
+}
+
+/** PUT /api/v1/requerimientos/{id} — actualiza estado/datos (Screen 8/13). */
+export async function actualizarRequerimiento(
+  id: number,
+  req: ActualizarRequerimientoRequest,
+): Promise<RequerimientoDto> {
+  const res = await api.put(`/requerimientos/${id}`, req);
+  return res.data as RequerimientoDto;
+}
+
+/** GET /api/v1/programaciones/{especieId}/stock — stock disponible en tiempo real (Screen 10). */
+export async function obtenerStockEspecie(
+  especieId: number,
+): Promise<{stock: number}> {
+  const res = await api.get(`/programaciones/${especieId}/stock`);
+  return res.data as {stock: number};
+}

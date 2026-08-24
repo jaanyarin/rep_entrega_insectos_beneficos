@@ -16,6 +16,17 @@ export type RootStackParamList = {
   Perfil: undefined;
   NuevoRequerimiento: undefined;
   HistorialRequerimiento: undefined;
+  /**
+   * Rutas del módulo Requerimientos (HITO-005):
+   *  - RequerimientosList: listado de solicitudes (Screen 7, admin I+D).
+   *  - RequerimientoForm: crear (sin id) o editar (con id) una solicitud
+   *    (Screen 8, admin I+D).
+   *  - EditarRequerimiento: edición en campo con los metadatos del sistema
+   *    (Screen 13, user sanidad).
+   */
+  RequerimientosList: undefined;
+  RequerimientoForm: {id?: number};
+  EditarRequerimiento: {id: number};
   Programacion: undefined;
   /**
    * ProgramacionEdicion: soporta modo 'editar' (con id) y modo 'crear' (sin id).

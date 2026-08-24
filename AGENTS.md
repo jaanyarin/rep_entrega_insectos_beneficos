@@ -134,7 +134,14 @@ y reportar al Orchestrator; no "arreglarlo" en silencio.
   (`roles` + `usuarios.rol_id`, Flyway V3), API `/api/v1` + OpenAPI, cambio de contraseña con nuevo
   JWT, SecureStore/keychain + ServerCheck/Settings de URL runtime, Super Admin id=1 inmune
   (ADR-A003); versión 1.1.0 + APK v2 (32 tests BE · 27 tests MO).
-- Web (React/Vite) y CI/CD siguen pendientes (próxima fase).
+- **HITO-003 (cerrado, 2026-08-19) = UI Vanguard**: tema con tokens, Poppins, componentes base,
+  navegación Home/slot/Catálogos/Perfil (versión 1.2.0 / versionCode 3).
+- **HITO-004 (cerrado, 2026-08-21) = Módulo Programación de Stock**: listado/edición/creación de
+  programaciones + `POST /api/v1/programaciones` + migración V4 (versión 1.3.0 / versionCode 4).
+- **HITO-005 (cerrado, 2026-08-24) = Módulo de Requerimientos (mobile)**: pantallas de solicitudes,
+  nuevo requerimiento con stock, historial y edición con alerta de 30h; contrato `ApiClient`
+  (versión 1.4.0 / versionCode 5; 77 tests MO). *Backend de requerimientos pendiente.*
+- Web (React/Vite), CI/CD y backend de requerimientos siguen pendientes (próxima fase).
 - Los hitos se cierran con **auditoría integral PASS + verificación + `05_hito_NNN.md` + commit** coherente.
 - `versionHistory.js` es la fuente del historial visible al usuario (mobile existente); web la adoptará.
 

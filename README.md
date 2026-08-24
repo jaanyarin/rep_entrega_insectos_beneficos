@@ -52,8 +52,12 @@ docs_implementacion/
   restricción de días (lunes/jueves), creación de programaciones (botón "Nuevo"), endpoint
   `POST /api/v1/programaciones` con RBAC y migración V4. Versión de artefactos: **1.3.0**, `versionCode 4`
   (39 tests BE · 63 tests MO).
-- **Pendientes**: frontend web (React/Vite), CI/CD (GitHub Actions), hitos funcionales
-  (requerimientos, evidencias fotográficas). Ver
+- **HITO-005 cerrado (2026-08-24) = Módulo de Requerimientos (mobile)**: pantallas de solicitudes
+  (panel admin, listado, formulario), nuevo requerimiento con stock en tiempo real, historial y edición
+  con alerta de 30h; contrato `ApiClient` del módulo. Versión de artefactos: **1.4.0**, `versionCode 5`
+  (77 tests MO). *Backend de requerimientos pendiente.*
+- **Pendientes**: frontend web (React/Vite), CI/CD (GitHub Actions), backend de requerimientos,
+  evidencias fotográficas y actas PDF. Ver
   [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).
 
 ## Verificación por capa

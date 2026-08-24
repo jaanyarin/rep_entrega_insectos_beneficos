@@ -6,6 +6,19 @@
 
 const versionHistory = [
   {
+    version: '1.4.0',
+    fecha: '2026-08-24',
+    cambios: [
+      'Módulo Requerimientos: panel de solicitudes (admin) con indicador de pendientes y proyección mensual.',
+      'Listado de solicitudes con filtro de rango de fechas y galería por estado con color exacto (RN-022).',
+      'Formulario de solicitud (admin) con modo creación/edición y validación papel+sobre = cantidad.',
+      'Panel de requerimientos (user) con proyección del mes, consumo vs disponibilidad y accesos.',
+      'Formulario de nuevo requerimiento con stock en tiempo real y validación cantidad ≤ stock.',
+      'Historial de requerimientos con popup de detalle y edición con foto de liberación (stub) y alerta de 30 h.',
+      'Navegación mobile del módulo Requerimientos (rutas y screens del Home).',
+    ],
+  },
+  {
     version: '1.3.0',
     fecha: '2026-08-21',
     cambios: [

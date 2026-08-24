@@ -8,11 +8,16 @@ import LoginScreen from '../screens/LoginScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import CambiarPasswordScreen from '../screens/CambiarPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
-import PlaceholderScreen from '../screens/PlaceholderScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import CatalogosScreen from '../screens/CatalogosScreen';
 import ProgramacionScreen from '../screens/ProgramacionScreen';
 import ProgramacionEdicionScreen from '../screens/ProgramacionEdicionScreen';
+import RequerimientosPanelScreen from '../screens/RequerimientosPanelScreen';
+import RequerimientosListScreen from '../screens/RequerimientosListScreen';
+import RequerimientoFormScreen from '../screens/RequerimientoFormScreen';
+import NuevoRequerimientoScreen from '../screens/NuevoRequerimientoScreen';
+import HistorialRequerimientoScreen from '../screens/HistorialRequerimientoScreen';
+import EditarRequerimientoScreen from '../screens/EditarRequerimientoScreen';
 import {theme} from '../theme';
 import type {RootStackParamList} from './types';
 
@@ -82,13 +87,28 @@ export default function RootNavigator() {
             <Stack.Screen name="Perfil" component={PerfilScreen} options={{headerShown: false}} />
             <Stack.Screen
               name="NuevoRequerimiento"
-              component={PlaceholderScreen}
-              options={{title: 'Nuevo Requerimiento'}}
+              component={NuevoRequerimientoScreen}
+              options={{headerShown: false}}
             />
             <Stack.Screen
               name="HistorialRequerimiento"
-              component={PlaceholderScreen}
-              options={{title: 'Historial de Requerimiento'}}
+              component={HistorialRequerimientoScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="RequerimientosList"
+              component={RequerimientosListScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="RequerimientoForm"
+              component={RequerimientoFormScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="EditarRequerimiento"
+              component={EditarRequerimientoScreen}
+              options={{headerShown: false}}
             />
             <Stack.Screen
               name="Programacion"
@@ -102,8 +122,8 @@ export default function RootNavigator() {
             />
             <Stack.Screen
               name="SolicitudRequerimientos"
-              component={PlaceholderScreen}
-              options={{title: 'Solicitud de Requerimientos'}}
+              component={RequerimientosPanelScreen}
+              options={{headerShown: false}}
             />
             <Stack.Screen
               name="ConfigurarServidor"

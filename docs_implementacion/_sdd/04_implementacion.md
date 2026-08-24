@@ -845,3 +845,94 @@ Evidencia (tests `toybox nc -w 4` desde el celular contra `192.168.18.229:puerto
 > **Nota:** el icono de launcher y el label son recursos nativos → solo se ven con el APK release
 > reconstruido (no con hot-reload de Metro). El fondo del login sí se actualiza con Metro/recarga de JS.
 > El commit del HITO debe incluir el artefacto opaco y documentar que el APK fue reconstruido.
+
+---
+
+# 36. Módulo Requerimientos (mobile) — HITO-005 (2026-08-24)
+
+> Implementación de las **7 pantallas mobile del Módulo de Requerimientos** (MOD-18, RF-149..188 /
+> transcripcion.md Screen 6-13). El backend de requerimientos **aún NO existe**: queda como dependencia
+> pendiente. Las pantallas consumen el contrato ya fijado en `ApiClient.ts` y en tests se mockea axios.
+> Versión bump a **1.4.0** (package.json, appVersion.ts, versionHistory.js, build.gradle).
+
+## 36.1 Pantallas implementadas (`mobile/src/screens/`)
+
+| Screen | Archivo | Rol | Qué implementa |
+|---|---|---|---|
+| 6 | `RequerimientosPanelScreen.tsx` | admin | Botón "Solicitud de Requerimiento" con indicador de pendientes + ProyeccionMesCard (tabla semanal + barra consumo/disponibilidad) → navega a Screen 7 |
+| 7 | `RequerimientosListScreen.tsx` | admin | Filtro de rango de fechas + galería (fecha/especie/estado con color) + botón Nuevo → Screen 8 (crear) y Editar por registro → Screen 8 (editar) |
+| 8 | `RequerimientoFormScreen.tsx` | admin | Formulario (crear/editar): Fecha, Fundo, Lote (por fundo), Especie, Cantidad plaga, Objetivo, Estado + botón PDF (stub), Fecha/Hora liberación, Observaciones, "Presentaciones entregadas" (Papel/Sobre). Edición: solo Estado; papel/sobre solo si Estado=Entregado (en creación deshabilitados, RF-162); validación papel+sobre = cantidad (RF-165) |
+| 10 | `NuevoRequerimientoScreen.tsx` | user | Formulario: Fecha (default hoy), Fundo, Lote, Especie, Etapa fenológica, Cantidad, Stock (solo lectura vía `obtenerStockEspecie`), Plaga objetivo, Observaciones, Fotos (stub, hasta 2). Enviar valida obligatorios y cantidad ≤ stock (stock 0 → "Stock agotado") |
+| 12 | `HistorialRequerimientoScreen.tsx` | user | Filtro de rango de fechas + galería con botón Ver (popup detalle) y Editar → Screen 13 |
+| 13 | `EditarRequerimientoScreen.tsx` | user | Campos de Screen 10 pre-cargados (base solo lectura) + Fecha/Hora liberación (auto-completan al tomar foto, RN-036) + botón foto (stub) + alerta de 30 h (RN-035) + botón Actualizar |
+
+## 36.2 Navegación
+
+- `navigation/types.ts`: nuevas rutas `RequerimientosList: undefined`, `RequerimientoForm: {id?}`,
+  `EditarRequerimiento: {id}`. Se conservan `NuevoRequerimiento`, `HistorialRequerimiento` y
+  `SolicitudRequerimientos` (nombres del menú Home, ADR-A003). **No** se registra `RequerimientosUser`
+  (decisión Opción B — se mantiene ADR-A003).
+- `navigation/RootNavigator.tsx`: se registran las pantallas del módulo (`headerShown: false`) y se
+  **reemplazan los placeholders**: `SolicitudRequerimientos` → Screen 6, `NuevoRequerimiento` → Screen 10,
+  `HistorialRequerimiento` → Screen 12. Se elimina el import de `PlaceholderScreen` (el archivo
+  `PlaceholderScreen.tsx` se conserva por si se reutiliza, pero ya no se importa).
+- `HomeScreen.tsx` no requiere cambios: los nombres de ruta del menú no cambian; la resolución la hace
+  el RootNavigator.
+
+## 36.3 Helpers y componentes nuevos
+
+- `utils/requerimientos.ts`: mapa `ESTADOS_REQUERIMIENTO` (label + color exacto RN-022), helpers de
+  fecha (`toISODate`, `hoyISO`, `isoDesdeInputFecha`, `formatoFechaInput`, `esRangoValido`, `horaActual`),
+  proyección/consumo (`filasProyeccion`, `totalProyeccion`, `consumoDelMes`, `porcentajeConsumo`),
+  validación (`validarCantidadVsStock`, `camposObligatoriosFaltantes`) y alerta 30 h
+  (`horasDesdeCambioEstado`, `requiereAlertaLiberacion`).
+- `hooks/useRequerimientosCatalogos.ts`: carga fundos/lotes(por fundo)/especies/etapas/plagas (DRY).
+- `components/RequerimientoStatusChip.tsx`: chip con color exacto del estado requerimiento.
+- `components/SelectField.tsx`: desplegable con Modal (sin dependencia de picker).
+- `components/ProyeccionMesCard.tsx`: tabla semanal + barra de consumo (reutilizada por Screen 6 y 9).
+
+## 36.4 Verificación (Ley 5)
+
+| Paso | Comando | Resultado |
+|---|---|---|
+| 1 | `npx tsc --noEmit` (mobile) | exit 0 |
+| 2 | `npm run lint` (mobile) | PASS |
+| 3 | `npx jest __tests__/RequerimientosPanelScreen.test.tsx __tests__/RequerimientosListScreen.test.tsx __tests__/NuevoRequerimientoScreen.test.tsx --runInBand` | PASS 10/10 |
+| 4 | `npx jest --runInBand` (suite completa) | **PASS — 17 suites / 77 tests** |
+
+> El `PerfilScreen.test.tsx` se actualizó de `Versión 1.2.0` a `Versión 1.4.0` (y `v1.2.0 · 2026-08-19`
+> a `v1.4.0 · 2026-08-24`) para reflejar el bump de versión; la suite completa pasa 77/77.
+
+## 36.5 Pendientes / deuda documentada
+
+- **Backend de requerimientos inexistente**: los endpoints `/fundos`, `/lotes`, `/etapas-fenologicas`,
+  `/plagas`, `/requerimientos`, `/programaciones/{especieId}/stock` aún no existen; en runtime las
+  pantallas mostrarían ErrorState hasta que se implementen.
+- **Fotos como stub**: Screen 10/13 muestran el botón Foto y miniaturas de prueba; el backend no soporta
+  aún el upload de evidencias (RN-033/034/036). La fecha/hora de liberación sí se auto-completan al
+  "tomar la foto" (comportamiento local).
+- **Botón Acta PDF (Screen 8)** como stub: RF-160/161 requiere capturar/adjuntar la evidencia; queda
+  como mensaje informativo hasta que el backend lo soporte.
+- **Creación admin (Screen 8)**: `crearRequerimiento` no acepta estado/presentaciones en el contrato
+  actual; solo se persisten al editar (PUT). Se documentó en el propio screen.
+- **Screen 9 (panel user)** **se eliminó** por decisión del usuario (Opción B / ADR-A003): el rol Usuario
+  navega directo a Screen 10/12 (Nuevo Requerimiento / Historial). La tabla de proyección del mes y el
+  termómetro del rol user (RF-168/171/172) quedan pendientes de un panel si se reincorpora en el futuro.
+- **Filtro por usuario** (`creadoPor`) en Screen 12 no se aplica (pendiente de wiring con el id del JWT
+  en el backend).
+- **APK release no reconstruido** (Ley 3): no se agregó módulo nativo nuevo; el artefacto previo queda
+  como evidencia. El bump de versión requiere recompilar para reflejar `versionCode 5 / versionName 1.4.0`.
+- **Deuda de stack**: el módulo usa validación manual (useState + helpers) sin React Hook Form + Zod,
+  coherente con el resto del codebase (patrón previo aceptado en HITO-003/004).
+- **Deuda de build**: la suite `npm test` es fiable con `--runInBand` (en paralelo puede tener interferencia
+  de workers por contención de CPU).
+
+## 36.6 Archivos creados/modificados
+
+- Creados: 7 screens, `utils/requerimientos.ts`, `hooks/useRequerimientosCatalogos.ts`,
+  `components/RequerimientoStatusChip.tsx`, `components/SelectField.tsx`,
+  `components/ProyeccionMesCard.tsx`, 3 suites de test.
+- Modificados: `navigation/types.ts`, `navigation/RootNavigator.tsx`, `package.json`,
+  `src/constants/appVersion.ts`, `versionHistory.js`, `android/app/build.gradle`,
+  `docs_implementacion/_sdd/04_implementacion.md` (esta sección).
+  (+ `ApiClient.ts` y `config.ts` ya modificados en working tree por la tarea previa del contrato).
