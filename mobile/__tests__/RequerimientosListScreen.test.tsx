@@ -155,10 +155,10 @@ describe('RequerimientosListScreen — listado admin', () => {
 
     api.get.mockClear();
     await act(async () => {
-      findByLabel(tree, 'Desde').props.onChangeText('01/08/2026');
+      findByLabel(tree, 'Desde').props.onChange('2026-08-01');
     });
     await act(async () => {
-      findByLabel(tree, 'Hasta').props.onChangeText('31/08/2026');
+      findByLabel(tree, 'Hasta').props.onChange('2026-08-31');
     });
     await act(async () => {
       findByLabel(tree, 'Aplicar filtro').props.onPress();

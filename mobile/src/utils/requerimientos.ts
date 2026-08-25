@@ -71,7 +71,7 @@ export function contarPendientes(reqs: RequerimientoDto[]): number {
 }
 
 /* ------------------------------------------------------------------ */
-/* Fechas (helpers planos, sin tipografía de fecha nativa)             */
+/* Fechas (valores ISO del contrato y presentación local)              */
 /* ------------------------------------------------------------------ */
 
 const pad2 = (n: number) => String(n).padStart(2, '0');

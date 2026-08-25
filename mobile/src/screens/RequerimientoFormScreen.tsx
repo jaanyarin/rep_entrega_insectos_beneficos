@@ -14,7 +14,7 @@
  * Pendientes (deuda, backend aún no existe):
  *  - POST /requerimientos (crear) no acepta estado/presentaciones en el
  *    contrato actual; se persisten solo al editar (PUT).
- *  - El botón "Acta PDF" de captura de acta (RF-160/161) queda como stub:
+ *  - El botón "Acta PDF" de captura de acta (RF-160/161) queda pendiente:
  *    el backend no soporta aún subir la evidencia.
  */
 
@@ -34,6 +34,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import AppButton from '../components/AppButton';
 import AppHeader from '../components/AppHeader';
 import AppInput from '../components/AppInput';
+import DateTimePickerField from '../components/DateTimePickerField';
 import ErrorBoundary from '../components/ErrorBoundary';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
@@ -55,9 +56,7 @@ import {
   estadoInfo,
   ESTADOS_ADMIN,
   esEstadoEntregado,
-  formatoFechaInput,
   hoyISO,
-  isoDesdeInputFecha,
 } from '../utils/requerimientos';
 
 type Route = RouteProp<RootStackParamList, 'RequerimientoForm'>;
@@ -95,7 +94,7 @@ export default function RequerimientoFormScreen() {
   // Fecha por defecto (creación): hoy.
   useEffect(() => {
     if (modo === 'crear') {
-      setFechaInput(formatoFechaInput(hoyISO()));
+      setFechaInput(hoyISO());
     }
   }, [modo]);
 
@@ -104,14 +103,14 @@ export default function RequerimientoFormScreen() {
     setError(null);
     try {
       const r = await obtenerRequerimiento(targetId);
-      setFechaInput(formatoFechaInput(r.fecha));
+      setFechaInput(r.fecha);
       setFundoId(r.fundoId);
       setLoteId(r.loteId);
       setEspecieId(r.especieId);
       setCantidadTexto(String(r.cantidad));
       setPlagaId(r.plagaId);
       setEstado(r.estado);
-      setFechaLiberacionInput(formatoFechaInput(r.fechaLiberacion));
+      setFechaLiberacionInput(r.fechaLiberacion ?? '');
       setHoraLiberacion(r.horaLiberacion ?? '');
       setObservaciones(r.observaciones ?? '');
       setPapelTexto(r.papelConPostura != null ? String(r.papelConPostura) : '');
@@ -145,8 +144,8 @@ export default function RequerimientoFormScreen() {
   // El campo Estado es siempre editable (creación y edición, RF-163).
   const estadoEditable = true;
 
-  const isoFecha = isoDesdeInputFecha(fechaInput);
-  const isoFechaLiberacion = isoDesdeInputFecha(fechaLiberacionInput);
+  const isoFecha = fechaInput;
+  const isoFechaLiberacion = fechaLiberacionInput || null;
   const cantidadNum = cantidadDesdeTexto(cantidadTexto);
   const papelNum = cantidadDesdeTexto(papelTexto);
   const sobreNum = cantidadDesdeTexto(sobreTexto);
@@ -254,13 +253,12 @@ export default function RequerimientoFormScreen() {
             ) : (
               <>
                 {renderAviso}
-                <AppInput
+                <DateTimePickerField
                   label="Fecha"
-                  placeholder="dd/mm/aaaa"
                   value={fechaInput}
-                  onChangeText={setFechaInput}
+                  mode="date"
+                  onChange={setFechaInput}
                   editable={camposBaseHabilitados}
-                  maxLength={10}
                   accessibilityLabel="Fecha"
                 />
                 <SelectField
@@ -338,22 +336,22 @@ export default function RequerimientoFormScreen() {
                     />
                   </View>
                 </View>
-                <AppInput
+                <DateTimePickerField
                   label="Fecha de liberación"
-                  placeholder="dd/mm/aaaa"
                   value={fechaLiberacionInput}
-                  onChangeText={setFechaLiberacionInput}
+                  mode="date"
+                  onChange={setFechaLiberacionInput}
+                  onClear={() => setFechaLiberacionInput('')}
                   editable={camposBaseHabilitados}
-                  maxLength={10}
                   accessibilityLabel="Fecha de liberación"
                 />
-                <AppInput
+                <DateTimePickerField
                   label="Hora de liberación"
-                  placeholder="HH:mm"
                   value={horaLiberacion}
-                  onChangeText={setHoraLiberacion}
+                  mode="time"
+                  onChange={setHoraLiberacion}
+                  onClear={() => setHoraLiberacion('')}
                   editable={camposBaseHabilitados}
-                  maxLength={5}
                   accessibilityLabel="Hora de liberación"
                 />
                 <AppInput

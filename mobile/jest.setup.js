@@ -22,6 +22,14 @@ jest.mock('react-native-keychain', () => ({
   resetGenericPassword: jest.fn().mockResolvedValue(true),
 }));
 
+// Mock de cámara y galería: las pruebas de UI no disponen de un dispositivo físico.
+jest.mock('react-native-image-picker', () => ({
+  launchCamera: jest.fn().mockResolvedValue({didCancel: true}),
+  launchImageLibrary: jest.fn().mockResolvedValue({didCancel: true}),
+}));
+
+jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
+
 // Mock de axios: ApiClient usa `axios.create()` + interceptores; en Jest se
 // sustituye la instancia para que NINGÚN test haga llamadas de red. Por
 // defecto GET devuelve `[]` y POST `{}` (ampliable por test con jest.mock

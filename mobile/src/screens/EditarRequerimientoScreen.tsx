@@ -5,7 +5,7 @@
  * Mismos campos de Screen 10 pre-cargados (base solo lectura), más:
  *  - Fecha y Hora de liberación: se auto-completan con los metadatos del
  *    sistema al tomar la foto (RN-036).
- *  - Botón Foto (stub, hasta 2; el backend no soporta upload aún).
+ *  - Botón Foto (cámara/galería, hasta 2; el backend no soporta upload aún).
  *  - Alerta permanente de 30 h (RN-035): si desde que el estado pasó a
  *    RECIBIDO transcurrió >30 h sin foto de liberación.
  *  - Botón "Actualizar" → guarda y vuelve a Screen 12.
@@ -14,12 +14,19 @@
 import React, {useEffect, useState} from 'react';
 import {
   KeyboardAvoidingView,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import {
+  launchCamera,
+  launchImageLibrary,
+  type Asset,
+  type ImagePickerResponse,
+} from 'react-native-image-picker';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {RouteProp} from '@react-navigation/native';
@@ -27,6 +34,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import AppButton from '../components/AppButton';
 import AppHeader from '../components/AppHeader';
 import AppInput from '../components/AppInput';
+import DateTimePickerField from '../components/DateTimePickerField';
 import ErrorBoundary from '../components/ErrorBoundary';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
@@ -42,10 +50,8 @@ import {
 import {theme} from '../theme';
 import {
   cantidadDesdeTexto,
-  formatoFechaInput,
   horaActual,
   hoyISO,
-  isoDesdeInputFecha,
   requiereAlertaLiberacion,
   toISODate,
 } from '../utils/requerimientos';
@@ -54,6 +60,17 @@ import {formatFecha} from '../utils/programacion';
 
 type Route = RouteProp<RootStackParamList, 'EditarRequerimiento'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
+
+const MAX_PHOTOS = 2;
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+const ACCEPTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png']);
+
+type EvidencePhoto = {
+  uri: string;
+  type: string;
+  fileName: string;
+  fileSize?: number;
+};
 
 export default function EditarRequerimientoScreen() {
   const navigation = useNavigation<Navigation>();
@@ -75,12 +92,13 @@ export default function EditarRequerimientoScreen() {
   const [horaLiberacion, setHoraLiberacion] = useState('');
   const [estado, setEstado] = useState<string>('REGISTRADO');
   const [stock, setStock] = useState<number | null>(null);
-  const [fotos, setFotos] = useState<string[]>([]);
+  const [fotos, setFotos] = useState<EvidencePhoto[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [alerta30, setAlerta30] = useState(false);
+  const [fotoError, setFotoError] = useState<string | null>(null);
 
   useEffect(() => {
     let activo = true;
@@ -92,7 +110,7 @@ export default function EditarRequerimientoScreen() {
         if (!activo) {
           return;
         }
-        setFechaInput(formatoFechaInput(r.fecha));
+        setFechaInput(r.fecha);
         setFundoId(r.fundoId);
         setLoteId(r.loteId);
         setEspecieId(r.especieId);
@@ -100,7 +118,7 @@ export default function EditarRequerimientoScreen() {
         setCantidadTexto(String(r.cantidad));
         setPlagaId(r.plagaId);
         setObservaciones(r.observaciones ?? '');
-        setFechaLiberacionInput(formatoFechaInput(r.fechaLiberacion));
+        setFechaLiberacionInput(r.fechaLiberacion ?? '');
         setHoraLiberacion(r.horaLiberacion ?? '');
         setEstado(r.estado);
         setAlerta30(requiereAlertaLiberacion(r));
@@ -131,13 +149,63 @@ export default function EditarRequerimientoScreen() {
     };
   }, [id]);
 
-  const tomarFoto = () => {
-    if (fotos.length >= 2) {
+  const agregarFoto = (response: ImagePickerResponse) => {
+    if (response.didCancel || response.errorCode || !response.assets?.[0]) {
+      if (response.errorMessage) {
+        setFotoError(response.errorMessage);
+      }
       return;
     }
-    setFotos(prev => [...prev, `liberacion-${prev.length + 1}-stub.jpg`]);
-    setFechaLiberacionInput(formatoFechaInput(toISODate(new Date())));
+    const asset: Asset = response.assets[0];
+    if (!asset.uri) {
+      setFotoError('No se pudo obtener la imagen seleccionada.');
+      return;
+    }
+    if (!asset.type || !ACCEPTED_PHOTO_TYPES.has(asset.type)) {
+      setFotoError('La evidencia debe estar en formato JPG o PNG.');
+      return;
+    }
+    if (asset.fileSize != null && asset.fileSize > MAX_PHOTO_SIZE) {
+      setFotoError('La evidencia no puede superar los 5 MB.');
+      return;
+    }
+    setFotoError(null);
+    setFotos(prev => [
+      ...prev,
+      {
+        uri: asset.uri!,
+        type: asset.type!,
+        fileName: asset.fileName ?? `liberacion-${prev.length + 1}.jpg`,
+        fileSize: asset.fileSize,
+      },
+    ]);
+    setFechaLiberacionInput(toISODate(new Date()));
     setHoraLiberacion(horaActual());
+  };
+
+  const tomarFoto = async () => {
+    if (fotos.length >= MAX_PHOTOS) {
+      return;
+    }
+    const response = await launchCamera({
+      mediaType: 'photo',
+      cameraType: 'back',
+      saveToPhotos: false,
+      quality: 0.8,
+    });
+    agregarFoto(response);
+  };
+
+  const seleccionarFoto = async () => {
+    if (fotos.length >= MAX_PHOTOS) {
+      return;
+    }
+    const response = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: 1,
+      quality: 0.8,
+    });
+    agregarFoto(response);
   };
 
   const actualizar = async () => {
@@ -145,7 +213,7 @@ export default function EditarRequerimientoScreen() {
     setError(null);
     try {
       await actualizarRequerimiento(id, {
-        fecha: isoDesdeInputFecha(fechaInput) ?? hoyISO(),
+        fecha: fechaInput || hoyISO(),
         fundoId: fundoId!,
         loteId: loteId!,
         especieId: especieId!,
@@ -153,7 +221,7 @@ export default function EditarRequerimientoScreen() {
         cantidad: cantidadDesdeTexto(cantidadTexto),
         plagaId,
         estado: estado as never,
-        fechaLiberacion: isoDesdeInputFecha(fechaLiberacionInput),
+        fechaLiberacion: fechaLiberacionInput || null,
         horaLiberacion: horaLiberacion.trim() || null,
         observaciones: observaciones.trim() || null,
       });
@@ -222,9 +290,11 @@ export default function EditarRequerimientoScreen() {
                   </View>
                 ) : null}
 
-                <AppInput
+                <DateTimePickerField
                   label="Fecha"
                   value={fechaInput}
+                  mode="date"
+                  onChange={setFechaInput}
                   editable={false}
                   accessibilityLabel="Fecha"
                 />
@@ -294,37 +364,63 @@ export default function EditarRequerimientoScreen() {
                   textAlignVertical="top"
                   accessibilityLabel="Observaciones"
                 />
-                <AppInput
+                <DateTimePickerField
                   label="Fecha de liberación"
-                  placeholder="dd/mm/aaaa"
                   value={fechaLiberacionInput}
-                  onChangeText={setFechaLiberacionInput}
-                  maxLength={10}
+                  mode="date"
+                  onChange={setFechaLiberacionInput}
+                  onClear={() => setFechaLiberacionInput('')}
                   accessibilityLabel="Fecha de liberación"
                 />
-                <AppInput
+                <DateTimePickerField
                   label="Hora de liberación"
-                  placeholder="HH:mm"
                   value={horaLiberacion}
-                  onChangeText={setHoraLiberacion}
-                  maxLength={5}
+                  mode="time"
+                  onChange={setHoraLiberacion}
+                  onClear={() => setHoraLiberacion('')}
                   accessibilityLabel="Hora de liberación"
                 />
 
                 <Text style={styles.fotoTitulo}>Foto de liberación</Text>
-                <AppButton
-                  label="Foto"
-                  icon="camera-outline"
-                  variant="secondary"
-                  disabled={fotos.length >= 2}
-                  onPress={tomarFoto}
-                  accessibilityLabel="Tomar foto de liberación"
-                />
+                <View style={styles.fotoAcciones}>
+                  <View style={styles.fotoAccion}>
+                    <AppButton
+                      label="Cámara"
+                      icon="camera-outline"
+                      variant="secondary"
+                      disabled={fotos.length >= MAX_PHOTOS}
+                      onPress={tomarFoto}
+                      accessibilityLabel="Tomar foto de liberación"
+                    />
+                  </View>
+                  <View style={styles.fotoAccion}>
+                    <AppButton
+                      label="Galería"
+                      icon="image-outline"
+                      variant="secondary"
+                      disabled={fotos.length >= MAX_PHOTOS}
+                      onPress={seleccionarFoto}
+                      accessibilityLabel="Seleccionar foto de liberación de la galería"
+                    />
+                  </View>
+                </View>
+                {fotoError ? (
+                  <Text accessibilityRole="alert" style={styles.fotoError}>
+                    {fotoError}
+                  </Text>
+                ) : null}
                 <View style={styles.fotoPreviews}>
-                  {fotos.map((uri, idx) => (
-                    <View key={uri} style={styles.fotoPreview}>
+                  {fotos.map((foto, idx) => (
+                    <View key={foto.uri} style={styles.fotoPreview}>
+                      <Image source={{uri: foto.uri}} style={styles.fotoImagen} />
                       <Text style={styles.fotoPreviewText}>Liberación {idx + 1}</Text>
-                      <Text style={styles.fotoPreviewStub}>stub</Text>
+                      <AppButton
+                        label="Quitar"
+                        icon="delete-outline"
+                        variant="text"
+                        onPress={() => setFotos(prev => prev.filter(item => item.uri !== foto.uri))}
+                        accessibilityLabel={`Quitar foto de liberación ${idx + 1}`}
+                      />
                     </View>
                   ))}
                 </View>
@@ -404,24 +500,38 @@ const styles = StyleSheet.create({
   fotoPreviews: {
     flexDirection: 'row',
     gap: theme.spacing[2],
+    flexWrap: 'wrap',
+    marginBottom: theme.spacing[2],
+  },
+  fotoAcciones: {
+    flexDirection: 'row',
+    gap: theme.spacing[2],
+    marginBottom: theme.spacing[2],
+  },
+  fotoAccion: {
+    flex: 1,
+  },
+  fotoError: {
+    color: theme.colors.status.error,
+    fontFamily: theme.typography.body2.fontFamily,
+    fontSize: theme.typography.body2.fontSize,
     marginBottom: theme.spacing[2],
   },
   fotoPreview: {
-    width: 72,
-    height: 72,
+    width: 112,
     borderRadius: theme.radius.sm,
     backgroundColor: theme.colors.background.neutral,
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingTop: theme.spacing[1],
+  },
+  fotoImagen: {
+    width: 104,
+    height: 76,
+    borderRadius: theme.radius.sm,
   },
   fotoPreviewText: {
     fontFamily: theme.typography.caption.fontFamily,
     fontSize: 12,
     color: theme.colors.text.secondary,
-  },
-  fotoPreviewStub: {
-    fontFamily: theme.typography.caption.fontFamily,
-    fontSize: 10,
-    color: theme.colors.text.tertiary,
   },
 });

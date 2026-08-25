@@ -10,8 +10,8 @@
  * disponible; si el stock es 0 se bloquea "Stock agotado". Al enviar (si los
  * obligatorios están completos) crea el requerimiento y vuelve a Screen 9.
  *
- * Pendiente (deuda): las fotos quedan como STUB (el backend no soporta aún el
- * upload de evidencias). El botón mantiene el límite de 2 con vista previa.
+ * Pendiente (deuda): las fotos se capturan y validan localmente; el backend
+ * todavía no soporta el upload de evidencias.
  */
 
 import React, {useCallback, useState} from 'react';
@@ -29,6 +29,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import AppButton from '../components/AppButton';
 import AppHeader from '../components/AppHeader';
 import AppInput from '../components/AppInput';
+import DateTimePickerField from '../components/DateTimePickerField';
 import ErrorBoundary from '../components/ErrorBoundary';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
@@ -44,9 +45,7 @@ import {theme} from '../theme';
 import {
   camposObligatoriosFaltantes,
   cantidadDesdeTexto,
-  formatoFechaInput,
   hoyISO,
-  isoDesdeInputFecha,
   validarCantidadVsStock,
   type FormularioRequerimientoBasico,
 } from '../utils/requerimientos';
@@ -59,7 +58,7 @@ export default function NuevoRequerimientoScreen() {
 
   const catalogo = useRequerimientosCatalogos();
 
-  const [fechaInput, setFechaInput] = useState(formatoFechaInput(hoyISO()));
+  const [fechaInput, setFechaInput] = useState(hoyISO());
   const [fundoId, setFundoId] = useState<number | null>(null);
   const [loteId, setLoteId] = useState<number | null>(null);
   const [especieId, setEspecieId] = useState<number | null>(null);
@@ -98,7 +97,7 @@ export default function NuevoRequerimientoScreen() {
   );
 
   const cantidadNum = cantidadDesdeTexto(cantidadTexto);
-  const isoFecha = isoDesdeInputFecha(fechaInput);
+  const isoFecha = fechaInput;
 
   const basico: FormularioRequerimientoBasico = {
     fecha: isoFecha ?? '',
@@ -191,12 +190,11 @@ export default function NuevoRequerimientoScreen() {
                     <Text style={styles.notificacionText}>{errorEnvio}</Text>
                   </View>
                 ) : null}
-                <AppInput
+                <DateTimePickerField
                   label="Fecha"
-                  placeholder="dd/mm/aaaa"
                   value={fechaInput}
-                  onChangeText={setFechaInput}
-                  maxLength={10}
+                  mode="date"
+                  onChange={setFechaInput}
                   accessibilityLabel="Fecha"
                 />
                 <SelectField

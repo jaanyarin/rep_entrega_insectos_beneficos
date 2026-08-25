@@ -18,7 +18,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import AppButton from '../components/AppButton';
 import AppCard from '../components/AppCard';
 import AppHeader from '../components/AppHeader';
-import AppInput from '../components/AppInput';
+import DateTimePickerField from '../components/DateTimePickerField';
 import EmptyState from '../components/EmptyState';
 import ErrorBoundary from '../components/ErrorBoundary';
 import ErrorState from '../components/ErrorState';
@@ -36,7 +36,6 @@ import {isAdminOrSuperAdmin} from '../utils/roles';
 import {formatFecha} from '../utils/programacion';
 import {
   esRangoValido,
-  isoDesdeInputFecha,
 } from '../utils/requerimientos';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -80,8 +79,8 @@ export default function RequerimientosListScreen() {
   }, [cargar]);
 
   const aplicarFiltro = () => {
-    const desdeISO = isoDesdeInputFecha(desdeTexto);
-    const hastaISO = isoDesdeInputFecha(hastaTexto);
+    const desdeISO = desdeTexto || null;
+    const hastaISO = hastaTexto || null;
     if (!esRangoValido(desdeISO, hastaISO)) {
       setError('Rango de fechas inválido. Use dd/mm/aaaa con desde ≤ hasta.');
       return;
@@ -97,20 +96,20 @@ export default function RequerimientosListScreen() {
 
   const renderFiltro = (
     <View style={styles.filtro}>
-      <AppInput
+      <DateTimePickerField
         label="Desde"
-        placeholder="dd/mm/aaaa"
         value={desdeTexto}
-        onChangeText={setDesdeTexto}
-        maxLength={10}
+        mode="date"
+        onChange={setDesdeTexto}
+        onClear={() => setDesdeTexto('')}
         accessibilityLabel="Desde"
       />
-      <AppInput
+      <DateTimePickerField
         label="Hasta"
-        placeholder="dd/mm/aaaa"
         value={hastaTexto}
-        onChangeText={setHastaTexto}
-        maxLength={10}
+        mode="date"
+        onChange={setHastaTexto}
+        onClear={() => setHastaTexto('')}
         accessibilityLabel="Hasta"
       />
       <View style={styles.filtroAcciones}>
