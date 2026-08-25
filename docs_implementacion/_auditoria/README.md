@@ -27,3 +27,4 @@ Propósito de `docs_implementacion/_auditoria/`:
 |---|---|---|
 | HITO-001 | PASS técnico condicionado (0 críticos) | `HITO-001` (hallazgos en `05_hito_001.md` §5) |
 | HITO-002 | **PASS técnico integral (0 críticos, 0 altos)** | `HITO-002` (informe completo) |
+| HITO-008 | **PASS técnico del alcance backend** | `HITO-008` (migración V10, API, 53 tests; cierre Git pendiente) |

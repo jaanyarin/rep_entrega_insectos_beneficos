@@ -25,7 +25,7 @@ Decisiones de arquitectura vigentes y decisiones descartadas: ver
 ```text
 backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, + programaciones/especies (V4)
 mobile/       App React Native CLI 0.86 / React 19.2.3 — auth v2 (login 3 pasos, URL runtime,
-              SecureStore/keychain) + módulo Programación — versión 1.3.0
+              SecureStore/keychain) + módulos Programación y Requerimientos — versión 1.4.0
 web/          Frontend React + Vite (pendiente de scaffold)
 docs_implementacion/
 ├── _sdd/                      Especificación, plan, tareas e implementación
@@ -55,9 +55,13 @@ docs_implementacion/
 - **HITO-005 cerrado (2026-08-24) = Módulo de Requerimientos (mobile)**: pantallas de solicitudes
   (panel admin, listado, formulario), nuevo requerimiento con stock en tiempo real, historial y edición
   con alerta de 30h; contrato `ApiClient` del módulo. Versión de artefactos: **1.4.0**, `versionCode 5`
-  (77 tests MO). *Backend de requerimientos pendiente.*
-- **Pendientes**: frontend web (React/Vite), CI/CD (GitHub Actions), backend de requerimientos,
-  evidencias fotográficas y actas PDF. Ver
+  (77 tests MO).
+- **HITO-008 cerrado técnicamente (2026-08-25) = Backend de Requerimientos**: migración V10,
+  endpoints `/requerimientos` y stock por especie, ciclo de estados, validación de entregas y
+  stock disponible (53 tests BE). Sin bump: el artefacto mobile permanece en **1.4.0**,
+  `versionCode 5`.
+- **Pendientes**: validación end-to-end desde mobile contra el backend real, frontend web (React/Vite),
+  CI/CD (GitHub Actions), evidencias fotográficas y actas PDF. Ver
   [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).
 
 ## Verificación por capa

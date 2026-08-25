@@ -1007,3 +1007,68 @@ Evidencia (tests `toybox nc -w 4` desde el celular contra `192.168.18.229:puerto
   (desbloquea las pantallas de requerimientos que consumen estos catálogos).
 - Excluidos del commit: `install.ps1`, `.opencode/opencode.json` y `config.ts` (cambio de IP fallback
   de red, ajeno al HITO — decisión pendiente del Orchestrator) — los tres son ajenos al bloque.
+
+---
+
+# 38. Backend del Módulo de Requerimientos (2026-08-25)
+
+> Completa el flujo de requerimientos: las pantallas mobile (HITO-005) ya consumían el contrato;
+> este hito implementa el backend que lo satisface, usando los catálogos poblados (HITO-007).
+> Decisión del usuario: **sin bump de versión** (se mantiene 1.4.0 — no cambia el artefacto mobile).
+
+## 38.1 Migración V10
+
+- `V10__create_requerimientos.sql`: tabla `requerimientos` (fecha, FKs a fundos/lotes/especies/
+  etapas_fenologicas/plagas/usuarios, cantidad, `estado` CHECK con el ciclo
+  REGISTRADO→PENDIENTE→APROBADO→ENTREGADO→RECIBIDO→LIBERADO, stock_disponible, fecha/hora
+  liberación, observaciones, papel_con_postura, sobre_con_cascarilla, creado_por, timestamps) +
+  índices (estado, fecha, fundo_id, creado_por).
+
+## 38.2 Backend (`pe.sistema.insectosbeneficios.requerimientos`)
+
+| Clase | Rol |
+|---|---|
+| `Requerimiento.java` | Entidad JPA (patrón `programacion`: Plain JPA + PanacheRepository, `@ManyToOne` EAGER + `@Fetch(JOIN)` para FKs) |
+| `RequerimientoRepository.java` | `findByFiltros(fechaDesde, fechaHasta, estado, creadoPor)` + `sumCantidadByEspecie` |
+| `dto/RequerimientoDto.java` | Shape EXACTO del contrato mobile (nombres de FKs resueltos, stockDisponible, presentaciones, creadoPor, timestamps) |
+| `dto/CrearRequerimientoRequest.java` | Body de POST (Screen 10) |
+| `dto/ActualizarRequerimientoRequest.java` | Body de PUT (Screen 8/13) |
+| `dto/StockDto.java` | `{ stock }` |
+| `RequerimientoMapper.java` | Entidad → DTO |
+| `RequerimientoService.java` | listar/obtener/crear/actualizar + `getStockDisponible` (DRY, reutilizado por crear/actualizar y StockResource) |
+| `RequerimientoResource.java` | `/api/v1/requerimientos` (GET listar, GET /{id}, POST → 201, PUT /{id}) con `@RolesAllowed({"Super Admin","Admin","Usuario"})` |
+| `StockResource.java` | `GET /api/v1/programaciones/{especieId}/stock` → `{ stock }` |
+
+**Reglas de negocio implementadas:**
+- Ciclo de estados **solo hacia adelante**; desde LIBERADO bloqueado (`400 ESTADO_NO_VALIDO`).
+- Al pasar a **ENTREGADO**: exige papel+sobre y su suma == cantidad (`400 ENTREGADO_PAPEL_SOBRE_INVALIDO`).
+- Crear: valida catálogos (404 FUNDO/LOTE/ESPECIE/ETAPA/PLAGA_NO_EXISTE) y cantidad > 0 y ≤ stock
+  (`400 CANTIDAD_INVALIDA`); estado inicial REGISTRADO; `creadoPor` = usuario del JWT (`ActualUsuario`).
+- **Stock disponible**: programación más reciente de la especie → `max(0, stockInicialBase − Σ cantidad
+  de requerimientos)`; sin programación → 0.
+- Errores con `ApiException` → `{codigo, mensaje}` (patrón ManejadorErrores).
+
+## 38.3 Verificación (Ley 5)
+
+| Paso | Comando | Resultado |
+|---|---|---|
+| 1 | `.\mvnw.cmd test -Dtest=RequerimientoResourceTest` | **Tests run: 6, Failures: 0** |
+| 2 | `.\mvnw.cmd package` | **BUILD SUCCESS — 53 tests** (Auth 13 + CatalogoReq 4 + Catalogo 4 + Programación 7 + Requerimientos 6 + Usuario 19) |
+| 3 | Backend dev (:6101) | **V10 aplicada**; tabla `requerimientos` creada; `GET /api/v1/requerimientos` → 401 (RBAC activo) |
+
+**Incidente de infraestructura resuelto (documentado, Ley 5):** durante el arranque del backend dev
+se detectó (a) Docker Desktop detenido (contenedor PostgreSQL caído → se arrancó Docker Desktop),
+(b) un proceso `quarkus:dev` pre-existente reteniendo `target/` (se detuvo) y (c) **Flyway checksum
+mismatch en V7** causado por la corrección documental del comentario "La Esperanza (39)→(40)" del
+HITO-007 (un cambio en una migración ya aplicada altera su checksum). Resuelto actualizando el
+checksum de V7 en `flyway_schema_history` al valor del artefacto (equivalente a `flyway repair`).
+**Lección:** las migraciones aplicadas NUNCA se editan (ni comentarios); cualquier corrección futura
+exige V11+ (coherente con la nota de V1 en AGENTS).
+
+## 38.4 Estado / pendientes
+
+- Sin commitear: V10 + paquete `requerimientos` (backend) + `RequerimientoResourceTest`.
+- Excluidos del commit: `install.ps1`, `.opencode/opencode.json`, `config.ts`, y los logs temporales
+  `backend/quarkus-run.log`/`.err` (artefactos de diagnóstico, no del proyecto).
+- Deuda pendiente (siguiente fase): validación end-to-end desde el celular (pantallas de
+  requerimientos contra el backend real) y rebuild de APK release cuando se decida.

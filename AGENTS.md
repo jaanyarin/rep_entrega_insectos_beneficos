@@ -140,8 +140,18 @@ y reportar al Orchestrator; no "arreglarlo" en silencio.
   programaciones + `POST /api/v1/programaciones` + migración V4 (versión 1.3.0 / versionCode 4).
 - **HITO-005 (cerrado, 2026-08-24) = Módulo de Requerimientos (mobile)**: pantallas de solicitudes,
   nuevo requerimiento con stock, historial y edición con alerta de 30h; contrato `ApiClient`
-  (versión 1.4.0 / versionCode 5; 77 tests MO). *Backend de requerimientos pendiente.*
-- Web (React/Vite), CI/CD y backend de requerimientos siguen pendientes (próxima fase).
+  (versión 1.4.0 / versionCode 5; 77 tests MO).
+- **HITO-006 (cerrado, 2026-08-24) = Catálogos agrícolas**: fundos/variedades/lotes (6/11/157)
+  normalizados 3NF (V6/V7); endpoints `/fundos`, `/variedades`, `/lotes?fundoId=`.
+- **HITO-007 (cerrado, 2026-08-24) = Catálogos de requerimientos**: etapas fenológicas (7), plagas
+  (5), nematodos (5), patrones (5) (V8/V9); endpoints `/etapas-fenologicas`, `/plagas`, `/nematodos`,
+  `/patrones`. *(Comiteado junto a HITO-006 como "HITO-007 — catálogos").*
+- **HITO-008 (cerrado, 2026-08-25) = Backend de Requerimientos**: migración V10 (`requerimientos`) +
+  endpoints `/requerimientos` (GET/POST/PUT) + `/programaciones/{especieId}/stock`; ciclo de estados,
+  validación papel+sobre=cantidad (RF-165), stock disponible (versión 1.4.0 sin cambio; 53 tests BE).
+- Web (React/Vite) y CI/CD siguen pendientes (próxima fase).
+- La validación end-to-end desde mobile contra el backend real, evidencias fotográficas y actas PDF
+  siguen pendientes (próxima fase).
 - Los hitos se cierran con **auditoría integral PASS + verificación + `05_hito_NNN.md` + commit** coherente.
 - `versionHistory.js` es la fuente del historial visible al usuario (mobile existente); web la adoptará.
 
