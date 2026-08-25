@@ -595,15 +595,31 @@ export type EstadoRequerimiento =
 export interface FundoDto {
   id: number;
   nombre: string;
-  estado: boolean | string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-/** Lote dentro de un fundo (catálogo). */
+/** Variedad de uva (catálogo) — con color (HITO-006). */
+export interface VariedadDto {
+  id: number;
+  nombre: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Lote dentro de un fundo (catálogo) — enriquecido con variedad y color. */
 export interface LoteDto {
   id: number;
   fundoId: number;
+  fundo: string;
+  variedadId: number;
+  variedad: string;
+  variedadColor: string;
   nombre: string;
-  estado: boolean | string;
+  area: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** Etapa fenológica (catálogo). */
@@ -682,6 +698,12 @@ export interface ActualizarRequerimientoRequest {
 export async function listarFundos(): Promise<FundoDto[]> {
   const res = await api.get('/fundos');
   return unwrap(res.data as FundoDto[] | {data?: FundoDto[]});
+}
+
+/** GET /api/v1/variedades — catálogo de variedades con color. */
+export async function listarVariedades(): Promise<VariedadDto[]> {
+  const res = await api.get('/variedades');
+  return unwrap(res.data as VariedadDto[] | {data?: VariedadDto[]});
 }
 
 /** GET /api/v1/lotes?fundoId=X — catálogo de lotes de un fundo. */

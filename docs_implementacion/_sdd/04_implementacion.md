@@ -936,3 +936,74 @@ Evidencia (tests `toybox nc -w 4` desde el celular contra `192.168.18.229:puerto
   `src/constants/appVersion.ts`, `versionHistory.js`, `android/app/build.gradle`,
   `docs_implementacion/_sdd/04_implementacion.md` (esta sección).
   (+ `ApiClient.ts` y `config.ts` ya modificados en working tree por la tarea previa del contrato).
+
+---
+
+# 37. Catálogos agrícolas y del módulo de requerimientos (2026-08-24)
+
+> Se pueblan los catálogos que consumen las pantallas de requerimientos y programación.
+> Normalización 3NF de la tabla de lotes de uva Vanguard y listados aportados por el usuario.
+
+## 37.1 Migraciones (V6-V7: fundos/variedades/lotes)
+
+- `V6__create_catalogos.sql`: tablas `fundos`, `variedades`, `lotes` (FK a fundos/variedades, `area`,
+  timestamps `created_at`/`updated_at`). Columnas descartadas por decisión del usuario: `equipo`,
+  `cliente`, `cultivo`, `guid`.
+- `V7__seed_catalogos.sql`: **6 fundos** (Challapampa, El Arenal, La Esperanza, Las Casuarinas,
+  Los Laureles, Milagritos), **11 variedades** (con `color`), **157 lotes**.
+
+**Correcciones aplicadas (decisión del usuario):** variedad `Adora` = color **Roja** (no "Adora") y
+`Sugra 60` = **Verde** (valor null en origen completado).
+
+## 37.2 Migraciones (V8-V9: catálogos de requerimientos)
+
+- `V8__create_catalogos_requerimientos.sql`: tablas `etapas_fenologicas`, `plagas`, `nematodos`,
+  `patrones` (estructura igual a `especies`: `id`, `nombre UNIQUE`, `estado` CHECK ACTIVO/INACTIVO,
+  timestamps).
+- `V9__seed_catalogos_requerimientos.sql`:
+  - **etapas_fenologicas (7):** BROTACIÓN, FLORACIÓN Y CUAJA, CRECIMIENTO DE BAYAS, EMVERO, COSECHA,
+    POST-COSECHA, FORMACIÓN. (Corrección: "CUAJA" y "CRECIMIENTO DE BAYAS").
+  - **plagas (5):** PSEUDOCOCCIDAE, TRIPS, ARAÑITA ROJA, LEPIDÓPTEROS LARVA, ACARO HIALINO.
+    (Corrección: "LEPIDÓPTEROS").
+  - **nematodos (5):** MELOIDOGYNE SPP., XIPHINEMA INDEX, LONGIDORUS SPP., PRATYLENCHUS SPP.,
+    TYLENCHULUS SEMIPENETRANS.
+  - **patrones (5):** SALT CREEK, FREEDOM, MGT 101-14, MGT 101-15, MGT 101-16.
+
+## 37.3 Backend (`pe.sistema.insectosbeneficios.catalogos`)
+
+- HITO-006: `Fundo.java`, `Variedad.java`, `Lote.java` (+ repos, DTOs, `CatalogoMapper`, services,
+  resources) → `GET /api/v1/fundos`, `GET /api/v1/variedades`, `GET /api/v1/lotes?fundoId=`.
+- HITO-007: `EtapaFenologica.java`, `Plaga.java`, `Nematodo.java`, `Patron.java` (+ repos, DTOs,
+  services, resources; mapper DRY reutiliza `CatalogoMapper`) →
+  `GET /api/v1/etapas-fenologicas`, `GET /api/v1/plagas`, `GET /api/v1/nematodos`, `GET /api/v1/patrones`.
+- Todos los DTOs de los **catálogos de requerimientos** (Etapa/Plaga/Nematodo/Patron) devuelven
+  `{ id, nombre, estado }` (String "ACTIVO"), shape que el contrato mobile acepta
+  (`estado: boolean | string`). Los DTOs agrícolas (Fundo/Variedad/Lote) devuelven `id`, `nombre` y
+  timestamps (Lote además fundo/variedad/color/area), sin `estado`.
+
+## 37.4 Contrato mobile (`mobile/src/services/ApiClient.ts`)
+
+- Se alineó el contrato de catálogos al backend real: `FundoDto`/`LoteDto` sin `estado` (con timestamps
+  y variedad/color en Lote), nuevo `VariedadDto`, nueva función `listarVariedades()`.
+- `EtapaFenologicaDto`/`PlagaDto` (con `estado`) ya cubren los endpoints de etapas/plagas.
+
+## 37.5 Verificación (Ley 5)
+
+| Paso | Comando | Resultado |
+|---|---|---|
+| 1 | `.\mvnw.cmd test` (backend) | **47 tests PASS** (Auth 13 + CatalogoReq 4 + Catalogo 4 + Programacion 7 + Usuario 19) |
+| 2 | `npx tsc --noEmit` (mobile) | exit 0 |
+| 3 | `npx jest --runInBand` (mobile) | **77 tests PASS** (17 suites) |
+| 4 | `npm run lint` (mobile) | PASS |
+| 5 | Backend dev (:6101) | V1-V9 aplicadas; endpoints de catálogos responden 200 con datos reales |
+
+> **Nota flakiness:** `npm test` en paralelo (sin `--runInBand`) puede fallar intermitentemente por
+> contención de workers (pre-existente). Se valida con `--runInBand`.
+
+## 37.6 Estado / pendientes
+
+- Pendiente sin commitear: migraciones V6-V9 + paquete `catalogos` (backend) + tests + `ApiClient.ts`.
+- **Backend de requerimientos** `GET /api/v1/requerimientos` **no existe aún** → es la próxima fase
+  (desbloquea las pantallas de requerimientos que consumen estos catálogos).
+- Excluidos del commit: `install.ps1`, `.opencode/opencode.json` y `config.ts` (cambio de IP fallback
+  de red, ajeno al HITO — decisión pendiente del Orchestrator) — los tres son ajenos al bloque.
