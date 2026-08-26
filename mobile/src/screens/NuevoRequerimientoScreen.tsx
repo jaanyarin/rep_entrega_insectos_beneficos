@@ -8,29 +8,20 @@
  *
  * Reglas de stock (RN-031/032): la cantidad no puede superar el stock
  * disponible; si el stock es 0 se bloquea "Stock agotado". Al enviar (si los
- * obligatorios están completos) crea el requerimiento y vuelve a Screen 9.
- *
- * Pendiente (deuda): las fotos se capturan y validan localmente; el backend
- * todavía no soporta el upload de evidencias.
+ * obligatorios están completos) crea el requerimiento, sube fotos al servidor
+ * y vuelve a Screen 9.
  */
 
 import React, {useCallback, useState} from 'react';
 import {
   KeyboardAvoidingView,
   Image,
-  PermissionsAndroid,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import {
-  launchCamera,
-  launchImageLibrary,
-  type Asset,
-  type ImagePickerResponse,
-} from 'react-native-image-picker';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -42,12 +33,14 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
 import SelectField from '../components/SelectField';
+import {usePhotoCapture} from '../hooks/usePhotoCapture';
 import {useRequerimientosCatalogos} from '../hooks/useRequerimientosCatalogos';
 import type {RootStackParamList} from '../navigation/types';
 import {
   crearRequerimiento,
   extractErrorMessage,
   obtenerStockEspecie,
+  subirFotoRequerimiento,
 } from '../services/ApiClient';
 import {theme} from '../theme';
 import {
@@ -61,16 +54,19 @@ import {
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 const MAX_PHOTOS = 2;
-const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
-const ACCEPTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png']);
-
-type EvidencePhoto = {uri: string; type: string; fileName: string; fileSize?: number};
 
 export default function NuevoRequerimientoScreen() {
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
 
   const catalogo = useRequerimientosCatalogos();
+  const {
+    fotos,
+    fotoError,
+    tomarFoto,
+    seleccionarFoto,
+    quitarFoto,
+  } = usePhotoCapture(MAX_PHOTOS);
 
   const [fechaInput, setFechaInput] = useState(hoyISO());
   const [fundoId, setFundoId] = useState<number | null>(null);
@@ -80,14 +76,12 @@ export default function NuevoRequerimientoScreen() {
   const [cantidadTexto, setCantidadTexto] = useState('');
   const [plagaId, setPlagaId] = useState<number | null>(null);
   const [observaciones, setObservaciones] = useState('');
-  const [fotos, setFotos] = useState<EvidencePhoto[]>([]);
 
   const [stock, setStock] = useState<number | null>(null);
   // errorCatalogo (del hook) → ErrorState a pantalla completa; errorEnvio
   // (fallo al crear) → alert inline sin ocultar los datos del formulario.
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [fotoError, setFotoError] = useState<string | null>(null);
 
   const cambiarFundo = (value: number | string) => {
     const fid = Number(value);
@@ -128,63 +122,11 @@ export default function NuevoRequerimientoScreen() {
   const stockError = stock != null ? validarCantidadVsStock(cantidadNum, stock) : null;
   const puedeEnviar = faltantes.length === 0 && stockError == null;
 
-  const agregarFoto = (response: ImagePickerResponse) => {
-    if (response.didCancel || response.errorCode || !response.assets?.[0]) {
-      if (response.errorMessage) setFotoError(response.errorMessage);
-      return;
-    }
-    const asset: Asset = response.assets[0];
-    if (!asset.uri) {
-      setFotoError('No se pudo obtener la imagen seleccionada.');
-      return;
-    }
-    if (!asset.type || !ACCEPTED_PHOTO_TYPES.has(asset.type)) {
-      setFotoError('La evidencia debe estar en formato JPG o PNG.');
-      return;
-    }
-    if (asset.fileSize != null && asset.fileSize > MAX_PHOTO_SIZE) {
-      setFotoError('La evidencia no puede superar los 5 MB.');
-      return;
-    }
-    setFotoError(null);
-    setFotos(prev => [...prev, {
-      uri: asset.uri!,
-      type: asset.type!,
-      fileName: asset.fileName ?? `foto-${prev.length + 1}.jpg`,
-      fileSize: asset.fileSize,
-    }]);
-  };
-
-  const tomarFoto = async () => {
-    if (fotos.length >= MAX_PHOTOS) return;
-    if (Platform.OS === 'android') {
-      const permiso = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: 'Permiso para usar la cámara',
-          message: 'Necesitamos la cámara para registrar la evidencia.',
-          buttonPositive: 'Permitir',
-          buttonNegative: 'Cancelar',
-        },
-      );
-      if (permiso !== PermissionsAndroid.RESULTS.GRANTED) {
-        setFotoError('Se necesita permiso de cámara para tomar la evidencia.');
-        return;
-      }
-    }
-    agregarFoto(await launchCamera({mediaType: 'photo', saveToPhotos: false, quality: 0.8}));
-  };
-
-  const seleccionarFoto = async () => {
-    if (fotos.length >= MAX_PHOTOS) return;
-    agregarFoto(await launchImageLibrary({mediaType: 'photo', selectionLimit: 1, quality: 0.8}));
-  };
-
   const enviar = async () => {
     setSaving(true);
     setErrorEnvio(null);
     try {
-      await crearRequerimiento({
+      const nuevo = await crearRequerimiento({
         fecha: isoFecha ?? hoyISO(),
         fundoId: fundoId!,
         loteId: loteId!,
@@ -194,6 +136,14 @@ export default function NuevoRequerimientoScreen() {
         plagaId,
         observaciones: observaciones.trim() || null,
       });
+      // Subir fotos locales al servidor
+      for (const foto of fotos) {
+        await subirFotoRequerimiento(nuevo.id, {
+          uri: foto.uri,
+          type: foto.type,
+          name: foto.fileName,
+        }, JSON.stringify({tipo: 'EVIDENCIA'}));
+      }
       navigation.goBack();
     } catch (e) {
       setErrorEnvio(extractErrorMessage(e));
@@ -354,7 +304,7 @@ export default function NuevoRequerimientoScreen() {
                     <View key={foto.uri} style={styles.fotoPreview}>
                       <Image source={{uri: foto.uri}} style={styles.fotoImagen} />
                       <Text style={styles.fotoPreviewText}>Foto {idx + 1}</Text>
-                      <AppButton label="Quitar" icon="delete-outline" variant="text" onPress={() => setFotos(prev => prev.filter(item => item.uri !== foto.uri))} accessibilityLabel={`Quitar foto ${idx + 1}`} />
+                      <AppButton label="Quitar" icon="delete-outline" variant="text" onPress={() => quitarFoto(idx)} accessibilityLabel={`Quitar foto ${idx + 1}`} />
                     </View>
                   ))}
                 </View>

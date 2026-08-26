@@ -3,7 +3,7 @@
  * (user). Approach: react-test-renderer + mock de Keychain + mock axios
  * (getMockApi) para los catálogos (GET /fundos, /especies, /etapas-fenologicas,
  * /plagas, /lotes?fundoId), el stock (GET /programaciones/{especieId}/stock) y
- * la creación (POST /requerimientos).
+ * la creación (POST /requerimientos) con upload de fotos (POST multipart).
  *
  * Los desplegables (SelectField) abren un Modal: se abre el campo y luego se
  * elige la opción (accessibilityLabel "Opción <Campo> <Nombre>").
@@ -12,6 +12,7 @@
 import React from 'react';
 import ReactTestRenderer, {act} from 'react-test-renderer';
 import * as Keychain from 'react-native-keychain';
+import {launchImageLibrary} from 'react-native-image-picker';
 import {useNavigation} from '@react-navigation/native';
 import NuevoRequerimientoScreen from '../src/screens/NuevoRequerimientoScreen';
 import {clearToken} from '../src/services/ApiClient';
@@ -45,6 +46,13 @@ const LOTES = [{id: 10, fundoId: 1, nombre: 'Lote A', estado: true}];
 const ESPECIES = [{id: 1, nombre: 'Chrysopa sp.', estado: true}];
 const ETAPAS = [{id: 1, nombre: 'Emergencia', estado: true}];
 const PLAGAS = [{id: 1, nombre: 'Pulga', estado: true}];
+
+const FOTO_ASSET = {
+  uri: 'file:///tmp/foto.jpg',
+  type: 'image/jpeg',
+  fileName: 'foto1.jpg',
+  fileSize: 1024000,
+};
 
 let api = getMockApi();
 const mockGoBack = jest.fn();
@@ -113,6 +121,8 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
     mockGoBack.mockClear();
     api.get.mockClear();
     api.post.mockClear();
+    (launchImageLibrary as jest.Mock).mockReset();
+    (launchImageLibrary as jest.Mock).mockResolvedValue({didCancel: true});
   });
 
   test('muestra el formulario y actualiza el stock al elegir especie', async () => {
@@ -188,5 +198,73 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
 
     expect(contarTexto(tree, 'La cantidad supera el stock disponible')).toBe(1);
     expect(findByLabel(tree, 'Enviar Solicitud').props.disabled).toBe(true);
+  });
+
+  test('sube fotos después de crear el requerimiento', async () => {
+    api.post.mockImplementation((url: string) => {
+      if (url === '/requerimientos') {
+        return Promise.resolve({data: {id: 99, estado: 'REGISTRADO'}});
+      }
+      // subirFotoRequerimiento → POST /requerimientos/99/fotos
+      return Promise.resolve({data: {id: 1, ruta: '/fotos/1.jpg'}});
+    });
+
+    const tree = await renderForm();
+    await act(async () => {
+      await flushPromises();
+    });
+
+    // Simular selección de foto desde galería
+    (launchImageLibrary as jest.Mock).mockResolvedValue({
+      didCancel: false,
+      assets: [FOTO_ASSET],
+    });
+
+    await elegirOpcion(tree, 'Fundo', 'Opción Fundo Fundo Norte');
+    await elegirOpcion(tree, 'Lote', 'Opción Lote Lote A');
+    await elegirOpcion(tree, 'Especie', 'Opción Especie Chrysopa sp.');
+    await elegirOpcion(tree, 'Etapa fenológica', 'Opción Etapa Emergencia');
+    await elegirOpcion(tree, 'Plaga objetivo', 'Opción Plaga Pulga');
+
+    await act(async () => {
+      findByLabel(tree, 'Cantidad').props.onChangeText('20');
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+
+    // Seleccionar foto
+    await act(async () => {
+      findByLabel(tree, 'Seleccionar foto de la galería').props.onPress();
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+
+    // Verificar que la foto aparece en la UI (botón Quitar visible)
+    const quitarBtns = tree.root.findAll(
+      (node: any) => node.props.accessibilityLabel === 'Quitar foto 1',
+    );
+    expect(quitarBtns.length).toBeGreaterThanOrEqual(1);
+
+    // Enviar
+    await act(async () => {
+      findByLabel(tree, 'Enviar Solicitud').props.onPress();
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+
+    // Verificar que se llamó a crear requerimiento Y a subir foto
+    expect(api.post).toHaveBeenCalledWith(
+      '/requerimientos',
+      expect.objectContaining({fundoId: 1}),
+    );
+    expect(api.post).toHaveBeenCalledWith(
+      '/requerimientos/99/fotos',
+      expect.any(FormData),
+      expect.objectContaining({headers: {'Content-Type': 'multipart/form-data'}}),
+    );
+    expect(mockGoBack).toHaveBeenCalled();
   });
 });

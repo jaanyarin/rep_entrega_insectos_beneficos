@@ -5,29 +5,23 @@
  * Mismos campos de Screen 10 pre-cargados (base solo lectura), más:
  *  - Fecha y Hora de liberación: se auto-completan con los metadatos del
  *    sistema al tomar la foto (RN-036).
- *  - Botón Foto (cámara/galería, hasta 2; el backend no soporta upload aún).
+ *  - Botón Foto (cámara/galería, hasta 2); carga fotos existentes del
+ *    servidor, sube nuevas fotos y permite eliminar fotos del servidor.
  *  - Alerta permanente de 30 h (RN-035): si desde que el estado pasó a
  *    RECIBIDO transcurrió >30 h sin foto de liberación.
- *  - Botón "Actualizar" → guarda y vuelve a Screen 12.
+ *  - Botón "Actualizar" → guarda, sube fotos y vuelve a Screen 12.
  */
 
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
   KeyboardAvoidingView,
   Image,
-  PermissionsAndroid,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import {
-  launchCamera,
-  launchImageLibrary,
-  type Asset,
-  type ImagePickerResponse,
-} from 'react-native-image-picker';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {RouteProp} from '@react-navigation/native';
@@ -40,13 +34,18 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
 import SelectField from '../components/SelectField';
+import {usePhotoCapture} from '../hooks/usePhotoCapture';
 import {useRequerimientosCatalogos} from '../hooks/useRequerimientosCatalogos';
 import type {RootStackParamList} from '../navigation/types';
 import {
   actualizarRequerimiento,
+  eliminarFotoRequerimiento,
   extractErrorMessage,
+  listarFotosRequerimiento,
   obtenerRequerimiento,
   obtenerStockEspecie,
+  subirFotoRequerimiento,
+  type FotoRequerimientoDto,
 } from '../services/ApiClient';
 import {theme} from '../theme';
 import {
@@ -63,15 +62,6 @@ type Route = RouteProp<RootStackParamList, 'EditarRequerimiento'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 const MAX_PHOTOS = 2;
-const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
-const ACCEPTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png']);
-
-type EvidencePhoto = {
-  uri: string;
-  type: string;
-  fileName: string;
-  fileSize?: number;
-};
 
 export default function EditarRequerimientoScreen() {
   const navigation = useNavigation<Navigation>();
@@ -80,6 +70,13 @@ export default function EditarRequerimientoScreen() {
 
   const id = route.params.id;
   const catalogo = useRequerimientosCatalogos();
+  const {
+    fotos,
+    fotoError,
+    tomarFoto,
+    seleccionarFoto,
+    quitarFoto,
+  } = usePhotoCapture(MAX_PHOTOS);
 
   const [fechaInput, setFechaInput] = useState('');
   const [fundoId, setFundoId] = useState<number | null>(null);
@@ -93,13 +90,22 @@ export default function EditarRequerimientoScreen() {
   const [horaLiberacion, setHoraLiberacion] = useState('');
   const [estado, setEstado] = useState<string>('REGISTRADO');
   const [stock, setStock] = useState<number | null>(null);
-  const [fotos, setFotos] = useState<EvidencePhoto[]>([]);
+  const [fotosExistentes, setFotosExistentes] = useState<FotoRequerimientoDto[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [alerta30, setAlerta30] = useState(false);
-  const [fotoError, setFotoError] = useState<string | null>(null);
+
+  // Rellena fecha/hora de liberación al agregar una foto (RN-036).
+  const prevFotoCount = useRef(fotos.length);
+  useEffect(() => {
+    if (fotos.length > prevFotoCount.current) {
+      setFechaLiberacionInput(toISODate(new Date()));
+      setHoraLiberacion(horaActual());
+    }
+    prevFotoCount.current = fotos.length;
+  }, [fotos.length]);
 
   useEffect(() => {
     let activo = true;
@@ -135,6 +141,18 @@ export default function EditarRequerimientoScreen() {
             setStock(null);
           }
         }
+        // Carga fotos existentes del servidor
+        try {
+          const fotosServer = await listarFotosRequerimiento(id);
+          if (activo) {
+            setFotosExistentes(fotosServer);
+          }
+        } catch {
+          // Fotos no críticas — se muestran vacías si falla
+          if (activo) {
+            setFotosExistentes([]);
+          }
+        }
       } catch (e) {
         if (activo) {
           setError(extractErrorMessage(e));
@@ -150,82 +168,13 @@ export default function EditarRequerimientoScreen() {
     };
   }, [id]);
 
-  const agregarFoto = (response: ImagePickerResponse) => {
-    if (response.didCancel || response.errorCode || !response.assets?.[0]) {
-      if (response.errorMessage) {
-        setFotoError(response.errorMessage);
-      }
-      return;
+  const eliminarFotoServidor = async (fotoId: number) => {
+    try {
+      await eliminarFotoRequerimiento(id, fotoId);
+      setFotosExistentes(prev => prev.filter(f => f.id !== fotoId));
+    } catch {
+      // Silenciar — el usuario puede reintentar
     }
-    const asset: Asset = response.assets[0];
-    if (!asset.uri) {
-      setFotoError('No se pudo obtener la imagen seleccionada.');
-      return;
-    }
-    if (!asset.type || !ACCEPTED_PHOTO_TYPES.has(asset.type)) {
-      setFotoError('La evidencia debe estar en formato JPG o PNG.');
-      return;
-    }
-    if (asset.fileSize != null && asset.fileSize > MAX_PHOTO_SIZE) {
-      setFotoError('La evidencia no puede superar los 5 MB.');
-      return;
-    }
-    setFotoError(null);
-    setFotos(prev => [
-      ...prev,
-      {
-        uri: asset.uri!,
-        type: asset.type!,
-        fileName: asset.fileName ?? `liberacion-${prev.length + 1}.jpg`,
-        fileSize: asset.fileSize,
-      },
-    ]);
-    setFechaLiberacionInput(toISODate(new Date()));
-    setHoraLiberacion(horaActual());
-  };
-
-  const tomarFoto = async () => {
-    if (fotos.length >= MAX_PHOTOS) {
-      return;
-    }
-    if (Platform.OS === 'android') {
-      const permiso = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: 'Permiso para usar la cámara',
-          message: 'Necesitamos la cámara para registrar la evidencia de liberación.',
-          buttonPositive: 'Permitir',
-          buttonNegative: 'Cancelar',
-        },
-      );
-      if (permiso !== PermissionsAndroid.RESULTS.GRANTED) {
-        setFotoError(
-          permiso === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN
-            ? 'El permiso de cámara está bloqueado. Actívelo en Ajustes de la aplicación.'
-            : 'Se necesita permiso de cámara para tomar la evidencia.',
-        );
-        return;
-      }
-    }
-    const response = await launchCamera({
-      mediaType: 'photo',
-      cameraType: 'back',
-      saveToPhotos: false,
-      quality: 0.8,
-    });
-    agregarFoto(response);
-  };
-
-  const seleccionarFoto = async () => {
-    if (fotos.length >= MAX_PHOTOS) {
-      return;
-    }
-    const response = await launchImageLibrary({
-      mediaType: 'photo',
-      selectionLimit: 1,
-      quality: 0.8,
-    });
-    agregarFoto(response);
   };
 
   const actualizar = async () => {
@@ -245,6 +194,14 @@ export default function EditarRequerimientoScreen() {
         horaLiberacion: horaLiberacion.trim() || null,
         observaciones: observaciones.trim() || null,
       });
+      // Subir fotos locales nuevas al servidor
+      for (const foto of fotos) {
+        await subirFotoRequerimiento(id, {
+          uri: foto.uri,
+          type: foto.type,
+          name: foto.fileName,
+        }, JSON.stringify({tipo: 'LIBERACION'}));
+      }
       navigation.goBack();
     } catch (e) {
       setError(extractErrorMessage(e));
@@ -402,13 +359,33 @@ export default function EditarRequerimientoScreen() {
                 />
 
                 <Text style={styles.fotoTitulo}>Foto de liberación</Text>
+                {fotosExistentes.length > 0 && (
+                  <View style={styles.fotoPreviews}>
+                    {fotosExistentes.map((foto, idx) => (
+                      <View key={String(foto.id)} style={styles.fotoPreview}>
+                        <Image
+                          source={{uri: foto.ruta}}
+                          style={styles.fotoImagen}
+                        />
+                        <Text style={styles.fotoPreviewText}>Servidor {idx + 1}</Text>
+                        <AppButton
+                          label="Quitar"
+                          icon="delete-outline"
+                          variant="text"
+                          onPress={() => eliminarFotoServidor(foto.id)}
+                          accessibilityLabel={`Quitar foto del servidor ${idx + 1}`}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
                 <View style={styles.fotoAcciones}>
                   <View style={styles.fotoAccion}>
                     <AppButton
                       label="Cámara"
                       icon="camera-outline"
                       variant="secondary"
-                      disabled={fotos.length >= MAX_PHOTOS}
+                      disabled={fotos.length + fotosExistentes.length >= MAX_PHOTOS}
                       onPress={tomarFoto}
                       accessibilityLabel="Tomar foto de liberación"
                     />
@@ -418,7 +395,7 @@ export default function EditarRequerimientoScreen() {
                       label="Galería"
                       icon="image-outline"
                       variant="secondary"
-                      disabled={fotos.length >= MAX_PHOTOS}
+                      disabled={fotos.length + fotosExistentes.length >= MAX_PHOTOS}
                       onPress={seleccionarFoto}
                       accessibilityLabel="Seleccionar foto de liberación de la galería"
                     />
@@ -433,12 +410,12 @@ export default function EditarRequerimientoScreen() {
                   {fotos.map((foto, idx) => (
                     <View key={foto.uri} style={styles.fotoPreview}>
                       <Image source={{uri: foto.uri}} style={styles.fotoImagen} />
-                      <Text style={styles.fotoPreviewText}>Liberación {idx + 1}</Text>
+                      <Text style={styles.fotoPreviewText}>Local {idx + 1}</Text>
                       <AppButton
                         label="Quitar"
                         icon="delete-outline"
                         variant="text"
-                        onPress={() => setFotos(prev => prev.filter(item => item.uri !== foto.uri))}
+                        onPress={() => quitarFoto(idx)}
                         accessibilityLabel={`Quitar foto de liberación ${idx + 1}`}
                       />
                     </View>

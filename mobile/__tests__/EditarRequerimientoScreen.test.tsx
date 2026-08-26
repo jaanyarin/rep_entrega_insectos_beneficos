@@ -5,11 +5,13 @@
  * Approach (igual que ProgramacionEdicionScreen.test.tsx): react-test-renderer
  * + mock de Keychain (JWT no necesario porque la pantalla no usa useAuth) +
  * mock axios (getMockApi) para el detalle (GET /requerimientos/{id}), el stock
- * (GET /programaciones/{especieId}/stock) y los catálogos (GET /fundos,
- * /especies, /etapas-fenologicas, /plagas).
+ * (GET /programaciones/{especieId}/stock), los catálogos (GET /fundos,
+ * /especies, /etapas-fenologicas, /plagas) y fotos (GET/DELETE
+ * /requerimientos/{id}/fotos).
  *
  * Cubre RN-035: la alerta permanente de 30 h se muestra cuando el estado es
  * RECIBIDO y transcurrieron más de 30 h desde el último cambio de estado.
+ * Cubre HITO-011: carga de fotos existentes del servidor.
  */
 
 import React from 'react';
@@ -47,6 +49,19 @@ const FUNDOS = [{id: 1, nombre: 'Fundo Norte', estado: true}];
 const ESPECIES = [{id: 1, nombre: 'Chrysopa sp.', estado: true}];
 const ETAPAS = [{id: 1, nombre: 'Emergencia', estado: true}];
 const PLAGAS = [{id: 1, nombre: 'Pulga', estado: true}];
+
+const FOTOS_SERVIDOR = [
+  {
+    id: 10,
+    requerimientoId: 4,
+    ruta: '/fotos/foto1.jpg',
+    nombreArchivo: 'foto1.jpg',
+    tamanoBytes: 1024000,
+    contentType: 'image/jpeg',
+    metadatos: '{"tipo":"LIBERACION"}',
+    creadoEn: '2026-08-20T10:00:00Z',
+  },
+];
 
 /** Requerimiento base con timestamps relativos a `now` (para RN-035). */
 function requerimientoBase({updatedAt}: {updatedAt: string}) {
@@ -108,6 +123,9 @@ async function renderEdicion() {
     if (url === '/programaciones/1/stock') {
       return Promise.resolve({data: {stock: 30}});
     }
+    if (url === '/requerimientos/4/fotos') {
+      return Promise.resolve({data: FOTOS_SERVIDOR});
+    }
     return Promise.resolve({data: []});
   });
 
@@ -131,6 +149,8 @@ describe('EditarRequerimientoScreen — alerta de 30 h (RN-035)', () => {
     mockGoBack.mockClear();
     api.get.mockClear();
     api.put.mockClear();
+    api.post.mockClear();
+    api.delete.mockClear();
   });
 
   test('muestra la alerta cuando RECIBIDO superó 30 h sin foto de liberación', async () => {
@@ -155,5 +175,61 @@ describe('EditarRequerimientoScreen — alerta de 30 h (RN-035)', () => {
     });
 
     expect(contarAlertas(tree)).toBe(0);
+  });
+});
+
+describe('EditarRequerimientoScreen — fotos del servidor (HITO-011)', () => {
+  beforeEach(async () => {
+    await clearToken();
+    mockGoBack.mockClear();
+    api.get.mockClear();
+    api.put.mockClear();
+    api.post.mockClear();
+    api.delete.mockClear();
+  });
+
+  test('carga y muestra fotos existentes del servidor', async () => {
+    requerimientoActual = requerimientoBase({
+      updatedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    });
+    const tree = await renderEdicion();
+    await act(async () => {
+      await flushPromises();
+    });
+
+    // Verificar que se llamó a listar fotos
+    expect(api.get).toHaveBeenCalledWith('/requerimientos/4/fotos');
+
+    // Buscar el label de la foto del servidor
+    const servidorLabels = tree.root.findAll(
+      (node: any) =>
+        node.props.accessibilityLabel === 'Quitar foto del servidor 1',
+    );
+    expect(servidorLabels.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('elimina foto del servidor al pulsar Quitar', async () => {
+    api.delete.mockResolvedValue({data: null});
+    requerimientoActual = requerimientoBase({
+      updatedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    });
+    const tree = await renderEdicion();
+    await act(async () => {
+      await flushPromises();
+    });
+
+    // Pulsar Quitar en la foto del servidor
+    await act(async () => {
+      const btns = tree.root.findAll(
+        (node: any) =>
+          node.props.accessibilityLabel === 'Quitar foto del servidor 1',
+      );
+      btns[0].props.onPress();
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+
+    expect(api.delete).toHaveBeenCalledWith('/requerimientos/4/fotos/10');
   });
 });

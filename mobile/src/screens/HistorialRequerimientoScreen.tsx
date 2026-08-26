@@ -10,6 +10,7 @@
 
 import React, {useCallback, useEffect, useState} from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -34,7 +35,9 @@ import {useAuth} from '../context/AuthContext';
 import type {RootStackParamList} from '../navigation/types';
 import {
   extractErrorMessage,
+  listarFotosRequerimiento,
   listarRequerimientos,
+  type FotoRequerimientoDto,
   type RequerimientoDto,
 } from '../services/ApiClient';
 import {theme} from '../theme';
@@ -52,6 +55,37 @@ function VerModal({
   req: RequerimientoDto | null;
   onClose: () => void;
 }) {
+  const [fotosModal, setFotosModal] = useState<FotoRequerimientoDto[]>([]);
+  const [loadingFotos, setLoadingFotos] = useState(false);
+
+  useEffect(() => {
+    if (!req) {
+      setFotosModal([]);
+      return;
+    }
+    let activo = true;
+    (async () => {
+      setLoadingFotos(true);
+      try {
+        const fotos = await listarFotosRequerimiento(req.id);
+        if (activo) {
+          setFotosModal(fotos);
+        }
+      } catch {
+        if (activo) {
+          setFotosModal([]);
+        }
+      } finally {
+        if (activo) {
+          setLoadingFotos(false);
+        }
+      }
+    })();
+    return () => {
+      activo = false;
+    };
+  }, [req]);
+
   if (!req) {
     return null;
   }
@@ -87,6 +121,21 @@ function VerModal({
                 <Text style={styles.verValue}>{valor}</Text>
               </View>
             ))}
+            {loadingFotos ? (
+              <LoadingState message="Cargando fotos…" />
+            ) : fotosModal.length > 0 ? (
+              <View style={styles.fotosSection}>
+                <Text style={styles.fotosSectionTitle}>Evidencia fotográfica</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {fotosModal.map((foto, idx) => (
+                    <View key={String(foto.id)} style={styles.fotoThumbnail}>
+                      <Image source={{uri: foto.ruta}} style={styles.fotoImagen} />
+                      <Text style={styles.fotoCaption}>Foto {idx + 1}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
           </ScrollView>
           <View style={styles.modalActions}>
             <View style={styles.modalAction}>
@@ -388,5 +437,31 @@ const styles = StyleSheet.create({
   },
   modalAction: {
     flex: 1,
+  },
+  fotosSection: {
+    marginTop: theme.spacing[3],
+  },
+  fotosSectionTitle: {
+    fontFamily: theme.typography.subtitle2.fontFamily,
+    fontSize: theme.typography.subtitle2.fontSize,
+    lineHeight: theme.typography.subtitle2.lineHeight,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing[2],
+  },
+  fotoThumbnail: {
+    width: 104,
+    alignItems: 'center',
+    marginRight: theme.spacing[2],
+  },
+  fotoImagen: {
+    width: 96,
+    height: 72,
+    borderRadius: theme.radius.sm,
+  },
+  fotoCaption: {
+    fontFamily: theme.typography.caption.fontFamily,
+    fontSize: 12,
+    color: theme.colors.text.secondary,
+    marginTop: 4,
   },
 });

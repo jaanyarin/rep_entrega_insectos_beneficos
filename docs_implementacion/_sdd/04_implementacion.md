@@ -10,8 +10,8 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | HITO-010 cerrado; fotos backend+API integradas |
-| Versión | 1.4.0 (sin bump en HITO-010) |
+| Estado | HITO-011 cerrado; fotos integradas en mobile |
+| Versión | 1.4.0 (sin bump en HITO-011) |
 | Fecha | 2026-08-26 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
@@ -1186,8 +1186,82 @@ exige V11+ (coherente con la nota de V1 en AGENTS).
 
 ## 40.6 Estado / pendientes
 
-- **Wire fotos a screens mobile**: integrar `subirFotoRequerimiento` en NuevoRequerimientoScreen
-  y EditarRequerimientoScreen (HITO-011).
 - **Endpoint backend para descargar/ver fotos**: requerido para visualización en app y web.
 - **Integración end-to-end**: prueba real desde celular contra backend con upload de fotos.
 - **Acta PDF**: continúa pendiente de backend (MOD-11).
+
+---
+
+# 41. Wire fotos a screens mobile (HITO-011, 2026-08-26)
+
+> Integra la subida de fotos (HITO-010) en las screens mobile existentes. Crea un hook
+> compartido `usePhotoCapture` para eliminar duplicación (DRY — Ley 4) y conecta las funciones
+> API de fotos con los flujos de crear, editar y visualizar requerimientos.
+
+## 41.1 Hook compartido — usePhotoCapture
+
+- **Archivo nuevo**: `mobile/src/hooks/usePhotoCapture.ts`
+- Extrae de Screens 10 y 13 la lógica duplicada: cámara, galería, permisos Android,
+  validación (tipo JPG/PNG, tamaño ≤5MB, máximo 2 fotos), estado local.
+- Elimina ~80 líneas de código duplicado (Ley 4).
+- Exporta interfaz `EvidencePhoto` y funciones: `tomarFoto`, `seleccionarFoto`,
+  `quitarFoto`, `limpiarFotos`, `requestCameraPermission`.
+
+## 41.2 Screen 10 — NuevoRequerimientoScreen (crear)
+
+- Reemplaza estado local de fotos con `usePhotoCapture()`.
+- `enviar()`: captura `nuevo.id` del retorno de `crearRequerimiento()`.
+- Tras crear, itera fotos locales y llama `subirFotoRequerimiento(nuevo.id, foto,
+  JSON.stringify({tipo:'EVIDENCIA'}))` por cada una.
+- Los errores de upload no bloquean la creación del requerimiento (degradación graceful).
+
+## 41.3 Screen 13 — EditarRequerimientoScreen (editar/liberar)
+
+- Reemplaza estado local de fotos con `usePhotoCapture()`.
+- Al montar: llama `listarFotosRequerimiento(id)` y carga fotos del servidor en
+  `fotosExistentes: FotoRequerimientoDto[]`.
+- Thumbnail de fotos servidor antes de los botones cámara/galería.
+- Botón "Quitar" para fotos servidor → `eliminarFotoRequerimiento(id, foto.id)`.
+- Tras guardar: sube fotos locales nuevas con `subirFotoRequerimiento`.
+- Deshabilita cámara/galería si total (local+servidor) ≥ MAX_PHOTOS.
+
+## 41.4 Screen 12 — HistorialRequerimientoScreen (listado)
+
+- `VerModal`: al abrir, llama `listarFotosRequerimiento(req.id)`.
+- Muestra thumbnails de fotos en scroll horizontal con `<Image>`.
+- LoadingState mientras carga fotos.
+
+## 41.5 Tests
+
+| Archivo | Tests nuevos | Total |
+|---|---|---|
+| NuevoRequerimientoScreen.test.tsx | +1 (upload tras crear) | actualizado |
+| EditarRequerimientoScreen.test.tsx | +2 (cargar fotos, eliminar) | actualizado |
+| HistorialRequerimientoScreen.test.tsx | **nuevo** (4 tests, display fotos) | 4 |
+
+Suite completa: **87 tests / 18 suites PASS**.
+
+## 41.6 Verificación (Ley 5)
+
+| Capa | Comando | Resultado |
+|---|---|---|
+| Mobile TS | `npx tsc --noEmit` | ✅ PASS |
+| Mobile lint | `npm run lint` | ✅ PASS |
+| Mobile tests | `npx jest --runInBand --forceExit` | ✅ **87 tests / 18 suites PASS** |
+
+## 41.7 Auditoría
+
+- Auditoría integral: **CONDITIONAL PASS** (docs inicialmente incompletas, remediadas).
+- 0 críticos, 0 altos pendientes.
+- 1 warning documentado: `foto.ruta` es path filesystem, no HTTP URL — requiere
+  endpoint backend de serving (HITO-010 gap, no HITO-011). Mobile estructurado correctamente
+  para cuando se agregue.
+
+## 41.8 Estado / pendientes
+
+- **Endpoint backend para servir fotos estáticas**: `GET /api/v1/requerimientos/{id}/fotos/{fotoId}/imagen`
+  o servir `/uploads/fotos/` via Nginx/quarkus.http.static. Requerido para que `<Image>`
+  muestre fotos reales.
+- **RequerimientoFormScreen (admin)**: sin fotos (PDF stub puro). Pendiente de HITO futuro.
+- **Acta PDF**: continúa pendiente de backend (MOD-11).
+- **Integración end-to-end**: prueba real desde celular contra backend con upload + visualización.
