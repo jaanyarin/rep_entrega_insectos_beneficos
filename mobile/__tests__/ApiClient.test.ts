@@ -5,7 +5,14 @@
  * code 401"). Se cubre la cascada completa y los fallbacks existentes.
  */
 
-import {extractErrorMessage, normalizeApiUrl} from '../src/services/ApiClient';
+import {
+  extractErrorMessage,
+  normalizeApiUrl,
+  api,
+  subirFotoRequerimiento,
+  listarFotosRequerimiento,
+  eliminarFotoRequerimiento,
+} from '../src/services/ApiClient';
 
 describe('extractErrorMessage', () => {
   test('usa {mensaje} del backend — contrato real {codigo, mensaje}', () => {
@@ -96,5 +103,102 @@ describe('normalizeApiUrl', () => {
 
   test('string vacío → se conserva vacío (comportamiento actual)', () => {
     expect(normalizeApiUrl('')).toBe('');
+  });
+});
+
+/**
+ * Fotos de requerimiento (HITO-010): subir, listar y eliminar fotos
+ * asociadas a un requerimiento vía POST/GET/DELETE multipart.
+ */
+describe('Fotos de requerimiento (HITO-010)', () => {
+  const mockFoto = {
+    id: 1,
+    requerimientoId: 10,
+    ruta: '/uploads/fotos/foto_001.jpg',
+    nombreArchivo: 'foto_001.jpg',
+    tamanoBytes: 102400,
+    contentType: 'image/jpeg',
+    metadatos: '{"obligatoria":true}',
+    creadoEn: '2026-08-25T10:00:00Z',
+  };
+
+  const spyPost = jest.spyOn(api, 'post');
+  const spyGet = jest.spyOn(api, 'get');
+  const spyDelete = jest.spyOn(api, 'delete');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('subirFotoRequerimiento — POST multipart con archivo y metadatos', async () => {
+    spyPost.mockResolvedValueOnce({data: mockFoto} as any);
+
+    const archivo = {
+      uri: 'file:///tmp/foto.jpg',
+      type: 'image/jpeg',
+      name: 'foto_001.jpg',
+    };
+    const result = await subirFotoRequerimiento(10, archivo, '{"obligatoria":true}');
+
+    expect(spyPost).toHaveBeenCalledTimes(1);
+    expect(spyPost).toHaveBeenCalledWith(
+      '/requerimientos/10/fotos',
+      expect.any(FormData),
+      {
+        headers: {'Content-Type': 'multipart/form-data'},
+        timeout: 30000,
+      },
+    );
+    expect(result).toEqual(mockFoto);
+  });
+
+  test('subirFotoRequerimiento — POST sin metadatos opcionales', async () => {
+    spyPost.mockResolvedValueOnce({data: mockFoto} as any);
+
+    const archivo = {
+      uri: 'file:///tmp/foto.jpg',
+      type: 'image/jpeg',
+      name: 'foto_001.jpg',
+    };
+    const result = await subirFotoRequerimiento(10, archivo);
+
+    expect(spyPost).toHaveBeenCalledTimes(1);
+    // FormData con solo 'archivo' (sin 'metadatos')
+    const formData = spyPost.mock.calls[0][1];
+    expect(formData).toBeInstanceOf(FormData);
+    expect(result).toEqual(mockFoto);
+  });
+
+  test('listarFotosRequerimiento — GET retorna lista de fotos', async () => {
+    const fotos = [mockFoto, {...mockFoto, id: 2, nombreArchivo: 'foto_002.jpg'}];
+    spyGet.mockResolvedValueOnce({data: fotos} as any);
+
+    const result = await listarFotosRequerimiento(10);
+
+    expect(spyGet).toHaveBeenCalledTimes(1);
+    expect(spyGet).toHaveBeenCalledWith('/requerimientos/10/fotos');
+    expect(result).toEqual(fotos);
+    expect(result).toHaveLength(2);
+  });
+
+  test('listarFotosRequerimiento — unwrap de wrapper {data: [...]}', async () => {
+    spyGet.mockResolvedValueOnce({data: {data: [mockFoto]}} as any);
+
+    const result = await listarFotosRequerimiento(10);
+
+    expect(result).toEqual([mockFoto]);
+  });
+
+  test('eliminarFotoRequerimiento — DELETE con IDs correctos', async () => {
+    spyDelete.mockResolvedValueOnce({data: undefined} as any);
+
+    await eliminarFotoRequerimiento(10, 1);
+
+    expect(spyDelete).toHaveBeenCalledTimes(1);
+    expect(spyDelete).toHaveBeenCalledWith('/requerimientos/10/fotos/1');
   });
 });

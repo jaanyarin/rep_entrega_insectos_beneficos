@@ -770,3 +770,71 @@ export async function obtenerStockEspecie(
   const res = await api.get(`/programaciones/${especieId}/stock`);
   return res.data as {stock: number};
 }
+
+/* ------------------------------------------------------------------ */
+/* Fotos de requerimiento (HITO-010)                                    */
+/* ------------------------------------------------------------------ */
+
+export interface FotoRequerimientoDto {
+  id: number;
+  requerimientoId: number;
+  ruta: string;
+  nombreArchivo: string;
+  tamanoBytes: number;
+  contentType: string;
+  metadatos: string | null;
+  creadoEn: string;
+}
+
+/**
+ * Sube una foto para un requerimiento (multipart: archivo + metadatos).
+ * El backend acepta JPG/PNG ≤ 5 MB, máximo 2 fotos por requerimiento.
+ */
+export async function subirFotoRequerimiento(
+  requerimientoId: number,
+  archivo: {uri: string; type: string; name: string},
+  metadatos?: string,
+): Promise<FotoRequerimientoDto> {
+  const formData = new FormData();
+  formData.append('archivo', {
+    uri: archivo.uri,
+    type: archivo.type,
+    name: archivo.name,
+  } as any);
+  if (metadatos) {
+    formData.append('metadatos', metadatos);
+  }
+  const response = await api.post<FotoRequerimientoDto>(
+    `/requerimientos/${requerimientoId}/fotos`,
+    formData,
+    {
+      headers: {'Content-Type': 'multipart/form-data'},
+      timeout: 30000,
+    },
+  );
+  return response.data;
+}
+
+/**
+ * Lista las fotos de un requerimiento.
+ */
+export async function listarFotosRequerimiento(
+  requerimientoId: number,
+): Promise<FotoRequerimientoDto[]> {
+  const response = await api.get<FotoRequerimientoDto[]>(
+    `/requerimientos/${requerimientoId}/fotos`,
+  );
+  return unwrap(
+    response.data as FotoRequerimientoDto[] | {data?: FotoRequerimientoDto[]},
+  );
+}
+
+/**
+ * Elimina una foto de un requerimiento.
+ */
+export async function eliminarFotoRequerimiento(
+  requerimientoId: number,
+  fotoId: number,
+): Promise<void> {
+  await api.delete(`/requerimientos/${requerimientoId}/fotos/${fotoId}`);
+}

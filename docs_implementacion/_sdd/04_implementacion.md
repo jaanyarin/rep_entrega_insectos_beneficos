@@ -10,9 +10,9 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | HITO-008 cerrado; evolución mobile en curso |
-| Versión | 1.4.0 (sin bump en HITO-008) |
-| Fecha | 2026-08-25 |
+| Estado | HITO-010 cerrado; fotos backend+API integradas |
+| Versión | 1.4.0 (sin bump en HITO-010) |
+| Fecha | 2026-08-26 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
 | Clasificación | Interno |
@@ -1130,3 +1130,64 @@ exige V11+ (coherente con la nota de V1 en AGENTS).
 - El acta PDF continúa pendiente de backend.
 - Cambios locales pendientes de commit: permisos, integración de cámara en nuevo requerimiento y
   cualquier ajuste mobile posterior al commit `0108492`.
+
+---
+
+# 40. Backend + Mobile API — Fotos de Requerimiento (HITO-010, 2026-08-26)
+
+> Cierra la brecha de evidencias fotográficas (MOD-09 / RF-091..RF-096): el backend ahora
+> almacena fotos en filesystem con metadatos en BD, y el mobile tiene las funciones API
+> para subir, listar y eliminar fotos de requerimientos. Versión se mantiene en **1.4.0**.
+
+## 40.1 Backend — Migración V11
+
+- `V11__create_fotos_requerimiento.sql`: tabla `fotos_requerimiento` (id, requerimiento_id FK,
+  ruta, nombre_archivo, tamano_bytes, content_type, metadatos, creado_en) + índice en FK.
+
+## 40.2 Backend — Paquete `requerimientos` (6 archivos nuevos)
+
+| Clase | Rol |
+|---|---|
+| `FotoRequerimiento.java` | Entidad JPA (patrón Plain JPA + Panache; LAZY FK a `requerimiento`) |
+| `FotoRequerimientoRepository.java` | `findByRequerimientoId`, `countByRequerimientoId` |
+| `FotoRequerimientoDto.java` | DTO de respuesta (8 campos) |
+| `FotoRequerimientoService.java` | `subirFoto` (max 2, ≤5MB, JPG/PNG, filesystem), `listarFotos`, `eliminarFoto` (borrado físico) |
+| `FotoRequerimientoResource.java` | POST multipart (`/requerimientos/{id}/fotos`), GET list, DELETE con `@RolesAllowed` |
+| `FotoRequerimientoResourceTest.java` | 11 tests: happy path, validaciones, IDOR, 404 |
+
+**Reglas de negocio:**
+- Máximo 2 fotos por requerimiento (`MAX_FOTOS_ALCANZADO`).
+- Tamaño máximo 5 MB por archivo (`ARCHIVO_MUY_GRANDE`).
+- Solo JPG/PNG (`FORMATO_NO_VALIDO`).
+- Protección IDOR: la foto debe pertenecer al requerimiento (`FOTO_NO_PERTENECE`).
+- Almacenamiento en `uploads/fotos/` con nombre UUID.
+
+## 40.3 Mobile — ApiClient.ts (3 funciones nuevas + DTO)
+
+| Función | Método HTTP | Descripción |
+|---|---|---|
+| `subirFotoRequerimiento(id, archivo, metadatos?)` | POST multipart | Sube foto (timeout 30s) |
+| `listarFotosRequerimiento(id)` | GET | Lista fotos del requerimiento |
+| `eliminarFotoRequerimiento(id, fotoId)` | DELETE | Elimina foto |
+
+## 40.4 Verificación (Ley 5)
+
+| Capa | Comando | Resultado |
+|---|---|---|
+| Backend compile | `mvnw.cmd clean test-compile` | ✅ BUILD SUCCESS |
+| Mobile TS | `npx tsc --noEmit` | ✅ PASS |
+| Mobile lint | `npm run lint` | ✅ PASS |
+| Mobile tests | `npx jest --runInBand` | ✅ **82 tests / 17 suites PASS** |
+
+## 40.5 Auditoría
+
+- Auditoría integral: **PASS** (H1/H2 remediados con tests adicionales).
+- 0 críticos, 0 altos pendientes. 4 items de deuda menor registrados (H3-H6).
+
+## 40.6 Estado / pendientes
+
+- **Wire fotos a screens mobile**: integrar `subirFotoRequerimiento` en NuevoRequerimientoScreen
+  y EditarRequerimientoScreen (HITO-011).
+- **Endpoint backend para descargar/ver fotos**: requerido para visualización en app y web.
+- **Integración end-to-end**: prueba real desde celular contra backend con upload de fotos.
+- **Acta PDF**: continúa pendiente de backend (MOD-11).
