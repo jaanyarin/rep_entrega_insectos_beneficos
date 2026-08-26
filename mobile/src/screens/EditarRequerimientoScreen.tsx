@@ -15,6 +15,7 @@ import React, {useEffect, useState} from 'react';
 import {
   KeyboardAvoidingView,
   Image,
+  PermissionsAndroid,
   Platform,
   ScrollView,
   StyleSheet,
@@ -186,6 +187,25 @@ export default function EditarRequerimientoScreen() {
   const tomarFoto = async () => {
     if (fotos.length >= MAX_PHOTOS) {
       return;
+    }
+    if (Platform.OS === 'android') {
+      const permiso = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Permiso para usar la cámara',
+          message: 'Necesitamos la cámara para registrar la evidencia de liberación.',
+          buttonPositive: 'Permitir',
+          buttonNegative: 'Cancelar',
+        },
+      );
+      if (permiso !== PermissionsAndroid.RESULTS.GRANTED) {
+        setFotoError(
+          permiso === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN
+            ? 'El permiso de cámara está bloqueado. Actívelo en Ajustes de la aplicación.'
+            : 'Se necesita permiso de cámara para tomar la evidencia.',
+        );
+        return;
+      }
     }
     const response = await launchCamera({
       mediaType: 'photo',

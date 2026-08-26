@@ -10,9 +10,9 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | HITO-003 cerrado (auditoría integral PASS) |
-| Versión | 1.2.0 |
-| Fecha | 2026-08-19 |
+| Estado | HITO-008 cerrado; evolución mobile en curso |
+| Versión | 1.4.0 (sin bump en HITO-008) |
+| Fecha | 2026-08-25 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
 | Clasificación | Interno |
@@ -28,9 +28,9 @@ decisiones/avances por HITO. Se alimenta en cada tarea y se consulta antes de re
 
 # 3. Alcance del Documento
 
-Cubre el HITO-001 (infraestructura base + vertical 1: módulo de usuarios/autenticación) y el
-HITO-002 (auth v2) y HITO-003 (sistema visual Vanguard y navegación mobile); será la base
-para hitos posteriores (requerimientos, programación, evidencias).
+Cubre el historial de implementación desde HITO-001 hasta HITO-008 y los cambios posteriores
+del mobile. Es la fuente de retorno para continuar el desarrollo sin depender de la memoria
+de una sesión anterior.
 
 ---
 
@@ -45,6 +45,8 @@ para hitos posteriores (requerimientos, programación, evidencias).
 | perfil_desarrollador.md | Leyes 1-5 |
 | perfil_auditor.md | Catálogo de 32 gates |
 | 05_hito_001.md | Acta de cierre del HITO-001 (verificación y auditoría) |
+| 05_hito_008.md | Acta de cierre técnico del HITO-008 |
+| auditoria HITO-008 | Gate review del backend de requerimientos |
 
 ---
 
@@ -1067,8 +1069,64 @@ exige V11+ (coherente con la nota de V1 en AGENTS).
 
 ## 38.4 Estado / pendientes
 
-- Sin commitear: V10 + paquete `requerimientos` (backend) + `RequerimientoResourceTest`.
+- Commiteado en `dea9abc`: V10 + paquete `requerimientos` (backend) + `RequerimientoResourceTest`.
 - Excluidos del commit: `install.ps1`, `.opencode/opencode.json`, `config.ts`, y los logs temporales
   `backend/quarkus-run.log`/`.err` (artefactos de diagnóstico, no del proyecto).
 - Deuda pendiente (siguiente fase): validación end-to-end desde el celular (pantallas de
   requerimientos contra el backend real) y rebuild de APK release cuando se decida.
+
+---
+
+# 39. Log de desarrollo — Mobile: controles nativos y cámara (2026-08-25)
+
+## 39.1 Punto de partida y decisión
+
+- El mobile tenía campos de fecha/hora como `AppInput` de texto libre en los formularios y
+  filtros de requerimientos.
+- La pantalla de fotos usaba un stub y Android tenía el permiso `CAMERA` declarado, pero no
+  solicitado en tiempo de ejecución.
+- Se mantiene la versión **1.4.0 / versionCode 5**: el cambio pertenece al mobile y el APK
+  release se reconstruyó para probarlo, sin ejecutar un bump separado.
+
+## 39.2 Implementación realizada
+
+- Se creó `mobile/src/components/DateTimePickerField.tsx`, componente reutilizable para fecha
+  y hora con `@react-native-community/datetimepicker`.
+- Se migraron a picker nativo las fechas de solicitud/liberación y los filtros Desde/Hasta de
+  `RequerimientoFormScreen`, `NuevoRequerimientoScreen`, `EditarRequerimientoScreen`,
+  `RequerimientosListScreen` e `HistorialRequerimientoScreen`.
+- Los valores internos mantienen el contrato API: fecha `YYYY-MM-DD` y hora `HH:mm`; la fecha
+  se presenta localmente como `dd/mm/aaaa`.
+- Se añadió `react-native-image-picker` para cámara/galería, límite de 2 fotos, validación JPG/PNG
+  y tamaño máximo de 5 MB, con vista previa y eliminación local.
+- Se añadió solicitud runtime de `android.permission.CAMERA` con mensajes para permiso denegado
+  o bloqueado; también se declaró `NSCameraUsageDescription` para iOS.
+- Se actualizaron mocks y tests para los módulos nativos y el nuevo callback `onChange`.
+
+## 39.3 Incidencia y resolución
+
+- El dispositivo tenía instalado APK `1.2.0 / versionCode 3`, por lo que no correspondía al
+  código actual `1.4.0 / versionCode 5`. Se instaló el APK release actual.
+- Android mostraba inicialmente `CAMERA: granted=false`. La solicitud explícita se añadió al
+  flujo antes de `launchCamera`; para la prueba local se concedió el permiso mediante ADB.
+- La compilación release final terminó con `BUILD SUCCESSFUL` y el APK se instaló correctamente.
+
+## 39.4 Verificación
+
+| Verificación | Resultado |
+|---|---|
+| `npx tsc --noEmit` | PASS |
+| ESLint sobre archivos modificados | PASS |
+| Tests de requerimientos | 4 suites, 11/11 PASS |
+| Suite mobile completa previa | 17 suites, 77/77 PASS |
+| `npm run android:release` | PASS; `BUILD SUCCESSFUL` |
+| APK instalado en dispositivo | PASS; `1.4.0 / versionCode 5`, `CAMERA: granted=true` |
+
+## 39.5 Estado para retomar
+
+- La captura de cámara y selección de galería quedan implementadas en mobile.
+- Las fotos todavía se conservan localmente; falta el endpoint backend multipart y el envío desde
+  `ApiClient`.
+- El acta PDF continúa pendiente de backend.
+- Cambios locales pendientes de commit: permisos, integración de cámara en nuevo requerimiento y
+  cualquier ajuste mobile posterior al commit `0108492`.

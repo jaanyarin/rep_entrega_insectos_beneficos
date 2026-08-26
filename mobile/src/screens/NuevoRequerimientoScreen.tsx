@@ -17,12 +17,20 @@
 import React, {useCallback, useState} from 'react';
 import {
   KeyboardAvoidingView,
+  Image,
+  PermissionsAndroid,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import {
+  launchCamera,
+  launchImageLibrary,
+  type Asset,
+  type ImagePickerResponse,
+} from 'react-native-image-picker';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -52,6 +60,12 @@ import {
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
+const MAX_PHOTOS = 2;
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+const ACCEPTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png']);
+
+type EvidencePhoto = {uri: string; type: string; fileName: string; fileSize?: number};
+
 export default function NuevoRequerimientoScreen() {
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
@@ -66,13 +80,14 @@ export default function NuevoRequerimientoScreen() {
   const [cantidadTexto, setCantidadTexto] = useState('');
   const [plagaId, setPlagaId] = useState<number | null>(null);
   const [observaciones, setObservaciones] = useState('');
-  const [fotos, setFotos] = useState<string[]>([]);
+  const [fotos, setFotos] = useState<EvidencePhoto[]>([]);
 
   const [stock, setStock] = useState<number | null>(null);
   // errorCatalogo (del hook) → ErrorState a pantalla completa; errorEnvio
   // (fallo al crear) → alert inline sin ocultar los datos del formulario.
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [fotoError, setFotoError] = useState<string | null>(null);
 
   const cambiarFundo = (value: number | string) => {
     const fid = Number(value);
@@ -113,11 +128,56 @@ export default function NuevoRequerimientoScreen() {
   const stockError = stock != null ? validarCantidadVsStock(cantidadNum, stock) : null;
   const puedeEnviar = faltantes.length === 0 && stockError == null;
 
-  const agregarFoto = () => {
-    if (fotos.length >= 2) {
+  const agregarFoto = (response: ImagePickerResponse) => {
+    if (response.didCancel || response.errorCode || !response.assets?.[0]) {
+      if (response.errorMessage) setFotoError(response.errorMessage);
       return;
     }
-    setFotos(prev => [...prev, `foto-${prev.length + 1}-stub.jpg`]);
+    const asset: Asset = response.assets[0];
+    if (!asset.uri) {
+      setFotoError('No se pudo obtener la imagen seleccionada.');
+      return;
+    }
+    if (!asset.type || !ACCEPTED_PHOTO_TYPES.has(asset.type)) {
+      setFotoError('La evidencia debe estar en formato JPG o PNG.');
+      return;
+    }
+    if (asset.fileSize != null && asset.fileSize > MAX_PHOTO_SIZE) {
+      setFotoError('La evidencia no puede superar los 5 MB.');
+      return;
+    }
+    setFotoError(null);
+    setFotos(prev => [...prev, {
+      uri: asset.uri!,
+      type: asset.type!,
+      fileName: asset.fileName ?? `foto-${prev.length + 1}.jpg`,
+      fileSize: asset.fileSize,
+    }]);
+  };
+
+  const tomarFoto = async () => {
+    if (fotos.length >= MAX_PHOTOS) return;
+    if (Platform.OS === 'android') {
+      const permiso = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Permiso para usar la cámara',
+          message: 'Necesitamos la cámara para registrar la evidencia.',
+          buttonPositive: 'Permitir',
+          buttonNegative: 'Cancelar',
+        },
+      );
+      if (permiso !== PermissionsAndroid.RESULTS.GRANTED) {
+        setFotoError('Se necesita permiso de cámara para tomar la evidencia.');
+        return;
+      }
+    }
+    agregarFoto(await launchCamera({mediaType: 'photo', saveToPhotos: false, quality: 0.8}));
+  };
+
+  const seleccionarFoto = async () => {
+    if (fotos.length >= MAX_PHOTOS) return;
+    agregarFoto(await launchImageLibrary({mediaType: 'photo', selectionLimit: 1, quality: 0.8}));
   };
 
   const enviar = async () => {
@@ -272,19 +332,29 @@ export default function NuevoRequerimientoScreen() {
                 <Text style={styles.fotoTitulo}>Fotos (evidencia)</Text>
                 <View style={styles.fotoRow}>
                   <AppButton
-                    label="Foto"
+                    label="Cámara"
                     icon="camera-outline"
                     variant="secondary"
-                    disabled={fotos.length >= 2}
-                    onPress={agregarFoto}
+                    disabled={fotos.length >= MAX_PHOTOS}
+                    onPress={tomarFoto}
                     accessibilityLabel="Tomar foto"
                   />
+                  <AppButton
+                    label="Galería"
+                    icon="image-outline"
+                    variant="secondary"
+                    disabled={fotos.length >= MAX_PHOTOS}
+                    onPress={seleccionarFoto}
+                    accessibilityLabel="Seleccionar foto de la galería"
+                  />
                 </View>
+                {fotoError ? <Text accessibilityRole="alert" style={styles.fotoError}>{fotoError}</Text> : null}
                 <View style={styles.fotoPreviews}>
-                  {fotos.map((uri, idx) => (
-                    <View key={uri} style={styles.fotoPreview}>
+                  {fotos.map((foto, idx) => (
+                    <View key={foto.uri} style={styles.fotoPreview}>
+                      <Image source={{uri: foto.uri}} style={styles.fotoImagen} />
                       <Text style={styles.fotoPreviewText}>Foto {idx + 1}</Text>
-                      <Text style={styles.fotoPreviewStub}>stub</Text>
+                      <AppButton label="Quitar" icon="delete-outline" variant="text" onPress={() => setFotos(prev => prev.filter(item => item.uri !== foto.uri))} accessibilityLabel={`Quitar foto ${idx + 1}`} />
                     </View>
                   ))}
                 </View>
@@ -369,25 +439,31 @@ const styles = StyleSheet.create({
   fotoPreviews: {
     flexDirection: 'row',
     gap: theme.spacing[2],
+    flexWrap: 'wrap',
+    marginBottom: theme.spacing[2],
+  },
+  fotoError: {
+    color: theme.colors.status.error,
+    fontFamily: theme.typography.body2.fontFamily,
+    fontSize: theme.typography.body2.fontSize,
     marginBottom: theme.spacing[2],
   },
   fotoPreview: {
-    width: 72,
-    height: 72,
+    width: 112,
     borderRadius: theme.radius.sm,
     backgroundColor: theme.colors.background.neutral,
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingTop: theme.spacing[1],
+  },
+  fotoImagen: {
+    width: 104,
+    height: 76,
+    borderRadius: theme.radius.sm,
   },
   fotoPreviewText: {
     fontFamily: theme.typography.caption.fontFamily,
     fontSize: 12,
     color: theme.colors.text.secondary,
-  },
-  fotoPreviewStub: {
-    fontFamily: theme.typography.caption.fontFamily,
-    fontSize: 10,
-    color: theme.colors.text.tertiary,
   },
   ayuda: {
     fontFamily: theme.typography.caption.fontFamily,
