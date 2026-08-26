@@ -149,9 +149,18 @@ y reportar al Orchestrator; no "arreglarlo" en silencio.
 - **HITO-008 (cerrado, 2026-08-25) = Backend de Requerimientos**: migración V10 (`requerimientos`) +
   endpoints `/requerimientos` (GET/POST/PUT) + `/programaciones/{especieId}/stock`; ciclo de estados,
   validación papel+sobre=cantidad (RF-165), stock disponible (versión 1.4.0 sin cambio; 53 tests BE).
+- **HITO-009 (cerrado, 2026-08-25) = Fix CatalogosScreen**: flakiness en test CatalogosScreen bajo
+  ejecución paralela (sin bug real, solo incompatibilidad con `--forceExit`; resuelto con `--runInBand`).
+- **HITO-010 (cerrado, 2026-08-26) = Fotos backend + mobile API**: migración V11 (`fotos_requerimiento`),
+  entity/repository/DTO/service/resource para upload de fotos (max 2, ≤5MB, JPG/PNG, IDOR protection);
+  11 tests BE. Mobile: 3 funciones API (subir/listar/eliminar fotos) + 5 tests MO.
+- **HITO-011 (cerrado, 2026-08-26) = Wire fotos a screens mobile**: hook `usePhotoCapture` (DRY),
+  integración en NuevoRequerimientoScreen (upload post-crear), EditarRequerimientoScreen (carga server +
+  upload + delete), HistorialRequerimientoScreen (thumbnails en modal). 87 tests MO / 18 suites.
 - Web (React/Vite) y CI/CD siguen pendientes (próxima fase).
-- La validación end-to-end desde mobile contra el backend real, evidencias fotográficas y actas PDF
-  siguen pendientes (próxima fase).
+- **Endpoint backend para servir fotos estáticas** sigue pendiente (requerido para que `<Image>` muestre
+  fotos reales; gap documentado en HITO-010 §40.8 / HITO-011 §41.8).
+- La validación end-to-end desde mobile contra el backend real y actas PDF siguen pendientes (próxima fase).
 - Los hitos se cierran con **auditoría integral PASS + verificación + `05_hito_NNN.md` + commit** coherente.
 - `versionHistory.js` es la fuente del historial visible al usuario (mobile existente); web la adoptará.
 
