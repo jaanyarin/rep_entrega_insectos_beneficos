@@ -50,6 +50,12 @@ const ESPECIES = [
   {id: 2, nombre: 'Cryptolaemus', estado: 'ACTIVO'},
 ];
 
+// Agosto 2026: 9 filas reales (Lunes+Jueves dentro del mes) — NINGUNA SE DESCARTA,
+// incluida la del último Lunes 31 que cierra el mes:
+// Lun 03 · Jue 06 · Lun 10 · Jue 13 · Lun 17 · Jue 20 · Lun 24 · Jue 27 · Lun 31.
+// Semana del mes = ((día-1)/7)+1 → agrupa Lun+Jue de una misma semana. El backend
+// genera todas las L/J reales (ProgramacionService.crearProgramacionInicial) y el
+// fixture refleja ese mismo set para no dejar vacíos en el flujo.
 const DETALLE_AGOSTO = {
   id: 7,
   anio: 2026,
@@ -60,12 +66,12 @@ const DETALLE_AGOSTO = {
   fechaPublicacion: null,
   estado: 'EN_PROCESO',
   stockInicialBase: 5000,
-  totalMes: 9000,
+  totalMes: 6000,
   detalles: [
     {
       id: 11,
       semana: 1,
-      fecha: '2026-08-03T00:00:00Z',
+      fecha: '2026-08-03',
       stockInicial: 5000,
       papelConPostura: 2000,
       sobreConCascarilla: 1000,
@@ -75,13 +81,90 @@ const DETALLE_AGOSTO = {
     },
     {
       id: 12,
-      semana: 2,
-      fecha: '2026-08-10T00:00:00Z',
+      semana: 1,
+      fecha: '2026-08-06',
       stockInicial: 2000,
       papelConPostura: 1000,
       sobreConCascarilla: 500,
       total: 1500,
       stockFinal: 500,
+      estado: 'EN_PROCESO',
+    },
+    {
+      id: 13,
+      semana: 2,
+      fecha: '2026-08-10',
+      stockInicial: 500,
+      papelConPostura: 1000,
+      sobreConCascarilla: 500,
+      total: 1500,
+      stockFinal: -1000,
+      estado: 'EN_PROCESO',
+    },
+    {
+      id: 14,
+      semana: 2,
+      fecha: '2026-08-13',
+      stockInicial: -1000,
+      papelConPostura: 0,
+      sobreConCascarilla: 0,
+      total: 0,
+      stockFinal: -1000,
+      estado: 'EN_PROCESO',
+    },
+    {
+      id: 15,
+      semana: 3,
+      fecha: '2026-08-17',
+      stockInicial: -1000,
+      papelConPostura: 0,
+      sobreConCascarilla: 0,
+      total: 0,
+      stockFinal: -1000,
+      estado: 'EN_PROCESO',
+    },
+    {
+      id: 16,
+      semana: 3,
+      fecha: '2026-08-20',
+      stockInicial: -1000,
+      papelConPostura: 0,
+      sobreConCascarilla: 0,
+      total: 0,
+      stockFinal: -1000,
+      estado: 'EN_PROCESO',
+    },
+    {
+      id: 17,
+      semana: 4,
+      fecha: '2026-08-24',
+      stockInicial: -1000,
+      papelConPostura: 0,
+      sobreConCascarilla: 0,
+      total: 0,
+      stockFinal: -1000,
+      estado: 'EN_PROCESO',
+    },
+    {
+      id: 18,
+      semana: 4,
+      fecha: '2026-08-27',
+      stockInicial: -1000,
+      papelConPostura: 0,
+      sobreConCascarilla: 0,
+      total: 0,
+      stockFinal: -1000,
+      estado: 'EN_PROCESO',
+    },
+    {
+      id: 19,
+      semana: 5,
+      fecha: '2026-08-31',
+      stockInicial: -1000,
+      papelConPostura: 0,
+      sobreConCascarilla: 0,
+      total: 0,
+      stockFinal: -1000,
       estado: 'EN_PROCESO',
     },
   ],
@@ -168,9 +251,13 @@ describe('ProgramacionEdicionScreen — edición (Admin)', () => {
     expect(api.get).toHaveBeenCalledWith('/programaciones/7');
     expect(contarTexto(tree, 'Papel')).toBeGreaterThan(0);
     expect(contarTexto(tree, 'Sobre')).toBeGreaterThan(0);
-    expect(findByLabel(tree, 'Papel semana 1')).toBeTruthy();
-    expect(findByLabel(tree, 'Papel semana 2')).toBeTruthy();
-    expect(findByLabel(tree, 'Sobre semana 2')).toBeTruthy();
+    expect(contarTexto(tree, 'Restante')).toBeGreaterThan(0);
+    expect(findByLabel(tree, 'Papel Lun 03')).toBeTruthy();
+    expect(findByLabel(tree, 'Papel Lun 10')).toBeTruthy();
+    expect(findByLabel(tree, 'Sobre Jue 06')).toBeTruthy();
+    // Ningún Lunes/Jueves real del mes se descarta: el último Lun 31 también aparece.
+    expect(findByLabel(tree, 'Papel Lun 31')).toBeTruthy();
+    expect(findByLabel(tree, 'Sobre Lun 31')).toBeTruthy();
     expect(findByLabel(tree, 'Enviar stock')).toBeTruthy();
   });
 
@@ -190,10 +277,32 @@ describe('ProgramacionEdicionScreen — edición (Admin)', () => {
       await flushPromises();
     });
 
-    const papelSemana1 = findByLabel(tree, 'Papel semana 1');
-    const sobreSemana2 = findByLabel(tree, 'Sobre semana 2');
-    expect(papelSemana1.props.value).toBe('2000');
-    expect(sobreSemana2.props.value).toBe('500');
+    const papelLun03 = findByLabel(tree, 'Papel Lun 03');
+    const sobreJue06 = findByLabel(tree, 'Sobre Jue 06');
+    expect(papelLun03.props.value).toBe('2000');
+    expect(sobreJue06.props.value).toBe('500');
+  });
+
+  test('filas con total 0 muestran inputs vacíos (no "0")', async () => {
+    const tree = await renderEdicion();
+    await act(async () => {
+      await flushPromises();
+    });
+
+    // Lun 17 / Jue 20 tienen papel=0/sobre=0 → input vacío.
+    expect(findByLabel(tree, 'Papel Lun 17').props.value).toBe('');
+    expect(findByLabel(tree, 'Sobre Jue 20').props.value).toBe('');
+  });
+
+  test('el remanente puede ser negativo y muestra "excedido"', async () => {
+    const tree = await renderEdicion();
+    await act(async () => {
+      await flushPromises();
+    });
+
+    // Tras Lun 10 (restante -1000) el excedido se muestra en las filas siguientes.
+    expect(contarTexto(tree, '-1000')).toBeGreaterThan(0);
+    expect(contarTexto(tree, 'excedido')).toBeGreaterThan(0);
   });
 
   test('Enviar stock hace PUT + POST /publicar y muestra confirmación', async () => {

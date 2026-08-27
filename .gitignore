@@ -9,6 +9,14 @@ mobile/ios/build/
 # Java / Maven (backend)
 backend/target/
 
+# Logs de runtime de Quarkus dev (ruido generado, no es código)
+backend/quarkus-run.log
+backend/quarkus-run.err
+backend/quarkus-run.log.err
+
+# Instalador OpenCode (accidental, no es código del proyecto)
+install.ps1
+
 # Herramienta de actualización Java (plan/ruido generado, no es código del proyecto)
 backend/.github/
 

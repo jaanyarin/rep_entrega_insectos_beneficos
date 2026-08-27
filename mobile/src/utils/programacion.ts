@@ -70,3 +70,35 @@ export function formatFecha(iso: string | null | undefined): string {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   return `${dd}/${mm}/${d.getFullYear()}`;
 }
+
+/** Etiquetas cortas de día (es-PE), índice 0 = Domingo. */
+export const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+/**
+ * Parsea una fecha del backend a un Date local. El DTO serializa `LocalDate`
+ * como "yyyy-MM-dd" (sin zona horaria); interpretarlo como fecha local pura
+ * evita el corrimiento por huso (ej. UTC-7 retrocede un día con `new Date('2026-08-03')`).
+ */
+function parsearFechaLocal(iso: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+  return new Date(iso);
+}
+
+/**
+ * Formatea un ISO como 'Lun 03' / 'Jue 06' (HITO-012): etiqueta corta del día real
+ * (derivada de la fecha, no de una columna `dia`) + día del mes. '—' si inválido.
+ */
+export function formatFechaCorta(iso: string | null | undefined): string {
+  if (!iso) {
+    return '—';
+  }
+  const d = parsearFechaLocal(iso);
+  if (Number.isNaN(d.getTime())) {
+    return '—';
+  }
+  const dia = DIAS_CORTOS[d.getDay()] ?? '—';
+  return `${dia} ${String(d.getDate()).padStart(2, '0')}`;
+}

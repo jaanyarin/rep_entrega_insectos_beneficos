@@ -44,25 +44,32 @@ public class ProgramacionService {
         p.setStockInicialBase(5000);
         p.setEstado("EN_PROCESO");
 
+        // Genera UNA fila por cada Lunes (MONDAY) y Jueves (THURSDAY) reales que caen
+        // DENTRO del mes (HITO-012 / diseño A). Filas ordenadas cronológicamente por fecha.
+        // El día (LUNES/JUEVES) se deriva de `fecha` (dayOfWeek); no existe columna `dia`.
         List<DetalleProgramacion> detalles = new ArrayList<>();
-        LocalDate fechaBase = LocalDate.of(anio, mes, 1);
-        for (int i = 1; i <= 4; i++) {
-            DetalleProgramacion d = new DetalleProgramacion();
-            d.setProgramacion(p);
-            d.setSemana(i);
-            d.setFecha(fechaBase.plusWeeks(i - 1));
-            d.setPapelConPostura(0);
-            d.setSobreConCascarilla(0);
-            d.setTotal(0);
-            if (i == 1) {
-                d.setStockInicial(5000);
-                d.setStockFinal(5000);
-            } else {
-                d.setStockInicial(0);
-                d.setStockFinal(0);
+        int currentStock = p.getStockInicialBase();
+        int lengthOfMonth = LocalDate.of(anio, mes, 1).lengthOfMonth();
+        for (int day = 1; day <= lengthOfMonth; day++) {
+            LocalDate fecha = LocalDate.of(anio, mes, day);
+            DayOfWeek dow = fecha.getDayOfWeek();
+            if (dow == DayOfWeek.MONDAY || dow == DayOfWeek.THURSDAY) {
+                DetalleProgramacion d = new DetalleProgramacion();
+                d.setProgramacion(p);
+                // Semana del mes (1..5): agrupa el Lunes+Jueves de una misma semana para
+                // el fondo alternado. NO es única (la unicidad es por `fecha`).
+                d.setSemana(((day - 1) / 7) + 1);
+                d.setFecha(fecha);
+                d.setPapelConPostura(0);
+                d.setSobreConCascarilla(0);
+                d.setTotal(0);
+                d.setStockInicial(currentStock);
+                d.setStockFinal(currentStock);
+                d.setEstado("EN_PROCESO");
+                detalles.add(d);
+                // Totales iniciales en 0 → el remanente acumulado no cambia todavía;
+                // updateProgramacion recalcula los valores reales al editar.
             }
-            d.setEstado("EN_PROCESO");
-            detalles.add(d);
         }
         p.setDetalles(detalles);
         programacionRepository.persist(p);
@@ -114,7 +121,8 @@ public class ProgramacionService {
         }
 
         List<DetalleProgramacion> detalles = p.getDetalles();
-        detalles.sort((d1, d2) -> d1.getSemana().compareTo(d2.getSemana()));
+        // Orden cronológico por fecha (cada fila = un Lunes/Jueves real del mes).
+        detalles.sort((d1, d2) -> d1.getFecha().compareTo(d2.getFecha()));
 
         int currentStockInicial = p.getStockInicialBase();
 
@@ -130,6 +138,7 @@ public class ProgramacionService {
             d.setTotal(d.getPapelConPostura() + d.getSobreConCascarilla());
             d.setStockFinal(d.getStockInicial() - d.getTotal());
 
+            // Remanente acumulado (RN-037): puede volverse negativo si el total supera el stock.
             currentStockInicial = d.getStockFinal();
         }
 

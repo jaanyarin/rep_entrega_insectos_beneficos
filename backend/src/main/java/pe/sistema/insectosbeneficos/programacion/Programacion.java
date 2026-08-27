@@ -36,7 +36,9 @@ public class Programacion {
     private Integer stockInicialBase = 5000;
 
     @OneToMany(mappedBy = "programacion", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("semana ASC")
+    // Orden cronológico por fecha (cada fila = un Lunes/Jueves real del mes). La semana ya
+    // no es única (HITO-012); el orden efectivo lo imponen Service/Mapper por `fecha`.
+    @OrderBy("fecha ASC")
     private List<DetalleProgramacion> detalles = new ArrayList<>();
 
     public Long getId() { return id; }

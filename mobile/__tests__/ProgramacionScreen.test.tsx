@@ -11,6 +11,7 @@
 import React from 'react';
 import ReactTestRenderer, {act} from 'react-test-renderer';
 import * as Keychain from 'react-native-keychain';
+import {RefreshControl} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {AuthProvider} from '../src/context/AuthContext';
 import ProgramacionScreen from '../src/screens/ProgramacionScreen';
@@ -226,6 +227,28 @@ describe('ProgramacionScreen — listado por mes (Admin)', () => {
     });
 
     expect(contarTexto(tree, 'Sin programaciones en este mes')).toBe(1);
+  });
+
+  test('pull-to-refresh: RefreshControl presente y onRefresh recarga', async () => {
+    const tree = await renderProgramacion(TOKEN_ADMIN);
+    await act(async () => {
+      await flushPromises();
+    });
+
+    const refresh = tree.root.findAllByType(RefreshControl);
+    expect(refresh.length).toBe(1);
+
+    api.get.mockClear();
+    await act(async () => {
+      refresh[0].props.onRefresh();
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+
+    expect(api.get).toHaveBeenCalledWith('/programaciones', {
+      params: {anio: 2026, mes: 8},
+    });
   });
 });
 

@@ -23,12 +23,13 @@ Decisiones de arquitectura vigentes y decisiones descartadas: ver
 ## Estructura del repositorio
 
 ```text
-backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, programaciones,
-              catálogos (fundos/variedades/lotes/etapas/plagas/nematodos/patrones), requerimientos y
-              fotos de requerimiento (migraciones V1-V11)
+backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, programaciones
+              (tabla intra-semana Lunes/Jueves reales + Restante), catálogos
+              (fundos/variedades/lotes/etapas/plagas/nematodos/patrones), requerimientos y
+              fotos de requerimiento (migraciones V1-V12)
 mobile/       App React Native CLI 0.86 / React 19.2.3 — auth v2 (login 3 pasos, URL runtime,
-              SecureStore/keychain), módulos Programación, Requerimientos, Catálogos y fotos de
-              requerimiento + hook usePhotoCapture — versión 1.5.0
+              SecureStore/keychain), módulos Programación (Lunes/Jueves reales + Restante, pull-to-refresh),
+              Requerimientos, Catálogos y fotos de requerimiento + hook usePhotoCapture — versión 1.6.0
 web/          Frontend React + Vite (pendiente de scaffold)
 docs_implementacion/
 ├── _sdd/                      Especificación, plan, tareas e implementación
@@ -73,6 +74,11 @@ docs_implementacion/
   87 tests MO / 18 suites.
 - **INC-2 (2026-08-26)**: se quitó la autogeneración de programaciones en el GET — ahora el listado solo
   devuelve las programaciones existentes en BD (la creación se hace manualmente con el botón "Nuevo").
+- **HITO-012 cerrado (2026-08-27) = Tabla intra-semana de Programación**: la tabla pasa de 4 semanas fijas
+  a una fila por cada Lunes y Jueves reales del mes (variable ~8-9, sin descartar ninguna) + columna
+  **Restante** (stock base 5000 − acumulado; puede ser negativo y muestra el excedido en rojo), inputs
+  vacíos con valor 0, fondo suave por semana y pull-to-refresh. Migración V12 (`UNIQUE(programacion_id,
+  fecha)`, sin columna `dia`). 90 tests MO / 18 suites (versión 1.6.0 / versionCode 7).
 - **Pendientes**: endpoint backend para servir fotos estáticas (requerido para visualización real en `<Image>`),
   validación end-to-end desde mobile contra el backend real, actas PDF, frontend web (React/Vite) y CI/CD
   (GitHub Actions). Ver [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).
@@ -83,7 +89,7 @@ Para desarrollo local se usa PostgreSQL 16 en Docker. Los **parámetros de conex
 [`docker-compose.yml`](docker-compose.yml) (raíz) y en
 [`backend/src/main/resources/application.properties`](backend/src/main/resources/application.properties).
 Son credenciales de **desarrollo** y no se exponen en este README por seguridad; conéctate a la BD que
-levantan esos archivos desde tu gestor (pgAdmin/DBeaver/DataGrip). Las migraciones Flyway `V1..V11`
+levantan esos archivos desde tu gestor (pgAdmin/DBeaver/DataGrip). Las migraciones Flyway `V1..V12`
 crean toda la estructura: `usuarios`, `roles`, `fundos`, `variedades`, `lotes`, `etapas_fenologicas`,
 `plagas`, `nematodos`, `patrones`, `programaciones`, `requerimientos` y `fotos_requerimiento`.
 

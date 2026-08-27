@@ -158,6 +158,13 @@ y reportar al Orchestrator; no "arreglarlo" en silencio.
   integración en NuevoRequerimientoScreen (upload post-crear), EditarRequerimientoScreen (carga server +
   upload + delete), HistorialRequerimientoScreen (thumbnails en modal). 87 tests MO / 18 suites
   (versión 1.5.0 / versionCode 6).
+- **HITO-012 (cerrado, 2026-08-27) = Tabla intra-semana de Programación**: la tabla pasa de 4 semanas
+  fijas a **una fila por cada Lunes y Jueves reales del mes** (variable ~8-9; NINGUNA se descarta,
+  incluida la del último Lunes que cierra el mes). Nueva columna **Restante** (stock base 5000 −
+  acumulado cronológico; puede ser negativo y muestra el excedido en rojo), inputs vacíos cuando el
+  valor es 0, fondo suave alternado por semana, y **pull-to-refresh** en el listado. Migración V12
+  (`UNIQUE(programacion_id, fecha)`, sin columna `dia`). El botón "Enviar stock" mantiene su
+  comportamiento (publica + bloquea). 90 tests MO / 18 suites (versión 1.6.0 / versionCode 7).
 - Web (React/Vite) y CI/CD siguen pendientes (próxima fase).
 - **Endpoint backend para servir fotos estáticas** sigue pendiente (requerido para que `<Image>` muestre
   fotos reales; gap documentado en HITO-010 §40.8 / HITO-011 §41.8).

@@ -20,6 +20,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -146,24 +147,47 @@ export default function ProgramacionScreen() {
   const [anio, setAnio] = useState(anioActual());
   const [programaciones, setProgramaciones] = useState<ProgramacionDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ver, setVer] = useState<ProgramacionDto | null>(null);
 
-  const loadData = useCallback(async () => {
-    if (!puedeGestionar) {
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const lista = await listarProgramaciones(anio, mes);
-      setProgramaciones(lista);
-    } catch (e) {
-      setError(extractErrorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [puedeGestionar, anio, mes]);
+  /** Carga compartida: en refresco mantiene la lista visible (spinner pull-to-refresh). */
+  const fetchProgramaciones = useCallback(
+    async (esRefresco: boolean) => {
+      if (!puedeGestionar) {
+        return;
+      }
+      if (esRefresco) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+      try {
+        const lista = await listarProgramaciones(anio, mes);
+        setProgramaciones(lista);
+      } catch (e) {
+        setError(extractErrorMessage(e));
+      } finally {
+        if (esRefresco) {
+          setRefreshing(false);
+        } else {
+          setLoading(false);
+        }
+      }
+    },
+    [puedeGestionar, anio, mes],
+  );
+
+  const loadData = useCallback(
+    () => fetchProgramaciones(false),
+    [fetchProgramaciones],
+  );
+
+  const onRefresh = useCallback(
+    () => fetchProgramaciones(true),
+    [fetchProgramaciones],
+  );
 
   useEffect(() => {
     loadData();
@@ -289,7 +313,15 @@ export default function ProgramacionScreen() {
           contentContainerStyle={[
             styles.content,
             {paddingBottom: 32 + insets.bottom},
-          ]}>
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.action.primary]}
+              tintColor={theme.colors.action.primary}
+            />
+          }>
           {puedeGestionar ? (
             <>
               {renderPeriodo}

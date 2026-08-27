@@ -65,8 +65,9 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | 8 | Fix CatalogosScreen (HITO-009) — CERRADA |
 | 9 | Fotos backend + mobile API (HITO-010) — CERRADA |
 | 10 | Wire fotos a screens mobile (HITO-011) — CERRADA |
-| 11 | Web + CI/CD — PENDIENTE |
-| 12 | Evidencias, actas PDF, dashboard KPI |
+| 11 | Tabla intra-semana de Programación: Lunes/Jueves reales + Restante + pull-to-refresh (HITO-012) — CERRADA |
+| 12 | Web + CI/CD — PENDIENTE |
+| 13 | Evidencias, actas PDF, dashboard KPI |
 
 ---
 
@@ -90,6 +91,7 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | BD-006 | Migraciones V8/V9: etapas_fenologicas/plagas/nematodos/patrones | Alta — Completado (HITO-007) |
 | BD-007 | Migración V10: tabla `requerimientos` | Alta — Completado (HITO-008) |
 | BD-008 | Migración V11: tabla `fotos_requerimiento` | Alta — Completado (HITO-010) |
+| BD-009 | Migración V12: `detalle_programaciones` pasa a UNIQUE(programacion_id, fecha) para filas intra-semana (Lunes/Jueves reales) | Alta — Completado (HITO-012) |
 
 ---
 
@@ -110,6 +112,7 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | BE-011 | Backend de requerimientos: V10, /requerimientos (GET/POST/PUT), /stock, ciclo de estados, validación RF-165 | Alta — Completado (HITO-008) |
 | BE-012 | Fotos de requerimiento: V11, entity/repository/DTO/service/resource, upload ≤5MB JPG/PNG, max 2, IDOR | Alta — Completado (HITO-010) |
 | BE-013 | Quitar autogeneración de programaciones en GET (solo devuelve las existentes) + test ajustado | Alta — Completado (INC-2) |
+| BE-014 | Tabla intra-semana de programación: crear Lunes/Jueves reales del mes + update con remanente acumulado (puede ser negativo) + sort por fecha | Alta — Completado (HITO-012) |
 
 ---
 
@@ -133,6 +136,7 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | MO-014 | Fix CatalogosScreen: flakiness bajo ejecución paralela (resuelto con --runInBand) | Alta | Completado (HITO-009) |
 | MO-015 | ApiClient: funciones fotos (subir/listar/eliminar) + 5 tests | Alta | Completado (HITO-010) |
 | MO-016 | Wire fotos a screens: hook usePhotoCapture (DRY) + upload crear + cargar/subir/eliminar editar + thumbnails historial | Alta | Completado (HITO-011) |
+| MO-017 | Tabla intra-semana de programación: columnas Sem/Fecha/Papel/Sobre/Total/Restante, fecha corta (Lun 03), restante con excedido, inputs vacíos, fondo alternado + pull-to-refresh en listado | Alta | Completado (HITO-012) |
 
 ---
 

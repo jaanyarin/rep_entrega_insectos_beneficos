@@ -6,6 +6,16 @@
 
 const versionHistory = [
   {
+    version: '1.6.0',
+    fecha: '2026-08-27',
+    cambios: [
+      'La tabla de programación ahora muestra una fila por cada Lunes y Jueves reales del mes (variable, ~8) en vez de 4 semanas fijas.',
+      'Nuevo indicador "Restante": stock base (5,000 millares) menos el acumulado por fila; puede volverse negativo y muestra el excedido en rojo para trazabilidad.',
+      'Campos de papel/sobre vacíos cuando el valor es 0 (no muestran "0"), con fondo suave alternado por semana para agrupar Lunes+Jueves.',
+      'Listado de programaciones con pull-to-refresh para recargar el periodo sin salir de la pantalla.',
+    ],
+  },
+  {
     version: '1.5.0',
     fecha: '2026-08-26',
     cambios: [

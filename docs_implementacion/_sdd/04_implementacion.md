@@ -10,9 +10,9 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | HITO-011 cerrado; fotos integradas en mobile |
-| Versión | 1.5.0 / versionCode 6 (bump en HITO-011) |
-| Fecha | 2026-08-26 |
+| Estado | HITO-012 cerrado; tabla de programación intra-semana (Lunes/Jueves reales) |
+| Versión | 1.6.0 / versionCode 7 (bump en HITO-012) |
+| Fecha | 2026-08-27 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
 | Clasificación | Interno |
@@ -28,10 +28,10 @@ decisiones/avances por HITO. Se alimenta en cada tarea y se consulta antes de re
 
 # 3. Alcance del Documento
 
-Cubre el historial de implementación desde HITO-001 hasta HITO-011 (incluye backend de
-requerimientos, catálogos, fotos y el wiring en mobile), más el cambio de autogeneración de
-programaciones. Es la fuente de retorno para continuar el desarrollo sin depender de la memoria
-de una sesión anterior.
+Cubre el historial de implementación desde HITO-001 hasta HITO-012 (incluye backend de
+requerimientos, catálogos, fotos, el wiring en mobile, el cambio de autogeneración de
+programaciones y la tabla intra-semana de Lunes/Jueves reales). Es la fuente de retorno para
+continuar el desarrollo sin depender de la memoria de una sesión anterior.
 
 ---
 
@@ -1305,3 +1305,83 @@ la "resucitaba" en la siguiente consulta.
 
 - Borrar una programación de la BD la **elimina de la app** (no aparece hasta crearse manualmente).
 - La creación "a la carta" por mes+especie sigue disponible con el botón "Nuevo".
+
+---
+
+# 43. Tabla intra-semana de Programación — Lunes/Jueves reales + Restante (HITO-012, 2026-08-27)
+
+> Cambio de diseño validado con el usuario (diseño A/B/C): la tabla de programación deja de
+> mostrar 4 semanas fijas y pasa a mostrar **una fila por cada Lunes y Jueves reales del mes**
+> (variable, ~8-9 según el mes). Se añade la columna **Restante** (stock base − acumulado; puede ser negativo y
+> muestra el excedido), inputs vacíos cuando el valor es 0, fondo suave alternado por semana y
+> **pull-to-refresh** en el listado. El botón "Enviar stock" mantiene su comportamiento (publica y
+> bloquea edición); NO se agregó columna `dia` (el día se deriva de `fecha`).
+
+## 43.1 Backend
+
+- **Migración V12** (`V12__detalle_programaciones_intra_semana.sql`): la unicidad del detalle pasa
+  de `UNIQUE(programacion_id, semana)` → `UNIQUE(programacion_id, fecha)`. Se dropea la UK antigua
+  (nombre Postgres `detalle_programaciones_programacion_id_semana_key`) y se crea la nueva por
+  `fecha`. La BD estaba vacía, por lo que no hay migración de datos; la migración es idempotente
+  (`DROP ... IF EXISTS`).
+- **`ProgramacionService.crearProgramacionInicial`**: genera una fila por cada MONDAY y THURSDAY
+  reales que caen **dentro** del mes (día del mes 1..lengthOfMonth). `semana` = semana del mes
+  (`((día-1)/7)+1`, agrupa el Lunes+Jueves de la misma semana) y no es única; `fecha` = fecha real;
+  `papel/sobre/total` = 0; `stockInicial`/`stockFinal` = acumulado (todo 5000 inicialmente). Si el
+  mes cierra en Lunes (p.ej. día 31) solo se genera ese Lunes; si abre en Jueves (p.ej. día 03) la
+  primera fila es ese Jueves. La proyección de `updateProgramacion` recalcula los reales.
+- **`ProgramacionService.updateProgramacion`**: ordena los detalles por `fecha` (no por semana) y
+  recalcula el remanente acumulado: `stockInicial = currentStock` → `total = papel+sobre` →
+  `stockFinal = stockInicial − total` → `currentStock = stockFinal` (puede volverse negativo).
+- **`ProgramacionMapper.toDto`**: ordena los `detalles` por `fecha` (cronológico) de forma
+  explícita. No requiere cambios de DTO (`DetalleProgramacionDto` ya tiene `fecha` y `stockFinal`).
+
+## 43.2 Mobile
+
+- **`utils/programacion.ts`**: nuevo helper `formatFechaCorta(iso)` → `'Lun 03'` / `'Jue 06'`
+  (día corto + día del mes) y `DIAS_CORTOS`. Parsea `LocalDate` ("yyyy-MM-dd") como fecha local
+  pura para evitar corrimiento por huso.
+- **`ProgramacionEdicionScreen.tsx`**: columnas **Sem | Fecha | Papel | Sobre | Total | Restante**.
+  La celda Fecha muestra `Lun 03`; la columna **Restante** reemplaza a "F." y muestra `stockFinal`
+  por fila — si `< 0` se pinta en rojo (error) con la etiqueta **"excedido"**. Inputs de
+  papel/sobre vacíos (`''`) cuando el valor es 0 (al cargar: `0 ? '' : String(v)`), y fondo suave
+  alternado por semana (`semana % 2`) con `background.neutral` del tema (mantiene la paleta MD3).
+  Se conserva "Total del mes", el botón "Enviar stock" (publica/bloquea) y `puedeEditar`.
+- **`ProgramacionScreen.tsx`**: **pull-to-refresh** vía `RefreshControl` (estado `refreshing`,
+  `onRefresh` llama la carga compartida sin ocultar la lista). La carga en montaje y por cambio de
+  periodo se mantiene.
+
+## 43.3 Tests
+
+- `ProgramacionEdicionScreen.test.tsx`: mock de `detalles` con las 9 filas reales de Agosto 2026
+  (Lun 03, Jue 06, Lun 10, Jue 13, Lun 17, Jue 20, Lun 24, Jue 27, **Lun 31** — ninguna se
+  descarta, incluida la del último Lunes que cierra el mes), etiquetas de accesibilidad por
+  fecha (`Papel Lun 03`, `Sobre Jue 06`, `Papel Lun 31`), y nuevos tests de inputs vacíos (0 →
+  `''`) y de remanente negativo con "excedido".
+- `ProgramacionScreen.test.tsx`: nuevo test de pull-to-refresh (RefreshControl presente y
+  `onRefresh` relanza `GET /programaciones`).
+- Backend `ProgramacionResourceTest`: sin cambios (solo verifica tamaño ≥ 1 y campos del contrato;
+  no asume cantidad de filas/semanas).
+
+## 43.4 Verificación (Ley 5)
+
+| Comando | Resultado |
+|---|---|
+| `.\mvnw.cmd test-compile` (backend) | ✅ BUILD SUCCESS |
+| `npx tsc --noEmit` (mobile) | ✅ sin errores |
+| `npm run lint` (mobile) | ✅ sin errores |
+| `npx jest --runInBand --forceExit` (mobile) | ✅ 18 suites / 90 tests PASS |
+| `npx jest --runInBand --forceExit Programacion*` | ✅ PASS (9 + tests listado) |
+
+> Limitación pre-existente documentada (Ley 5): `mvnw test` completo requiere Docker/Testcontainers
+> (no disponible en este entorno); solo se ejecutó compilación de tests (`test-compile`), que pasa.
+> El APK release existente no se recompiló en este entorno (change solo JS, sin módulo nativo nuevo;
+> timebox 3 min / AGENTS.md): el artefacto queda **pendiente de rebuild** para versionCode 7.
+
+## 43.5 Efecto de negocio
+
+- La proyección se alinea al calendario real del mes (cada Lunes y Jueves), mejorando la
+  trazabilidad del stock frente a las 4 semanas fijas.
+- El **Restante** negativo + etiqueta "excedido" permite al Admin ver cuándo la proyección supera
+  la base de 5,000 millares y en cuánto.
+- El listado se puede refrescar manualmente (pull-to-refresh) para ver datos actualizados sin salir.

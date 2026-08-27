@@ -86,7 +86,7 @@ describe('PerfilScreen (estructura UX Apilamiento → Vanguard)', () => {
 
     // Sección "Aplicación": versión + acceso al historial.
     expect(contarTexto(tree, 'Aplicación')).toBe(1);
-    expect(contarTexto(tree, 'Versión 1.5.0')).toBe(1);
+    expect(contarTexto(tree, 'Versión 1.6.0')).toBe(1);
     expect(findByLabel(tree, 'Abrir historial de versiones')).toBeTruthy();
   });
 
@@ -101,7 +101,7 @@ describe('PerfilScreen (estructura UX Apilamiento → Vanguard)', () => {
       findByLabel(tree, 'Abrir historial de versiones').props.onPress();
     });
     expect(contarTexto(tree, 'Historial de versiones')).toBe(1);
-    expect(contarTexto(tree, 'v1.5.0 · 2026-08-26')).toBe(1);
+    expect(contarTexto(tree, 'v1.6.0 · 2026-08-27')).toBe(1);
     expect(contarTexto(tree, 'v1.0.0 · 2026-08-18')).toBe(1);
     expect(
       contarTexto(tree, '• Backend en /api/v1 con autenticación v2 (JWT local).'),

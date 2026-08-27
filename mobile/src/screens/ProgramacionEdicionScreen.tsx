@@ -55,7 +55,7 @@ import {
   anioActual,
   esDiaEditable,
   etiquetaPeriodo,
-  formatFecha,
+  formatFechaCorta,
   mesActual,
 } from '../utils/programacion';
 
@@ -146,8 +146,9 @@ export default function ProgramacionEdicionScreen() {
           semana: d.semana,
           fecha: d.fecha,
           stockInicial: d.stockInicial,
-          papel: String(d.papelConPostura),
-          sobre: String(d.sobreConCascarilla),
+          // Valor 0 → input vacío (no muestra "0"); el backend calcula el resto.
+          papel: d.papelConPostura === 0 ? '' : String(d.papelConPostura),
+          sobre: d.sobreConCascarilla === 0 ? '' : String(d.sobreConCascarilla),
         })),
       );
     } catch (e) {
@@ -374,13 +375,18 @@ export default function ProgramacionEdicionScreen() {
           <Text style={[styles.colInput, styles.tablaHeaderText]}>Papel</Text>
           <Text style={[styles.colInput, styles.tablaHeaderText]}>Sobre</Text>
           <Text style={[styles.colNum, styles.tablaHeaderText]}>Total</Text>
-          <Text style={[styles.colNum, styles.tablaHeaderText]}>F.</Text>
+          <Text style={[styles.colNum, styles.tablaHeaderText]}>Restante</Text>
         </View>
         {filasComputadas.map((f) => (
-          <View key={f.detalleId} style={styles.tablaFila}>
+          <View
+            key={f.detalleId}
+            style={[
+              styles.tablaFila,
+              f.semana % 2 === 1 && styles.tablaFilaBand,
+            ]}>
             <Text style={[styles.colSemana, styles.tablaCell]}>{f.semana}</Text>
             <Text style={[styles.colFecha, styles.tablaCell]}>
-              {formatFecha(f.fecha)}
+              {formatFechaCorta(f.fecha)}
             </Text>
             <TextInput
               style={[styles.colInput, styles.inputCelda]}
@@ -389,7 +395,7 @@ export default function ProgramacionEdicionScreen() {
               editable={puedeEditar}
               maxLength={6}
               onChangeText={v => actualizarFila(f.detalleId, 'papel', v)}
-              accessibilityLabel={`Papel semana ${f.semana}`}
+              accessibilityLabel={`Papel ${formatFechaCorta(f.fecha)}`}
             />
             <TextInput
               style={[styles.colInput, styles.inputCelda]}
@@ -398,10 +404,21 @@ export default function ProgramacionEdicionScreen() {
               editable={puedeEditar}
               maxLength={6}
               onChangeText={v => actualizarFila(f.detalleId, 'sobre', v)}
-              accessibilityLabel={`Sobre semana ${f.semana}`}
+              accessibilityLabel={`Sobre ${formatFechaCorta(f.fecha)}`}
             />
             <Text style={[styles.colNum, styles.tablaCell]}>{f.total}</Text>
-            <Text style={[styles.colNum, styles.tablaCell]}>{f.stockFinal}</Text>
+            <View style={styles.colNum}>
+              <Text
+                style={[
+                  styles.tablaCell,
+                  f.stockFinal < 0 && styles.restanteExcedido,
+                ]}>
+                {String(f.stockFinal)}
+              </Text>
+              {f.stockFinal < 0 ? (
+                <Text style={styles.restanteExcedidoLabel}>excedido</Text>
+              ) : null}
+            </View>
           </View>
         ))}
         <View style={styles.tablaPie}>
@@ -467,7 +484,7 @@ export default function ProgramacionEdicionScreen() {
           ) : programacion ? (
             <>
               {renderEspecies}
-              <Text style={styles.sectionTitle}>Proyección del mes</Text>
+              <Text style={styles.sectionTitle}>Proyección del Mes</Text>
               {renderTabla()}
               <AppButton
                 label="Enviar stock"
@@ -593,10 +610,23 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.border.subtle,
     gap: theme.spacing[1],
   },
+  tablaFilaBand: {
+    // Fondo suave y alternado por semana (agrupa el Lunes+Jueves de una misma semana).
+    backgroundColor: theme.colors.background.neutral,
+    borderBottomColor: theme.colors.background.paper,
+  },
   tablaCell: {
     fontFamily: theme.typography.body2.fontFamily,
     fontSize: theme.typography.body2.fontSize,
     color: theme.colors.text.primary,
+  },
+  restanteExcedido: {
+    color: theme.colors.status.error,
+  },
+  restanteExcedidoLabel: {
+    fontFamily: theme.typography.caption.fontFamily,
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.status.error,
   },
   colSemana: {
     width: 30,

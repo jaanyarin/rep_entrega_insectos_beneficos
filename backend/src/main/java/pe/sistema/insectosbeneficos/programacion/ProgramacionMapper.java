@@ -33,6 +33,7 @@ public class ProgramacionMapper {
 
         if (programacion.getDetalles() != null) {
             dto.setDetalles(programacion.getDetalles().stream()
+                    .sorted((d1, d2) -> d1.getFecha().compareTo(d2.getFecha()))
                     .map(this::toDetalleDto)
                     .collect(Collectors.toList()));
             dto.setTotalMes(programacion.getDetalles().stream()
