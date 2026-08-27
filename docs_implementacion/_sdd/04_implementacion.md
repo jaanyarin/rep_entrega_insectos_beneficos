@@ -11,7 +11,7 @@
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
 | Estado | HITO-011 cerrado; fotos integradas en mobile |
-| Versión | 1.4.0 (sin bump en HITO-011) |
+| Versión | 1.5.0 / versionCode 6 (bump en HITO-011) |
 | Fecha | 2026-08-26 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
@@ -1198,6 +1198,9 @@ exige V11+ (coherente con la nota de V1 en AGENTS).
 > Integra la subida de fotos (HITO-010) en las screens mobile existentes. Crea un hook
 > compartido `usePhotoCapture` para eliminar duplicación (DRY — Ley 4) y conecta las funciones
 > API de fotos con los flujos de crear, editar y visualizar requerimientos.
+> **Bump de versión a 1.5.0 / versionCode 6** (Ley 3): se actualizaron `appVersion.ts`,
+> `package.json`, `build.gradle` y se agregó la entrada `1.5.0` a `versionHistory.js`; el
+> `PerfilScreen.test.tsx` se actualizó (`Versión 1.5.0` / `v1.5.0 · 2026-08-26`).
 
 ## 41.1 Hook compartido — usePhotoCapture
 

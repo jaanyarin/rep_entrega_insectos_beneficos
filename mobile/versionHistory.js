@@ -6,6 +6,18 @@
 
 const versionHistory = [
   {
+    version: '1.5.0',
+    fecha: '2026-08-26',
+    cambios: [
+      'Módulo de fotos de requerimiento: subida, listado y eliminación de evidencias (backend + app).',
+      'Carga y visualización de fotografías al crear, editar y consultar el historial de requerimientos.',
+      'Hook compartido usePhotoCapture para la captura de cámara/galería con validación (JPG/PNG, máx 2, ≤5 MB).',
+      'Catálogos agrícolas (fundos, variedades, lotes) y de requerimientos (etapas, plagas, nematodos, patrones).',
+      'Backend de requerimientos: ciclo completo de estados, validación papel+sobre = cantidad y control de stock.',
+      'Las programaciones ya no se autogeneran: solo se muestran las que existen y se crean manualmente.',
+    ],
+  },
+  {
     version: '1.4.0',
     fecha: '2026-08-24',
     cambios: [

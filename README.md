@@ -28,7 +28,7 @@ backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, role
               fotos de requerimiento (migraciones V1-V11)
 mobile/       App React Native CLI 0.86 / React 19.2.3 — auth v2 (login 3 pasos, URL runtime,
               SecureStore/keychain), módulos Programación, Requerimientos, Catálogos y fotos de
-              requerimiento + hook usePhotoCapture — versión 1.4.0
+              requerimiento + hook usePhotoCapture — versión 1.5.0
 web/          Frontend React + Vite (pendiente de scaffold)
 docs_implementacion/
 ├── _sdd/                      Especificación, plan, tareas e implementación

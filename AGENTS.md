@@ -156,7 +156,8 @@ y reportar al Orchestrator; no "arreglarlo" en silencio.
   11 tests BE. Mobile: 3 funciones API (subir/listar/eliminar fotos) + 5 tests MO.
 - **HITO-011 (cerrado, 2026-08-26) = Wire fotos a screens mobile**: hook `usePhotoCapture` (DRY),
   integración en NuevoRequerimientoScreen (upload post-crear), EditarRequerimientoScreen (carga server +
-  upload + delete), HistorialRequerimientoScreen (thumbnails en modal). 87 tests MO / 18 suites.
+  upload + delete), HistorialRequerimientoScreen (thumbnails en modal). 87 tests MO / 18 suites
+  (versión 1.5.0 / versionCode 6).
 - Web (React/Vite) y CI/CD siguen pendientes (próxima fase).
 - **Endpoint backend para servir fotos estáticas** sigue pendiente (requerido para que `<Image>` muestre
   fotos reales; gap documentado en HITO-010 §40.8 / HITO-011 §41.8).
