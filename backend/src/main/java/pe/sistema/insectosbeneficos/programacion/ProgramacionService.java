@@ -30,11 +30,6 @@ public class ProgramacionService {
     ProgramacionMapper mapper;
 
     public List<ProgramacionDto> getProgramaciones(Integer anio, Integer mes) {
-        List<Especie> especies = especieRepository.listAll();
-        for (Especie especie : especies) {
-            programacionRepository.findByAnioAndMesAndEspecieId(anio, mes, especie.getId())
-                    .orElseGet(() -> crearProgramacionInicial(anio, mes, especie));
-        }
         return programacionRepository.findByAnioAndMes(anio, mes).stream()
                 .map(mapper::toDto)
                 .collect(Collectors.toList());

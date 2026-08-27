@@ -56,9 +56,17 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | Orden | Componente |
 |---|---|
 | 1 | Vertical 1: usuarios/autenticación (HITO-001) — CERRADA |
-| 2 | Auth v2: login 3 pasos + roles tabla + URL runtime + /api/v1 (HITO-002) — EN CURSO |
-| 3 | Web + CI/CD |
-| 4 | Requerimientos / programación / evidencias |
+| 2 | Auth v2: login 3 pasos + roles tabla + URL runtime + /api/v1 (HITO-002) — CERRADA |
+| 3 | UI Vanguard + navegación mobile (HITO-003) — CERRADA |
+| 4 | Módulo Programación de Stock (HITO-004) — CERRADA |
+| 5 | Módulo de Requerimientos mobile (HITO-005) — CERRADA |
+| 6 | Catálogos agrícolas y de requerimientos (HITO-006/007) — CERRADAS |
+| 7 | Backend de Requerimientos (HITO-008) — CERRADA |
+| 8 | Fix CatalogosScreen (HITO-009) — CERRADA |
+| 9 | Fotos backend + mobile API (HITO-010) — CERRADA |
+| 10 | Wire fotos a screens mobile (HITO-011) — CERRADA |
+| 11 | Web + CI/CD — PENDIENTE |
+| 12 | Evidencias, actas PDF, dashboard KPI |
 
 ---
 
@@ -77,6 +85,11 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | BD-001 | Migración V1 usuarios (enums, timestamps, soft delete) | Alta — Completado |
 | BD-002 | Migración V2 seed SUPER_ADMIN (Admin PowerApps / 00000000) | Alta — Completado |
 | BD-003 | Migración V3: tabla `roles` (3 literales con espacios) + `usuarios.rol_id` FK + migración de datos + rollback documentado (H12) | Alta — Completado (HITO-002) |
+| BD-004 | Migración V4: tabla `programaciones`/`especies`/`detalle_programacion` | Alta — Completado (HITO-004) |
+| BD-005 | Migraciones V6/V7: fundos/variedades/lotes (3NF) | Alta — Completado (HITO-006) |
+| BD-006 | Migraciones V8/V9: etapas_fenologicas/plagas/nematodos/patrones | Alta — Completado (HITO-007) |
+| BD-007 | Migración V10: tabla `requerimientos` | Alta — Completado (HITO-008) |
+| BD-008 | Migración V11: tabla `fotos_requerimiento` | Alta — Completado (HITO-010) |
 
 ---
 
@@ -92,6 +105,11 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | BE-006 | Auth v2 (ADR-A003): tabla roles, login 3 pasos (`roles`, `usuarios-by-rol/{rolId}`, `local-login`), `change-password` → nuevo JWT, claims (groups/rolId/dni/passwordResetRequired), Super Admin id=1 inmune | Alta — Completado (HITO-002) |
 | BE-007 | `/api/v1` en todo el API + `quarkus-smallrye-openapi` (resuelve H5) | Alta — Completado (HITO-002) |
 | BE-008 | Tests auth v2 actualizados/ampliados (roles, usuarios-by-rol, local-login, change-password+JWT, id=1 inmune) | Alta — Completado (HITO-002) |
+| BE-009 | Programaciones/especies (HITO-003/004): endpoints listar/crear/editar/publicar + RBAC días lunes/jueves | Alta — Completado (HITO-004) |
+| BE-010 | Catálogos agrícolas (fundos/variedades/lotes) y de requerimientos (etapas/plagas/nematodos/patrones) | Alta — Completado (HITO-006/007) |
+| BE-011 | Backend de requerimientos: V10, /requerimientos (GET/POST/PUT), /stock, ciclo de estados, validación RF-165 | Alta — Completado (HITO-008) |
+| BE-012 | Fotos de requerimiento: V11, entity/repository/DTO/service/resource, upload ≤5MB JPG/PNG, max 2, IDOR | Alta — Completado (HITO-010) |
+| BE-013 | Quitar autogeneración de programaciones en GET (solo devuelve las existentes) + test ajustado | Alta — Completado (INC-2) |
 
 ---
 
@@ -109,6 +127,12 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | MO-008 | ServerCheckScreen + SettingsScreen/Configurar servidor (URL runtime) | Alta | Completado (HITO-002) |
 | MO-009 | AuthContext `refreshUser(token)` + `utils/roles.js` (isSuperAdmin/isAdminOrSuperAdmin) + navegación condicional | Alta | Completado (HITO-002) |
 | MO-010 | Lint + tests + **APK v2 rebuild OBLIGATORIO** (keychain nativo) | Alta | Completado (HITO-002) |
+| MO-011 | Módulo Programación de Stock: listado/edición/creación por mes, restricción lunes/jueves | Alta | Completado (HITO-004) |
+| MO-012 | Módulo de Requerimientos: panel, listado, formulario, nuevo con stock, historial, edición alerta 30h | Alta | Completado (HITO-005) |
+| MO-013 | Pantallas de catálogos (fundos, variedades, lotes, etapas, plagas, nematodos, patrones) | Alta | Completado (HITO-006/007) |
+| MO-014 | Fix CatalogosScreen: flakiness bajo ejecución paralela (resuelto con --runInBand) | Alta | Completado (HITO-009) |
+| MO-015 | ApiClient: funciones fotos (subir/listar/eliminar) + 5 tests | Alta | Completado (HITO-010) |
+| MO-016 | Wire fotos a screens: hook usePhotoCapture (DRY) + upload crear + cargar/subir/eliminar editar + thumbnails historial | Alta | Completado (HITO-011) |
 
 ---
 
@@ -146,7 +170,7 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 
 | ID | Tarea | Prioridad |
 |---|---|---|
-| FOTO-001 | Módulo evidencias (hito futuro) | Media — Pendiente |
+| FOTO-001 | Módulo evidencias fotográficas | Media — **Parcial** (backend + API + wire a screens en HITO-010/011; pendiente endpoint de descarga/serving) |
 
 ---
 

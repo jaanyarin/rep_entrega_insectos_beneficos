@@ -30,8 +30,18 @@ public class ProgramacionResourceTest {
 
     @Test
     public void testListProgramacionesReturnsMobileContractFields() {
+        final Integer anio = 2098;
+        final Integer mes = 5;
+        // Crear una programacion primero (POST ya no autogenera en el GET).
         given()
-          .when().get("/api/v1/programaciones?anio=2026&mes=8")
+          .auth().oauth2(TestSupport.seedToken())
+          .contentType(ContentType.JSON)
+          .body(Map.of("anio", anio, "mes", mes, "especieId", 1))
+          .when().post("/api/v1/programaciones")
+          .then()
+             .statusCode(201);
+        given()
+          .when().get("/api/v1/programaciones?anio=" + anio + "&mes=" + mes)
           .then()
              .statusCode(200)
              .body("size()", greaterThanOrEqualTo(1))

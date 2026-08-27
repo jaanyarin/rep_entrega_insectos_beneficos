@@ -23,9 +23,12 @@ Decisiones de arquitectura vigentes y decisiones descartadas: ver
 ## Estructura del repositorio
 
 ```text
-backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, + programaciones/especies (V4)
+backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, programaciones,
+              catálogos (fundos/variedades/lotes/etapas/plagas/nematodos/patrones), requerimientos y
+              fotos de requerimiento (migraciones V1-V11)
 mobile/       App React Native CLI 0.86 / React 19.2.3 — auth v2 (login 3 pasos, URL runtime,
-              SecureStore/keychain) + módulos Programación y Requerimientos — versión 1.4.0
+              SecureStore/keychain), módulos Programación, Requerimientos, Catálogos y fotos de
+              requerimiento + hook usePhotoCapture — versión 1.4.0
 web/          Frontend React + Vite (pendiente de scaffold)
 docs_implementacion/
 ├── _sdd/                      Especificación, plan, tareas e implementación
@@ -56,13 +59,33 @@ docs_implementacion/
   (panel admin, listado, formulario), nuevo requerimiento con stock en tiempo real, historial y edición
   con alerta de 30h; contrato `ApiClient` del módulo. Versión de artefactos: **1.4.0**, `versionCode 5`
   (77 tests MO).
-- **HITO-008 cerrado técnicamente (2026-08-25) = Backend de Requerimientos**: migración V10,
-  endpoints `/requerimientos` y stock por especie, ciclo de estados, validación de entregas y
-  stock disponible (53 tests BE). Sin bump: el artefacto mobile permanece en **1.4.0**,
-  `versionCode 5`.
-- **Pendientes**: validación end-to-end desde mobile contra el backend real, frontend web (React/Vite),
-  CI/CD (GitHub Actions), evidencias fotográficas y actas PDF. Ver
-  [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).
+- **HITO-006/007 cerrados (2026-08-24) = Catálogos agrícolas y de requerimientos**: fundos/variedades/
+  lotes normalizados 3NF (V6/V7) y etapas/plagas/nematodos/patrones (V8/V9) con sus endpoints.
+- **HITO-008 cerrado (2026-08-25) = Backend de Requerimientos**: migración V10, endpoints
+  `/requerimientos` y stock por especie, ciclo de estados, validación de entregas y stock disponible
+  (53 tests BE). Sin bump: artefacto mobile en **1.4.0**, `versionCode 5`.
+- **HITO-009 cerrado (2026-08-25) = Fix CatalogosScreen**: flakiness en test bajo ejecución paralela,
+  resuelto con `--runInBand` (sin bug real).
+- **HITO-010 cerrado (2026-08-26) = Fotos backend + mobile API**: migración V11 (`fotos_requerimiento`),
+  upload de fotos (max 2, ≤5MB, JPG/PNG, IDOR protection), 11 tests BE; 3 funciones API en mobile + 5 tests.
+- **HITO-011 cerrado (2026-08-26) = Wire fotos a screens mobile**: hook `usePhotoCapture` (DRY) e
+  integración en Nuevo/Editar/Historial de requerimientos (upload, carga, delete, thumbnails).
+  87 tests MO / 18 suites.
+- **INC-2 (2026-08-26)**: se quitó la autogeneración de programaciones en el GET — ahora el listado solo
+  devuelve las programaciones existentes en BD (la creación se hace manualmente con el botón "Nuevo").
+- **Pendientes**: endpoint backend para servir fotos estáticas (requerido para visualización real en `<Image>`),
+  validación end-to-end desde mobile contra el backend real, actas PDF, frontend web (React/Vite) y CI/CD
+  (GitHub Actions). Ver [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).
+
+## Base de datos local (desarrollo)
+
+Para desarrollo local se usa PostgreSQL 16 en Docker. Los **parámetros de conexión** están definidos en
+[`docker-compose.yml`](docker-compose.yml) (raíz) y en
+[`backend/src/main/resources/application.properties`](backend/src/main/resources/application.properties).
+Son credenciales de **desarrollo** y no se exponen en este README por seguridad; conéctate a la BD que
+levantan esos archivos desde tu gestor (pgAdmin/DBeaver/DataGrip). Las migraciones Flyway `V1..V11`
+crean toda la estructura: `usuarios`, `roles`, `fundos`, `variedades`, `lotes`, `etapas_fenologicas`,
+`plagas`, `nematodos`, `patrones`, `programaciones`, `requerimientos` y `fotos_requerimiento`.
 
 ## Verificación por capa
 

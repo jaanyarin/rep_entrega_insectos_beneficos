@@ -28,8 +28,9 @@ decisiones/avances por HITO. Se alimenta en cada tarea y se consulta antes de re
 
 # 3. Alcance del Documento
 
-Cubre el historial de implementación desde HITO-001 hasta HITO-008 y los cambios posteriores
-del mobile. Es la fuente de retorno para continuar el desarrollo sin depender de la memoria
+Cubre el historial de implementación desde HITO-001 hasta HITO-011 (incluye backend de
+requerimientos, catálogos, fotos y el wiring en mobile), más el cambio de autogeneración de
+programaciones. Es la fuente de retorno para continuar el desarrollo sin depender de la memoria
 de una sesión anterior.
 
 ---
@@ -1265,3 +1266,39 @@ Suite completa: **87 tests / 18 suites PASS**.
 - **RequerimientoFormScreen (admin)**: sin fotos (PDF stub puro). Pendiente de HITO futuro.
 - **Acta PDF**: continúa pendiente de backend (MOD-11).
 - **Integración end-to-end**: prueba real desde celular contra backend con upload + visualización.
+
+---
+
+# 42. Quitar autogeneración de programaciones (INC-2, 2026-08-26)
+
+> Incidencia reportada por el usuario: al borrar programaciones directamente en la BD, la app
+> seguía mostrando datos. La causa era la **autogeneración** en el GET de programaciones, que
+> recreaba automáticamente una programación por especie+mes si no existía.
+
+## 42.1 Causa raíz
+
+`ProgramacionService.getProgramaciones()` (HITO-004) iteraba todas las especies y, si no existía
+una programación para el mes+año+especie consultado, la creaba automáticamente con valores por
+defecto (stock base 5000, detalles en 0, estado EN_PROCESO). Por eso, al borrar una fila, la app
+la "resucitaba" en la siguiente consulta.
+
+## 42.2 Cambio
+
+- `ProgramacionService.java`: `getProgramaciones()` ahora **solo devuelve las programaciones que
+  existen** en la BD (eliminado el loop de autogeneración).
+- `crearProgramacionInicial()` y el endpoint `POST /api/v1/programaciones` se mantienen intactos
+  (el usuario crea programaciones manualmente con el botón "Nuevo").
+- `ProgramacionResourceTest.testListProgramacionesReturnsMobileContractFields()`: ajustado para
+  crear primero una programación vía POST y luego verificar el listado (ya no depende de la
+  autogeneración).
+
+## 42.3 Verificación
+
+| Comando | Resultado |
+|---|---|
+| `mvnw.cmd test-compile` | ✅ BUILD SUCCESS |
+
+## 42.4 Efecto de negocio
+
+- Borrar una programación de la BD la **elimina de la app** (no aparece hasta crearse manualmente).
+- La creación "a la carta" por mes+especie sigue disponible con el botón "Nuevo".
