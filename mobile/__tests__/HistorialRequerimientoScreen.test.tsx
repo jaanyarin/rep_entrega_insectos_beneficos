@@ -2,9 +2,8 @@
  * HistorialRequerimientoScreen — Screen 12: Historial de Requerimientos
  * (MOD-18 / RF-179..181). Acceso: user sanidad.
  *
- * Approach: react-test-renderer + AuthProvider + mock de Keychain + mock
- * axios (getMockApi) para el listado (GET /requerimientos) y fotos
- * (GET /requerimientos/{id}/fotos).
+ * Approach: react-test-renderer + AuthProvider + mock de Keychain +
+ * mock repositories (SQLite-first) + mock useOnlineStatus.
  *
  * Cubre HITO-011: muestra de fotos en el modal de detalle.
  */
@@ -19,7 +18,6 @@ import {clearToken} from '../src/services/ApiClient';
 import {
   findByLabel,
   flushPromises,
-  getMockApi,
   makeToken,
 } from '../test-utils/helpers';
 
@@ -31,6 +29,39 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+jest.mock('../src/db/hooks/useOnlineStatus', () => ({
+  useOnlineStatus: jest.fn().mockReturnValue(true),
+}));
+
+jest.mock('../src/db/repositories', () => ({
+  requerimientosRepo: {
+    listLocal: jest.fn().mockResolvedValue([]),
+    createLocal: jest.fn().mockResolvedValue(-1),
+    updateLocal: jest.fn().mockResolvedValue(undefined),
+    getByServerId: jest.fn().mockResolvedValue(null),
+    getByIdLocal: jest.fn().mockResolvedValue(null),
+  },
+  catalogosRepo: {
+    syncAllCatalogos: jest.fn().mockResolvedValue(undefined),
+    getFundosLocal: jest.fn().mockResolvedValue([]),
+    getEspeciesLocal: jest.fn().mockResolvedValue([]),
+    getEtapasFenologicasLocal: jest.fn().mockResolvedValue([]),
+    getPlagasLocal: jest.fn().mockResolvedValue([]),
+    getLotesLocal: jest.fn().mockResolvedValue([]),
+  },
+  photosRepo: {
+    saveLocal: jest.fn().mockResolvedValue({success: true, fotoId: 1}),
+    listByRequerimiento: jest.fn().mockResolvedValue([]),
+    getPendingUpload: jest.fn().mockResolvedValue([]),
+    markUploaded: jest.fn().mockResolvedValue(undefined),
+    remove: jest.fn().mockResolvedValue(undefined),
+  },
+  programacionesRepo: {
+    listLocal: jest.fn().mockResolvedValue([]),
+    syncProgramaciones: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 const TOKEN_USUARIO = makeToken({
   sub: '5',
   groups: ['Usuario'],
@@ -40,58 +71,63 @@ const TOKEN_USUARIO = makeToken({
   passwordResetRequired: false,
 });
 
-const REQUERIMIENTOS = [
+const REQUERIMIENTOS_LOCALES = [
   {
     id: 1,
+    serverId: 1,
     fecha: '2026-08-20',
     fundoId: 1,
-    fundo: 'Fundo Norte',
     loteId: 10,
-    lote: 'Lote A',
     especieId: 1,
-    especie: 'Chrysopa sp.',
     etapaFenologicaId: null,
-    etapaFenologica: null,
-    cantidad: 20,
     plagaId: 1,
-    plaga: 'Pulga',
+    cantidad: 20,
     estado: 'ENTREGADO',
     stockDisponible: 30,
-    fechaLiberacion: null,
-    horaLiberacion: null,
     observaciones: null,
     papelConPostura: null,
     sobreConCascarilla: null,
+    fechaLiberacion: null,
+    horaLiberacion: null,
     creadoPor: 5,
-    createdAt: '2026-08-20T10:00:00Z',
-    updatedAt: '2026-08-20T10:00:00Z',
+    syncStatus: 'synced',
+    createdAt: new Date('2026-08-20T10:00:00Z'),
+    updatedAt: new Date('2026-08-20T10:00:00Z'),
   },
 ];
 
-const FOTOS_REQUERIMIENTO = [
+const FUNDOS = [{id: 1, nombre: 'Fundo Norte', createdAt: '', updatedAt: ''}];
+const ESPECIES = [{id: 1, nombre: 'Chrysopa sp.', estado: true}];
+const PLAGAS = [{id: 1, nombre: 'Pulga', estado: true}];
+
+const FOTOS_LOCALES = [
   {
     id: 10,
-    requerimientoId: 1,
-    ruta: '/fotos/foto1.jpg',
-    nombreArchivo: 'foto1.jpg',
-    tamanoBytes: 1024000,
+    requerimientoLocalId: 1,
+    uri: '/fotos/foto1.jpg',
+    fileName: 'foto1.jpg',
+    fileSize: 1024000,
     contentType: 'image/jpeg',
     metadatos: '{"tipo":"EVIDENCIA"}',
-    creadoEn: '2026-08-20T10:00:00Z',
+    syncStatus: 'uploaded',
+    serverFotoId: 10,
+    serverUrl: '/fotos/foto1.jpg',
+    createdAt: new Date('2026-08-20T10:00:00Z'),
   },
   {
     id: 11,
-    requerimientoId: 1,
-    ruta: '/fotos/foto2.jpg',
-    nombreArchivo: 'foto2.jpg',
-    tamanoBytes: 2048000,
+    requerimientoLocalId: 1,
+    uri: '/fotos/foto2.jpg',
+    fileName: 'foto2.jpg',
+    fileSize: 2048000,
     contentType: 'image/jpeg',
     metadatos: '{"tipo":"EVIDENCIA"}',
-    creadoEn: '2026-08-20T10:01:00Z',
+    syncStatus: 'uploaded',
+    serverFotoId: 11,
+    serverUrl: '/fotos/foto2.jpg',
+    createdAt: new Date('2026-08-20T10:01:00Z'),
   },
 ];
-
-let api = getMockApi();
 
 async function renderHistorial() {
   (Keychain.getGenericPassword as jest.Mock).mockImplementation(
@@ -103,15 +139,12 @@ async function renderHistorial() {
     navigate: jest.fn(),
   });
 
-  api.get.mockImplementation((url: string) => {
-    if (url === '/requerimientos') {
-      return Promise.resolve({data: REQUERIMIENTOS});
-    }
-    if (url === '/requerimientos/1/fotos') {
-      return Promise.resolve({data: FOTOS_REQUERIMIENTO});
-    }
-    return Promise.resolve({data: []});
-  });
+  const {requerimientosRepo, catalogosRepo, photosRepo} = require('../src/db/repositories');
+  requerimientosRepo.listLocal.mockResolvedValue(REQUERIMIENTOS_LOCALES);
+  catalogosRepo.getFundosLocal.mockResolvedValue(FUNDOS);
+  catalogosRepo.getEspeciesLocal.mockResolvedValue(ESPECIES);
+  catalogosRepo.getPlagasLocal.mockResolvedValue(PLAGAS);
+  photosRepo.listByRequerimiento.mockResolvedValue(FOTOS_LOCALES);
 
   let tree!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -129,7 +162,6 @@ async function renderHistorial() {
 describe('HistorialRequerimientoScreen — fotos en detalle (HITO-011)', () => {
   beforeEach(async () => {
     await clearToken();
-    api.get.mockClear();
   });
 
   test('muestra fotos en el modal de detalle', async () => {
@@ -143,8 +175,9 @@ describe('HistorialRequerimientoScreen — fotos en detalle (HITO-011)', () => {
       await flushPromises();
     });
 
-    // Verificar que se consultaron las fotos
-    expect(api.get).toHaveBeenCalledWith('/requerimientos/1/fotos');
+    // Verificar que se consultaron las fotos locales
+    const {photosRepo} = require('../src/db/repositories');
+    expect(photosRepo.listByRequerimiento).toHaveBeenCalled();
 
     // Verificar que el título de fotos aparece
     const fotosTitle = tree.root.findAll(

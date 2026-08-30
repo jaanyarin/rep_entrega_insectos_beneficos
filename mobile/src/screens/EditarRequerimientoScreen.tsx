@@ -38,13 +38,7 @@ import {usePhotoCapture} from '../hooks/usePhotoCapture';
 import {useRequerimientosCatalogos} from '../hooks/useRequerimientosCatalogos';
 import type {RootStackParamList} from '../navigation/types';
 import {
-  actualizarRequerimiento,
-  eliminarFotoRequerimiento,
   extractErrorMessage,
-  listarFotosRequerimiento,
-  obtenerRequerimiento,
-  obtenerStockEspecie,
-  subirFotoRequerimiento,
   type FotoRequerimientoDto,
 } from '../services/ApiClient';
 import {theme} from '../theme';
@@ -57,6 +51,8 @@ import {
 } from '../utils/requerimientos';
 import RequerimientoStatusChip from '../components/RequerimientoStatusChip';
 import {formatFecha} from '../utils/programacion';
+import {requerimientosRepo, photosRepo} from '../db/repositories';
+import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
 
 type Route = RouteProp<RootStackParamList, 'EditarRequerimiento'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -67,6 +63,7 @@ export default function EditarRequerimientoScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
+  const isOnline = useOnlineStatus();
 
   const id = route.params.id;
   const catalogo = useRequerimientosCatalogos();
@@ -113,44 +110,90 @@ export default function EditarRequerimientoScreen() {
       setLoading(true);
       setError(null);
       try {
-        const r = await obtenerRequerimiento(id);
-        if (!activo) {
+        // SQLite-first: buscar localmente
+        let local = await requerimientosRepo.getByServerId(id);
+        if (!local && id < 0) {
+          local = await requerimientosRepo.getByIdLocal(id);
+        }
+
+        if (local && activo) {
+          setFechaInput(local.fecha);
+          setFundoId(local.fundoId);
+          setLoteId(local.loteId);
+          setEspecieId(local.especieId);
+          setEtapaId(local.etapaFenologicaId);
+          setCantidadTexto(String(local.cantidad));
+          setPlagaId(local.plagaId);
+          setObservaciones(local.observaciones ?? '');
+          setFechaLiberacionInput(local.fechaLiberacion ?? '');
+          setHoraLiberacion(local.horaLiberacion ?? '');
+          setEstado(local.estado);
+          setAlerta30(requiereAlertaLiberacion({
+            estado: local.estado,
+            fechaLiberacion: local.fechaLiberacion,
+            createdAt: local.createdAt?.toISOString(),
+          } as never));
+        } else if (isOnline) {
+          // Fallback: intentar servidor si online
+          const {obtenerRequerimiento} = await import('../services/ApiClient');
+          const r = await obtenerRequerimiento(id);
+          if (!activo) { return; }
+          setFechaInput(r.fecha);
+          setFundoId(r.fundoId);
+          setLoteId(r.loteId);
+          setEspecieId(r.especieId);
+          setEtapaId(r.etapaFenologicaId);
+          setCantidadTexto(String(r.cantidad));
+          setPlagaId(r.plagaId);
+          setObservaciones(r.observaciones ?? '');
+          setFechaLiberacionInput(r.fechaLiberacion ?? '');
+          setHoraLiberacion(r.horaLiberacion ?? '');
+          setEstado(r.estado);
+          setAlerta30(requiereAlertaLiberacion(r));
+        } else if (activo) {
+          setError('Requerimiento no encontrado en caché local.');
+          setLoading(false);
           return;
         }
-        setFechaInput(r.fecha);
-        setFundoId(r.fundoId);
-        setLoteId(r.loteId);
-        setEspecieId(r.especieId);
-        setEtapaId(r.etapaFenologicaId);
-        setCantidadTexto(String(r.cantidad));
-        setPlagaId(r.plagaId);
-        setObservaciones(r.observaciones ?? '');
-        setFechaLiberacionInput(r.fechaLiberacion ?? '');
-        setHoraLiberacion(r.horaLiberacion ?? '');
-        setEstado(r.estado);
-        setAlerta30(requiereAlertaLiberacion(r));
-        // Carga el stock de la especie del requerimiento (solo lectura).
-        setStock(null);
-        try {
-          const s = await obtenerStockEspecie(r.especieId);
-          if (activo) {
-            setStock(s.stock);
-          }
-        } catch {
-          if (activo) {
-            setStock(null);
+
+        // Stock: solo si online
+        if (isOnline) {
+          try {
+            const {obtenerStockEspecie} = await import('../services/ApiClient');
+            const especieIdVal = local?.especieId;
+            if (especieIdVal && activo) {
+              const s = await obtenerStockEspecie(especieIdVal);
+              if (activo) { setStock(s.stock); }
+            }
+          } catch {
+            if (activo) { setStock(null); }
           }
         }
-        // Carga fotos existentes del servidor
-        try {
-          const fotosServer = await listarFotosRequerimiento(id);
-          if (activo) {
-            setFotosExistentes(fotosServer);
-          }
-        } catch {
-          // Fotos no críticas — se muestran vacías si falla
-          if (activo) {
-            setFotosExistentes([]);
+
+        // Cargar fotos desde SQLite local
+        const localId = local?.id ?? (id < 0 ? id : null);
+        if (localId && activo) {
+          const fotosLocales = await photosRepo.listByRequerimiento(localId);
+          // Mapear a FotoRequerimientoDto para el rendering existente
+          const fotosDto: FotoRequerimientoDto[] = fotosLocales.map(f => ({
+            id: f.serverFotoId ?? f.id,
+            ruta: f.serverUrl ?? f.uri,
+            requerimientoId: id,
+            nombreArchivo: f.fileName,
+            tamanoBytes: f.fileSize ?? 0,
+            contentType: f.contentType ?? 'image/jpeg',
+            metadatos: f.metadatos,
+            creadoEn: f.createdAt?.toISOString() ?? '',
+          }));
+          setFotosExistentes(fotosDto);
+        } else if (isOnline && activo) {
+          // Fallback: fotos del servidor
+          try {
+            const {listarFotosRequerimiento} = await import('../services/ApiClient');
+            const fotosServer = await listarFotosRequerimiento(id);
+            if (activo) { setFotosExistentes(fotosServer); }
+          } catch {
+            if (activo) { setFotosExistentes([]); }
           }
         }
       } catch (e) {
@@ -166,11 +209,24 @@ export default function EditarRequerimientoScreen() {
     return () => {
       activo = false;
     };
-  }, [id]);
+  }, [id, isOnline]);
 
   const eliminarFotoServidor = async (fotoId: number) => {
     try {
-      await eliminarFotoRequerimiento(id, fotoId);
+      // Si la foto tiene serverFotoId, eliminar del servidor (si online)
+      if (isOnline) {
+        try {
+          const {eliminarFotoRequerimiento} = await import('../services/ApiClient');
+          await eliminarFotoRequerimiento(id, fotoId);
+        } catch {
+          // Silenciar — la foto local se elimina de todas formas
+        }
+      }
+      // Eliminar de SQLite local
+      const local = await requerimientosRepo.getByServerId(id);
+      if (local) {
+        await photosRepo.remove(fotoId);
+      }
       setFotosExistentes(prev => prev.filter(f => f.id !== fotoId));
     } catch {
       // Silenciar — el usuario puede reintentar
@@ -181,7 +237,15 @@ export default function EditarRequerimientoScreen() {
     setSaving(true);
     setError(null);
     try {
-      await actualizarRequerimiento(id, {
+      // Encontrar el localId real
+      let localId = id;
+      const local = await requerimientosRepo.getByServerId(id);
+      if (local) {
+        localId = local.id;
+      }
+
+      // Offline-first: actualizar en SQLite + outbox
+      await requerimientosRepo.updateLocal(localId, {
         fecha: fechaInput || hoyISO(),
         fundoId: fundoId!,
         loteId: loteId!,
@@ -194,13 +258,13 @@ export default function EditarRequerimientoScreen() {
         horaLiberacion: horaLiberacion.trim() || null,
         observaciones: observaciones.trim() || null,
       });
-      // Subir fotos locales nuevas al servidor
+      // Guardar fotos locales nuevas en SQLite
       for (const foto of fotos) {
-        await subirFotoRequerimiento(id, {
-          uri: foto.uri,
+        await photosRepo.saveLocal(localId, foto.uri, {
           type: foto.type,
-          name: foto.fileName,
-        }, JSON.stringify({tipo: 'LIBERACION'}));
+          fileSize: foto.fileSize,
+          fileName: foto.fileName,
+        }, {metadatos: {tipo: 'LIBERACION'}});
       }
       navigation.goBack();
     } catch (e) {

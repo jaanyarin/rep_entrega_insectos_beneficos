@@ -25,8 +25,6 @@ import {useAuth} from '../context/AuthContext';
 import type {RootStackParamList} from '../navigation/types';
 import {
   extractErrorMessage,
-  listarProgramaciones,
-  listarRequerimientos,
   type ProgramacionDto,
   type RequerimientoDto,
 } from '../services/ApiClient';
@@ -42,6 +40,9 @@ import {
   filasProyeccion,
   totalProyeccion,
 } from '../utils/requerimientos';
+import {requerimientosRepo, programacionesRepo} from '../db/repositories';
+import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
+import OfflineBanner from '../components/OfflineBanner';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -50,6 +51,7 @@ export default function RequerimientosPanelScreen() {
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
   const puedeGestionar = isAdminOrSuperAdmin(user);
+  const isOnline = useOnlineStatus();
 
   const [programaciones, setProgramaciones] = useState<ProgramacionDto[]>([]);
   const [requerimientos, setRequerimientos] = useState<RequerimientoDto[]>([]);
@@ -66,12 +68,48 @@ export default function RequerimientosPanelScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [prog, reqs] = await Promise.all([
-        listarProgramaciones(anio, mes),
-        listarRequerimientos({}),
-      ]);
+      // Programaciones: cache-first (local → sync si online)
+      let prog: ProgramacionDto[] = [];
+      try {
+        // Intentar sincronizar del servidor si hay red
+        await programacionesRepo.syncProgramaciones(anio, mes);
+      } catch {
+        // Offline o error → usar cache local
+      }
+      // Siempre leer de SQLite local (cache-first)
+      prog = await programacionesRepo.listLocalAsDto(anio, mes);
+
+      // Siempre leer de SQLite
+      const reqsLocales = await requerimientosRepo.listLocal();
+      // Mapear a RequerimientoDto para la lógica existente
+      const reqsDto: RequerimientoDto[] = reqsLocales.map(r => ({
+        id: r.serverId ?? r.id,
+        fecha: r.fecha,
+        fundoId: r.fundoId,
+        fundo: '',
+        loteId: r.loteId,
+        lote: '',
+        especieId: r.especieId,
+        especie: '',
+        etapaFenologicaId: r.etapaFenologicaId,
+        etapaFenologica: null,
+        plagaId: r.plagaId,
+        plaga: null,
+        cantidad: r.cantidad,
+        estado: r.estado as never,
+        stockDisponible: r.stockDisponible ?? 0,
+        observaciones: r.observaciones,
+        papelConPostura: r.papelConPostura,
+        sobreConCascarilla: r.sobreConCascarilla,
+        fechaLiberacion: r.fechaLiberacion,
+        horaLiberacion: r.horaLiberacion,
+        creadoPor: r.creadoPor,
+        createdAt: r.createdAt?.toISOString() ?? '',
+        updatedAt: r.updatedAt?.toISOString() ?? '',
+      }));
+
       setProgramaciones(prog);
-      setRequerimientos(reqs);
+      setRequerimientos(reqsDto);
     } catch (e) {
       setError(extractErrorMessage(e));
     } finally {
@@ -127,6 +165,7 @@ export default function RequerimientosPanelScreen() {
           ]}>
           {puedeGestionar ? (
             <>
+              {!isOnline && <OfflineBanner />}
               <View style={styles.accion}>
                 <AppButton
                   label="Solicitud de Requerimiento"

@@ -1,7 +1,7 @@
 /**
  * RequerimientosListScreen — Screen 7: Listado de Solicitudes de Requerimiento
  * (admin). Approach: react-test-renderer + AuthProvider + mock Keychain +
- * mock axios (getMockApi) para listarRequerimientos (GET /requerimientos).
+ * mock repositories (SQLite-first) + mock useOnlineStatus.
  */
 
 import React from 'react';
@@ -15,7 +15,6 @@ import {
   contarTexto,
   findByLabel,
   flushPromises,
-  getMockApi,
   makeToken,
 } from '../test-utils/helpers';
 
@@ -27,6 +26,39 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+jest.mock('../src/db/hooks/useOnlineStatus', () => ({
+  useOnlineStatus: jest.fn().mockReturnValue(true),
+}));
+
+jest.mock('../src/db/repositories', () => ({
+  requerimientosRepo: {
+    listLocal: jest.fn().mockResolvedValue([]),
+    createLocal: jest.fn().mockResolvedValue(-1),
+    updateLocal: jest.fn().mockResolvedValue(undefined),
+    getByServerId: jest.fn().mockResolvedValue(null),
+    getByIdLocal: jest.fn().mockResolvedValue(null),
+  },
+  catalogosRepo: {
+    syncAllCatalogos: jest.fn().mockResolvedValue(undefined),
+    getFundosLocal: jest.fn().mockResolvedValue([]),
+    getEspeciesLocal: jest.fn().mockResolvedValue([]),
+    getEtapasFenologicasLocal: jest.fn().mockResolvedValue([]),
+    getPlagasLocal: jest.fn().mockResolvedValue([]),
+    getLotesLocal: jest.fn().mockResolvedValue([]),
+  },
+  photosRepo: {
+    saveLocal: jest.fn().mockResolvedValue({success: true, fotoId: 1}),
+    listByRequerimiento: jest.fn().mockResolvedValue([]),
+    getPendingUpload: jest.fn().mockResolvedValue([]),
+    markUploaded: jest.fn().mockResolvedValue(undefined),
+    remove: jest.fn().mockResolvedValue(undefined),
+  },
+  programacionesRepo: {
+    listLocal: jest.fn().mockResolvedValue([]),
+    syncProgramaciones: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 const TOKEN_ADMIN = makeToken({
   sub: '9',
   groups: ['Admin'],
@@ -36,35 +68,35 @@ const TOKEN_ADMIN = makeToken({
   passwordResetRequired: false,
 });
 
-const SOLICITUDES = [
+const SOLICITUDES_LOCALES = [
   {
     id: 1,
+    serverId: 1,
     fecha: '2026-08-05',
     fundoId: 1,
-    fundo: 'Fundo Norte',
     loteId: 10,
-    lote: 'Lote A',
     especieId: 1,
-    especie: 'Chrysopa sp.',
     etapaFenologicaId: null,
-    etapaFenologica: null,
-    cantidad: 200,
     plagaId: null,
-    plaga: null,
+    cantidad: 200,
     estado: 'APROBADO',
     stockDisponible: 3000,
-    fechaLiberacion: null,
-    horaLiberacion: null,
     observaciones: null,
     papelConPostura: null,
     sobreConCascarilla: null,
+    fechaLiberacion: null,
+    horaLiberacion: null,
     creadoPor: null,
-    createdAt: '2026-08-05T10:00:00Z',
-    updatedAt: '2026-08-05T10:00:00Z',
+    syncStatus: 'synced',
+    createdAt: new Date('2026-08-05T10:00:00Z'),
+    updatedAt: new Date('2026-08-05T10:00:00Z'),
   },
 ];
 
-let api = getMockApi();
+const FUNDOS = [{id: 1, nombre: 'Fundo Norte', createdAt: '', updatedAt: ''}];
+const ESPECIES = [{id: 1, nombre: 'Chrysopa sp.', estado: true}];
+const PLAGAS = [{id: 1, nombre: 'Pulga', estado: true}];
+
 const mockNavigate = jest.fn();
 
 async function renderLista(token = TOKEN_ADMIN) {
@@ -77,12 +109,11 @@ async function renderLista(token = TOKEN_ADMIN) {
     goBack: jest.fn(),
   });
 
-  api.get.mockImplementation((url: string) => {
-    if (url === '/requerimientos') {
-      return Promise.resolve({data: SOLICITUDES});
-    }
-    return Promise.resolve({data: []});
-  });
+  const {requerimientosRepo, catalogosRepo} = require('../src/db/repositories');
+  requerimientosRepo.listLocal.mockResolvedValue(SOLICITUDES_LOCALES);
+  catalogosRepo.getFundosLocal.mockResolvedValue(FUNDOS);
+  catalogosRepo.getEspeciesLocal.mockResolvedValue(ESPECIES);
+  catalogosRepo.getPlagasLocal.mockResolvedValue(PLAGAS);
 
   let tree!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -101,7 +132,6 @@ describe('RequerimientosListScreen — listado admin', () => {
   beforeEach(async () => {
     await clearToken();
     mockNavigate.mockClear();
-    api.get.mockClear();
   });
 
   test('muestra la galería con especie y estado con color', async () => {
@@ -141,19 +171,16 @@ describe('RequerimientosListScreen — listado admin', () => {
     expect(mockNavigate).toHaveBeenCalledWith('RequerimientoForm', {id: 1});
   });
 
-  test('Aplicar filtro dispara GET /requerimientos con el rango', async () => {
-    api.get.mockImplementation((url: string) => {
-      if (url === '/requerimientos') {
-        return Promise.resolve({data: SOLICITUDES});
-      }
-      return Promise.resolve({data: []});
-    });
+  test('Aplicar filtro llama a requerimientosRepo.listLocal con el rango', async () => {
     const tree = await renderLista();
     await act(async () => {
       await flushPromises();
     });
 
-    api.get.mockClear();
+    const {requerimientosRepo} = require('../src/db/repositories');
+    requerimientosRepo.listLocal.mockClear();
+    requerimientosRepo.listLocal.mockResolvedValue(SOLICITUDES_LOCALES);
+
     await act(async () => {
       findByLabel(tree, 'Desde').props.onChange('2026-08-01');
     });
@@ -167,8 +194,9 @@ describe('RequerimientosListScreen — listado admin', () => {
       await flushPromises();
     });
 
-    expect(api.get).toHaveBeenCalledWith('/requerimientos', {
-      params: {fechaDesde: '2026-08-01', fechaHasta: '2026-08-31'},
+    expect(requerimientosRepo.listLocal).toHaveBeenCalledWith({
+      fechaDesde: '2026-08-01',
+      fechaHasta: '2026-08-31',
     });
   });
 });

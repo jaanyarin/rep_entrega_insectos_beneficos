@@ -6,11 +6,13 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {
   api,
   BUILT_IN_API_URL,
+  getToken,
   loadApiUrl,
   normalizeApiUrl,
   resetApiUrl,
   setApiUrl,
 } from '../services/ApiClient';
+import {isTokenExpired} from '../utils/token';
 import type {RootStackParamList} from '../navigation/types';
 import AppInput from '../components/AppInput';
 import AppButton from '../components/AppButton';
@@ -26,7 +28,10 @@ type Status = 'checking' | 'error' | 'ready';
  * Pantalla inicial del flujo no autenticado (modelo reutilizable §7.2):
  * prueba `GET /auth/roles` contra la URL guardada (timeout 5 s). Si falla,
  * muestra el formulario para ingresar/guardar la URL de la API y reintentar.
- * Requiere conectividad (no existe capa offline — AGENTS.md §4).
+ *
+ * Soporte offline (HITO-013): si ya existe un JWT válido en Keychain,
+ * esta pantalla se salta automáticamente (AuthContext ya restauró la sesión).
+ * Solo se muestra cuando no hay JWT o está expirado (necesita red para login).
  *
  * HITO-003: tema Vanguard (§18 card radius 16/shadow z2, tokens), SafeArea y
  * V6: back físico interceptado (pantalla raíz del stack anónimo → NO cierra
@@ -61,6 +66,16 @@ export default function ServerCheckScreen() {
 
   useEffect(() => {
     (async () => {
+      // Soporte offline: si ya existe un JWT válido, saltar verificación
+      // y navegar directamente a Home (la app puede funcionar offline).
+      const existingToken = await getToken();
+      if (existingToken && !isTokenExpired(existingToken, 60)) {
+        // JWT válido → la sesión ya fue restaurada por AuthContext
+        // No necesitamos verificar el servidor
+        return;
+      }
+
+      // Sin JWT o JWT expirado → verificar servidor (comportamiento original)
       const savedUrl = await loadApiUrl();
       setApiUrlInput(savedUrl);
     })();

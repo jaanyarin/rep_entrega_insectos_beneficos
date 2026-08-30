@@ -30,6 +30,68 @@ jest.mock('react-native-image-picker', () => ({
 
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
 
+// Mock de @op-engineering/op-sqlite: módulo nativo que no puede parsear Jest.
+// open() es síncrono en JSI; el mock debe retornar el objeto directamente.
+jest.mock('@op-engineering/op-sqlite', () => {
+  const mockDb = {
+    execute: jest.fn().mockResolvedValue({rows: [], rowsAffected: 0}),
+  };
+  return {
+    __esModule: true,
+    open: jest.fn().mockReturnValue(mockDb),
+  };
+});
+
+// Mock de drizzle-orm/op-sqlite: retorna un db mock con select/insert/update/delete
+jest.mock('drizzle-orm/op-sqlite', () => {
+  const createChain = () => {
+    const chain = {};
+    const methods = ['select', 'from', 'insert', 'values', 'update', 'set', 'delete', 'where', 'orderBy'];
+    methods.forEach(m => {
+      chain[m] = jest.fn().mockReturnValue(chain);
+    });
+    chain.then = (resolve) => resolve([]);
+    chain.catch = (reject) => chain;
+    return chain;
+  };
+  return {
+    __esModule: true,
+    drizzle: jest.fn(() => createChain()),
+  };
+});
+
+// Mock de drizzle-orm (core): funciones de filtro
+jest.mock('drizzle-orm', () => {
+  const op = jest.fn(() => ({}));
+  return {
+    __esModule: true,
+    eq: op,
+    gte: op,
+    lte: op,
+    and: op,
+    desc: op,
+    like: op,
+  };
+});
+
+// Mock de @react-native-community/netinfo
+jest.mock('@react-native-community/netinfo', () => {
+  const listeners = [];
+  return {
+    __esModule: true,
+    default: {
+      fetch: jest.fn().mockResolvedValue({isConnected: true, type: 'wifi'}),
+      addEventListener: jest.fn((callback) => {
+        listeners.push(callback);
+        return () => {
+          const idx = listeners.indexOf(callback);
+          if (idx >= 0) { listeners.splice(idx, 1); }
+        };
+      }),
+    },
+  };
+});
+
 // Mock de axios: ApiClient usa `axios.create()` + interceptores; en Jest se
 // sustituye la instancia para que NINGÚN test haga llamadas de red. Por
 // defecto GET devuelve `[]` y POST `{}` (ampliable por test con jest.mock

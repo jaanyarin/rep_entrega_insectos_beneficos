@@ -17,6 +17,7 @@ import {
   setUnauthorizedHandler,
   type AuthUser,
 } from '../services/ApiClient';
+import {isTokenExpired} from '../utils/token';
 
 interface AuthContextType {
   /** Usuario decodificado del JWT (null = sin sesión). */
@@ -49,13 +50,22 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   const [error, setError] = useState<string | null>(null);
 
   // Restauración de sesión al arrancar + suscripción a 401 global.
+  // Soporte offline: si el JWT existe y NO está expirado, restaura la sesión
+  // sin verificar con el servidor (permite uso offline inmediato).
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const token = await getToken();
         if (mounted && token) {
-          setUser(parseToken(token));
+          // Verificar si el JWT no ha expirado (buffer 60s)
+          if (!isTokenExpired(token, 60)) {
+            // JWT válido → restaurar sesión offline
+            setUser(parseToken(token));
+          } else {
+            // JWT expirado → limpiar sesión (necesita re-login)
+            await clearToken();
+          }
         }
       } catch {
         // Sin sesión persistida: flujo normal de login.

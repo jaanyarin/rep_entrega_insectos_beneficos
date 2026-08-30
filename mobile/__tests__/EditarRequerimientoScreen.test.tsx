@@ -2,16 +2,12 @@
  * EditarRequerimientoScreen — Screen 13: Edición de Requerimiento (user)
  * (MOD-18 / RF-182..185 / RN-035..036).
  *
- * Approach (igual que ProgramacionEdicionScreen.test.tsx): react-test-renderer
- * + mock de Keychain (JWT no necesario porque la pantalla no usa useAuth) +
- * mock axios (getMockApi) para el detalle (GET /requerimientos/{id}), el stock
- * (GET /programaciones/{especieId}/stock), los catálogos (GET /fundos,
- * /especies, /etapas-fenologicas, /plagas) y fotos (GET/DELETE
- * /requerimientos/{id}/fotos).
+ * Approach: react-test-renderer + mock de Keychain + mock repositories
+ * (SQLite-first) + mock useOnlineStatus.
  *
  * Cubre RN-035: la alerta permanente de 30 h se muestra cuando el estado es
  * RECIBIDO y transcurrieron más de 30 h desde el último cambio de estado.
- * Cubre HITO-011: carga de fotos existentes del servidor.
+ * Cubre HITO-011: carga de fotos existentes del servidor/local.
  */
 
 import React from 'react';
@@ -21,7 +17,6 @@ import EditarRequerimientoScreen from '../src/screens/EditarRequerimientoScreen'
 import {clearToken} from '../src/services/ApiClient';
 import {
   flushPromises,
-  getMockApi,
   makeToken,
 } from '../test-utils/helpers';
 
@@ -36,6 +31,39 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+jest.mock('../src/db/hooks/useOnlineStatus', () => ({
+  useOnlineStatus: jest.fn().mockReturnValue(true),
+}));
+
+jest.mock('../src/db/repositories', () => ({
+  requerimientosRepo: {
+    listLocal: jest.fn().mockResolvedValue([]),
+    createLocal: jest.fn().mockResolvedValue(-1),
+    updateLocal: jest.fn().mockResolvedValue(undefined),
+    getByServerId: jest.fn().mockResolvedValue(null),
+    getByIdLocal: jest.fn().mockResolvedValue(null),
+  },
+  catalogosRepo: {
+    syncAllCatalogos: jest.fn().mockResolvedValue(undefined),
+    getFundosLocal: jest.fn().mockResolvedValue([]),
+    getEspeciesLocal: jest.fn().mockResolvedValue([]),
+    getEtapasFenologicasLocal: jest.fn().mockResolvedValue([]),
+    getPlagasLocal: jest.fn().mockResolvedValue([]),
+    getLotesLocal: jest.fn().mockResolvedValue([]),
+  },
+  photosRepo: {
+    saveLocal: jest.fn().mockResolvedValue({success: true, fotoId: 1}),
+    listByRequerimiento: jest.fn().mockResolvedValue([]),
+    getPendingUpload: jest.fn().mockResolvedValue([]),
+    markUploaded: jest.fn().mockResolvedValue(undefined),
+    remove: jest.fn().mockResolvedValue(undefined),
+  },
+  programacionesRepo: {
+    listLocal: jest.fn().mockResolvedValue([]),
+    syncProgramaciones: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 const TOKEN_USUARIO = makeToken({
   sub: '5',
   groups: ['Usuario'],
@@ -45,21 +73,24 @@ const TOKEN_USUARIO = makeToken({
   passwordResetRequired: false,
 });
 
-const FUNDOS = [{id: 1, nombre: 'Fundo Norte', estado: true}];
+const FUNDOS = [{id: 1, nombre: 'Fundo Norte', createdAt: '', updatedAt: ''}];
 const ESPECIES = [{id: 1, nombre: 'Chrysopa sp.', estado: true}];
 const ETAPAS = [{id: 1, nombre: 'Emergencia', estado: true}];
 const PLAGAS = [{id: 1, nombre: 'Pulga', estado: true}];
 
-const FOTOS_SERVIDOR = [
+const FOTOS_LOCALES = [
   {
     id: 10,
-    requerimientoId: 4,
-    ruta: '/fotos/foto1.jpg',
-    nombreArchivo: 'foto1.jpg',
-    tamanoBytes: 1024000,
+    requerimientoLocalId: 4,
+    uri: '/fotos/foto1.jpg',
+    fileName: 'foto1.jpg',
+    fileSize: 1024000,
     contentType: 'image/jpeg',
     metadatos: '{"tipo":"LIBERACION"}',
-    creadoEn: '2026-08-20T10:00:00Z',
+    syncStatus: 'uploaded',
+    serverFotoId: 10,
+    serverUrl: '/fotos/foto1.jpg',
+    createdAt: new Date('2026-08-20T10:00:00Z'),
   },
 ];
 
@@ -67,33 +98,29 @@ const FOTOS_SERVIDOR = [
 function requerimientoBase({updatedAt}: {updatedAt: string}) {
   return {
     id: 4,
+    serverId: 4,
     fecha: '2026-08-10',
     fundoId: 1,
-    fundo: 'Fundo Norte',
     loteId: 10,
-    lote: 'Lote A',
     especieId: 1,
-    especie: 'Chrysopa sp.',
     etapaFenologicaId: null,
-    etapaFenologica: null,
-    cantidad: 20,
     plagaId: 1,
-    plaga: 'Pulga',
+    cantidad: 20,
     estado: 'RECIBIDO',
     stockDisponible: 30,
-    fechaLiberacion: '2026-08-10T10:00:00Z',
-    horaLiberacion: '10:00',
     observaciones: null,
     papelConPostura: null,
     sobreConCascarilla: null,
+    fechaLiberacion: '2026-08-10T10:00:00Z',
+    horaLiberacion: '10:00',
     creadoPor: 5,
-    createdAt: updatedAt,
-    updatedAt,
+    syncStatus: 'synced',
+    createdAt: new Date(updatedAt),
+    updatedAt: new Date(updatedAt),
   };
 }
 
-let api = getMockApi();
-/** Requerimiento devuelto por GET /requerimientos/4 (mutable por test). */
+/** Requerimiento devuelto por repositorio (mutable por test). */
 let requerimientoActual = requerimientoBase({
   updatedAt: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
 });
@@ -104,30 +131,13 @@ async function renderEdicion() {
       options?.service === 'accessToken' ? {password: TOKEN_USUARIO} : null,
   );
 
-  api.get.mockImplementation((url: string) => {
-    if (url === '/fundos') {
-      return Promise.resolve({data: FUNDOS});
-    }
-    if (url === '/especies') {
-      return Promise.resolve({data: ESPECIES});
-    }
-    if (url === '/etapas-fenologicas') {
-      return Promise.resolve({data: ETAPAS});
-    }
-    if (url === '/plagas') {
-      return Promise.resolve({data: PLAGAS});
-    }
-    if (url === '/requerimientos/4') {
-      return Promise.resolve({data: requerimientoActual});
-    }
-    if (url === '/programaciones/1/stock') {
-      return Promise.resolve({data: {stock: 30}});
-    }
-    if (url === '/requerimientos/4/fotos') {
-      return Promise.resolve({data: FOTOS_SERVIDOR});
-    }
-    return Promise.resolve({data: []});
-  });
+  const {requerimientosRepo, catalogosRepo, photosRepo} = require('../src/db/repositories');
+  requerimientosRepo.getByServerId.mockResolvedValue(requerimientoActual);
+  catalogosRepo.getFundosLocal.mockResolvedValue(FUNDOS);
+  catalogosRepo.getEspeciesLocal.mockResolvedValue(ESPECIES);
+  catalogosRepo.getEtapasFenologicasLocal.mockResolvedValue(ETAPAS);
+  catalogosRepo.getPlagasLocal.mockResolvedValue(PLAGAS);
+  photosRepo.listByRequerimiento.mockResolvedValue(FOTOS_LOCALES);
 
   let tree!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -147,10 +157,6 @@ describe('EditarRequerimientoScreen — alerta de 30 h (RN-035)', () => {
   beforeEach(async () => {
     await clearToken();
     mockGoBack.mockClear();
-    api.get.mockClear();
-    api.put.mockClear();
-    api.post.mockClear();
-    api.delete.mockClear();
   });
 
   test('muestra la alerta cuando RECIBIDO superó 30 h sin foto de liberación', async () => {
@@ -178,17 +184,13 @@ describe('EditarRequerimientoScreen — alerta de 30 h (RN-035)', () => {
   });
 });
 
-describe('EditarRequerimientoScreen — fotos del servidor (HITO-011)', () => {
+describe('EditarRequerimientoScreen — fotos del servidor/local (HITO-011)', () => {
   beforeEach(async () => {
     await clearToken();
     mockGoBack.mockClear();
-    api.get.mockClear();
-    api.put.mockClear();
-    api.post.mockClear();
-    api.delete.mockClear();
   });
 
-  test('carga y muestra fotos existentes del servidor', async () => {
+  test('carga y muestra fotos existentes del repositorio local', async () => {
     requerimientoActual = requerimientoBase({
       updatedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
     });
@@ -197,8 +199,9 @@ describe('EditarRequerimientoScreen — fotos del servidor (HITO-011)', () => {
       await flushPromises();
     });
 
-    // Verificar que se llamó a listar fotos
-    expect(api.get).toHaveBeenCalledWith('/requerimientos/4/fotos');
+    // Verificar que se llamó a listar fotos locales
+    const {photosRepo} = require('../src/db/repositories');
+    expect(photosRepo.listByRequerimiento).toHaveBeenCalled();
 
     // Buscar el label de la foto del servidor
     const servidorLabels = tree.root.findAll(
@@ -209,7 +212,6 @@ describe('EditarRequerimientoScreen — fotos del servidor (HITO-011)', () => {
   });
 
   test('elimina foto del servidor al pulsar Quitar', async () => {
-    api.delete.mockResolvedValue({data: null});
     requerimientoActual = requerimientoBase({
       updatedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
     });
@@ -230,6 +232,7 @@ describe('EditarRequerimientoScreen — fotos del servidor (HITO-011)', () => {
       await flushPromises();
     });
 
-    expect(api.delete).toHaveBeenCalledWith('/requerimientos/4/fotos/10');
+    const {photosRepo} = require('../src/db/repositories');
+    expect(photosRepo.remove).toHaveBeenCalled();
   });
 });

@@ -1,9 +1,8 @@
 /**
  * RequerimientosPanelScreen — Screen 6: Panel de Solicitudes de Requerimiento
  * (admin). Approach: react-test-renderer + AuthProvider + mock de Keychain
- * (JWT fabricado con makeToken) + mock axios (getMockApi) para
- * listarProgramaciones (GET /programaciones?anio&mes) y listarRequerimientos
- * (GET /requerimientos).
+ * (JWT fabricado con makeToken) + mock repositories (SQLite-first) +
+ * mock useOnlineStatus.
  */
 
 import React from 'react';
@@ -17,7 +16,6 @@ import {
   contarTexto,
   findByLabel,
   flushPromises,
-  getMockApi,
   makeToken,
 } from '../test-utils/helpers';
 
@@ -28,6 +26,43 @@ jest.mock('@react-navigation/native', () => {
     useNavigation: jest.fn(() => ({navigate: jest.fn(), goBack: jest.fn()})),
   };
 });
+
+jest.mock('../src/db/hooks/useOnlineStatus', () => ({
+  useOnlineStatus: jest.fn().mockReturnValue(true),
+}));
+
+jest.mock('../src/db/repositories', () => ({
+  requerimientosRepo: {
+    listLocal: jest.fn().mockResolvedValue([]),
+    createLocal: jest.fn().mockResolvedValue(-1),
+    updateLocal: jest.fn().mockResolvedValue(undefined),
+    getByServerId: jest.fn().mockResolvedValue(null),
+    getByIdLocal: jest.fn().mockResolvedValue(null),
+    countPending: jest.fn().mockResolvedValue(0),
+  },
+  catalogosRepo: {
+    syncAllCatalogos: jest.fn().mockResolvedValue(undefined),
+    getFundosLocal: jest.fn().mockResolvedValue([]),
+    getEspeciesLocal: jest.fn().mockResolvedValue([]),
+    getEtapasFenologicasLocal: jest.fn().mockResolvedValue([]),
+    getPlagasLocal: jest.fn().mockResolvedValue([]),
+    getLotesLocal: jest.fn().mockResolvedValue([]),
+  },
+  photosRepo: {
+    saveLocal: jest.fn().mockResolvedValue({success: true, fotoId: 1}),
+    listByRequerimiento: jest.fn().mockResolvedValue([]),
+    getPendingUpload: jest.fn().mockResolvedValue([]),
+    markUploaded: jest.fn().mockResolvedValue(undefined),
+    remove: jest.fn().mockResolvedValue(undefined),
+    countByRequerimiento: jest.fn().mockResolvedValue(0),
+  },
+  programacionesRepo: {
+    listLocal: jest.fn().mockResolvedValue([]),
+    listLocalAsDto: jest.fn().mockResolvedValue([]),
+    syncProgramaciones: jest.fn().mockResolvedValue(undefined),
+    hasLocalData: jest.fn().mockResolvedValue(false),
+  },
+}));
 
 const TOKEN_ADMIN = makeToken({
   sub: '9',
@@ -69,40 +104,36 @@ const PROGRAMACIONES = [
 const hoy = new Date();
 const fechaISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
 
-const REQUERIMIENTOS = [
+const REQUERIMIENTOS_LOCALES = [
   {
     id: 1,
+    serverId: 1,
     fecha: fechaISO,
     fundoId: 1,
-    fundo: 'Fundo Norte',
     loteId: 10,
-    lote: 'Lote A',
     especieId: 1,
-    especie: 'Chrysopa sp.',
     etapaFenologicaId: null,
-    etapaFenologica: null,
-    cantidad: 200,
     plagaId: null,
-    plaga: null,
+    cantidad: 200,
     estado: 'PENDIENTE',
     stockDisponible: 3000,
-    fechaLiberacion: null,
-    horaLiberacion: null,
     observaciones: null,
     papelConPostura: null,
     sobreConCascarilla: null,
+    fechaLiberacion: null,
+    horaLiberacion: null,
     creadoPor: null,
-    createdAt: '2026-08-18T10:00:00Z',
-    updatedAt: '2026-08-18T10:00:00Z',
+    syncStatus: 'pending',
+    createdAt: new Date('2026-08-18T10:00:00Z'),
+    updatedAt: new Date('2026-08-18T10:00:00Z'),
   },
 ];
 
-let api = getMockApi();
 const mockNavigate = jest.fn();
 
 async function renderPanel(
   token = TOKEN_ADMIN,
-  requerimientos: unknown[] = REQUERIMIENTOS,
+  requerimientos: unknown[] = REQUERIMIENTOS_LOCALES,
 ) {
   (Keychain.getGenericPassword as jest.Mock).mockImplementation(
     (options?: {service?: string}) =>
@@ -113,15 +144,9 @@ async function renderPanel(
     goBack: jest.fn(),
   });
 
-  api.get.mockImplementation((url: string) => {
-    if (url === '/programaciones') {
-      return Promise.resolve({data: PROGRAMACIONES});
-    }
-    if (url === '/requerimientos') {
-      return Promise.resolve({data: requerimientos});
-    }
-    return Promise.resolve({data: []});
-  });
+  const {requerimientosRepo, programacionesRepo} = require('../src/db/repositories');
+  requerimientosRepo.listLocal.mockResolvedValue(requerimientos);
+  programacionesRepo.listLocalAsDto.mockResolvedValue(PROGRAMACIONES);
 
   let tree!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -132,6 +157,7 @@ async function renderPanel(
     );
     await flushPromises();
     await flushPromises();
+    await flushPromises();
   });
   return tree;
 }
@@ -140,7 +166,6 @@ describe('RequerimientosPanelScreen — panel admin', () => {
   beforeEach(async () => {
     await clearToken();
     mockNavigate.mockClear();
-    api.get.mockClear();
   });
 
   test('muestra la tabla de proyección y el indicador de pendientes', async () => {

@@ -43,10 +43,7 @@ import {useRequerimientosCatalogos} from '../hooks/useRequerimientosCatalogos';
 import {useAuth} from '../context/AuthContext';
 import type {RootStackParamList} from '../navigation/types';
 import {
-  actualizarRequerimiento,
-  crearRequerimiento,
   extractErrorMessage,
-  obtenerRequerimiento,
   type EstadoRequerimiento,
   type PlagaDto,
 } from '../services/ApiClient';
@@ -58,6 +55,8 @@ import {
   esEstadoEntregado,
   hoyISO,
 } from '../utils/requerimientos';
+import {requerimientosRepo} from '../db/repositories';
+import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
 
 type Route = RouteProp<RootStackParamList, 'RequerimientoForm'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -67,6 +66,7 @@ export default function RequerimientoFormScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
+  const isOnline = useOnlineStatus();
 
   const id = route.params?.id;
   const modo: 'crear' | 'editar' = id != null ? 'editar' : 'crear';
@@ -102,25 +102,50 @@ export default function RequerimientoFormScreen() {
     setLoading(true);
     setError(null);
     try {
-      const r = await obtenerRequerimiento(targetId);
-      setFechaInput(r.fecha);
-      setFundoId(r.fundoId);
-      setLoteId(r.loteId);
-      setEspecieId(r.especieId);
-      setCantidadTexto(String(r.cantidad));
-      setPlagaId(r.plagaId);
-      setEstado(r.estado);
-      setFechaLiberacionInput(r.fechaLiberacion ?? '');
-      setHoraLiberacion(r.horaLiberacion ?? '');
-      setObservaciones(r.observaciones ?? '');
-      setPapelTexto(r.papelConPostura != null ? String(r.papelConPostura) : '');
-      setSobreTexto(r.sobreConCascarilla != null ? String(r.sobreConCascarilla) : '');
+      // SQLite-first: buscar localmente por serverId o por localId
+      let local = await requerimientosRepo.getByServerId(targetId);
+      if (!local && targetId < 0) {
+        local = await requerimientosRepo.getByIdLocal(targetId);
+      }
+
+      if (local) {
+        setFechaInput(local.fecha);
+        setFundoId(local.fundoId);
+        setLoteId(local.loteId);
+        setEspecieId(local.especieId);
+        setCantidadTexto(String(local.cantidad));
+        setPlagaId(local.plagaId);
+        setEstado(local.estado as EstadoRequerimiento);
+        setFechaLiberacionInput(local.fechaLiberacion ?? '');
+        setHoraLiberacion(local.horaLiberacion ?? '');
+        setObservaciones(local.observaciones ?? '');
+        setPapelTexto(local.papelConPostura != null ? String(local.papelConPostura) : '');
+        setSobreTexto(local.sobreConCascarilla != null ? String(local.sobreConCascarilla) : '');
+      } else if (isOnline) {
+        // Fallback: intentar servidor si online
+        const {obtenerRequerimiento} = await import('../services/ApiClient');
+        const r = await obtenerRequerimiento(targetId);
+        setFechaInput(r.fecha);
+        setFundoId(r.fundoId);
+        setLoteId(r.loteId);
+        setEspecieId(r.especieId);
+        setCantidadTexto(String(r.cantidad));
+        setPlagaId(r.plagaId);
+        setEstado(r.estado);
+        setFechaLiberacionInput(r.fechaLiberacion ?? '');
+        setHoraLiberacion(r.horaLiberacion ?? '');
+        setObservaciones(r.observaciones ?? '');
+        setPapelTexto(r.papelConPostura != null ? String(r.papelConPostura) : '');
+        setSobreTexto(r.sobreConCascarilla != null ? String(r.sobreConCascarilla) : '');
+      } else {
+        setError('Requerimiento no encontrado en caché local.');
+      }
     } catch (e) {
       setError(extractErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isOnline]);
 
   useEffect(() => {
     if (modo === 'editar' && id != null) {
@@ -166,18 +191,28 @@ export default function RequerimientoFormScreen() {
     setAvisoActa(null);
     try {
       if (modo === 'crear') {
-        await crearRequerimiento({
-          fecha: isoFecha ?? hoyISO(),
-          fundoId: fundoId!,
-          loteId: loteId!,
-          especieId: especieId!,
-          etapaFenologicaId: null,
-          cantidad: cantidadNum,
-          plagaId,
-          observaciones: observaciones.trim() || null,
-        });
+        // Offline-first: guardar en SQLite + outbox
+        await requerimientosRepo.createLocal(
+          {
+            fecha: isoFecha ?? hoyISO(),
+            fundoId: fundoId!,
+            loteId: loteId!,
+            especieId: especieId!,
+            etapaFenologicaId: null,
+            cantidad: cantidadNum,
+            plagaId,
+            observaciones: observaciones.trim() || null,
+          },
+          Number(user?.sub) || 0,
+        );
       } else {
-        await actualizarRequerimiento(id!, {
+        // Editar: encontrar el localId real
+        let localId = id!;
+        const local = await requerimientosRepo.getByServerId(id!);
+        if (local) {
+          localId = local.id;
+        }
+        await requerimientosRepo.updateLocal(localId, {
           fecha: isoFecha ?? hoyISO(),
           fundoId: fundoId!,
           loteId: loteId!,

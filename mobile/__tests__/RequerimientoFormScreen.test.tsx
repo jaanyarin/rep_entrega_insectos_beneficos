@@ -2,11 +2,8 @@
  * RequerimientoFormScreen — Screen 8: Formulario de Solicitud de Requerimiento
  * (MOD-18 / RF-158..167). Acceso: admin i+d.
  *
- * Approach (igual que ProgramacionEdicionScreen.test.tsx): react-test-renderer
- * + AuthProvider + mock de Keychain (JWT fabricado con makeToken) + mock axios
- * (getMockApi) para los catálogos (GET /fundos, /especies,
- * /etapas-fenologicas, /plagas, /lotes?fundoId) y el detalle
- * (GET /requerimientos/{id}).
+ * Approach: react-test-renderer + AuthProvider + mock de Keychain (JWT) +
+ * mock repositories (SQLite-first) + mock useOnlineStatus.
  *
  * Cubre:
  *  - RF-162: en creación Papel/Sobre están deshabilitados.
@@ -23,7 +20,6 @@ import {clearToken} from '../src/services/ApiClient';
 import {
   findByLabel,
   flushPromises,
-  getMockApi,
   makeToken,
 } from '../test-utils/helpers';
 
@@ -40,6 +36,67 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+jest.mock('../src/db/hooks/useOnlineStatus', () => ({
+  useOnlineStatus: jest.fn().mockReturnValue(true),
+}));
+
+const FUNDOS = [{id: 1, nombre: 'Fundo Norte', createdAt: '', updatedAt: ''}];
+const ESPECIES = [{id: 1, nombre: 'Chrysopa sp.', estado: true}];
+const ETAPAS = [{id: 1, nombre: 'Emergencia', estado: true}];
+const PLAGAS = [{id: 1, nombre: 'Pulga', estado: true}];
+
+const REQUERIMIENTO_LOCAL = {
+  id: 5,
+  serverId: 5,
+  fecha: '2026-08-10',
+  fundoId: 1,
+  loteId: 10,
+  especieId: 1,
+  etapaFenologicaId: null,
+  plagaId: 1,
+  cantidad: 20,
+  estado: 'ENTREGADO',
+  stockDisponible: 30,
+  observaciones: null,
+  papelConPostura: null,
+  sobreConCascarilla: null,
+  fechaLiberacion: '2026-08-10',
+  horaLiberacion: '10:00',
+  creadoPor: 9,
+  syncStatus: 'synced',
+  createdAt: new Date('2026-08-10T09:00:00Z'),
+  updatedAt: new Date('2026-08-10T09:00:00Z'),
+};
+
+jest.mock('../src/db/repositories', () => ({
+  requerimientosRepo: {
+    listLocal: jest.fn().mockResolvedValue([]),
+    createLocal: jest.fn().mockResolvedValue(-1),
+    updateLocal: jest.fn().mockResolvedValue(undefined),
+    getByServerId: jest.fn().mockResolvedValue(null),
+    getByIdLocal: jest.fn().mockResolvedValue(null),
+  },
+  catalogosRepo: {
+    syncAllCatalogos: jest.fn().mockResolvedValue(undefined),
+    getFundosLocal: jest.fn().mockResolvedValue([]),
+    getEspeciesLocal: jest.fn().mockResolvedValue([]),
+    getEtapasFenologicasLocal: jest.fn().mockResolvedValue([]),
+    getPlagasLocal: jest.fn().mockResolvedValue([]),
+    getLotesLocal: jest.fn().mockResolvedValue([]),
+  },
+  photosRepo: {
+    saveLocal: jest.fn().mockResolvedValue({success: true, fotoId: 1}),
+    listByRequerimiento: jest.fn().mockResolvedValue([]),
+    getPendingUpload: jest.fn().mockResolvedValue([]),
+    markUploaded: jest.fn().mockResolvedValue(undefined),
+    remove: jest.fn().mockResolvedValue(undefined),
+  },
+  programacionesRepo: {
+    listLocal: jest.fn().mockResolvedValue([]),
+    syncProgramaciones: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 const TOKEN_ADMIN = makeToken({
   sub: '9',
   groups: ['Admin'],
@@ -49,63 +106,17 @@ const TOKEN_ADMIN = makeToken({
   passwordResetRequired: false,
 });
 
-const FUNDOS = [{id: 1, nombre: 'Fundo Norte', estado: true}];
-const ESPECIES = [{id: 1, nombre: 'Chrysopa sp.', estado: true}];
-const ETAPAS = [{id: 1, nombre: 'Emergencia', estado: true}];
-const PLAGAS = [{id: 1, nombre: 'Pulga', estado: true}];
-
-const REQUERIMIENTO = {
-  id: 5,
-  fecha: '2026-08-10',
-  fundoId: 1,
-  fundo: 'Fundo Norte',
-  loteId: 10,
-  lote: 'Lote A',
-  especieId: 1,
-  especie: 'Chrysopa sp.',
-  etapaFenologicaId: null,
-  etapaFenologica: null,
-  cantidad: 20,
-  plagaId: 1,
-  plaga: 'Pulga',
-  estado: 'ENTREGADO',
-  stockDisponible: 30,
-  fechaLiberacion: '2026-08-10',
-  horaLiberacion: '10:00',
-  observaciones: null,
-  papelConPostura: null,
-  sobreConCascarilla: null,
-  creadoPor: 9,
-  createdAt: '2026-08-10T09:00:00Z',
-  updatedAt: '2026-08-10T09:00:00Z',
-};
-
-let api = getMockApi();
-
 async function renderForm() {
   (Keychain.getGenericPassword as jest.Mock).mockImplementation(
     (options?: {service?: string}) =>
       options?.service === 'accessToken' ? {password: TOKEN_ADMIN} : null,
   );
 
-  api.get.mockImplementation((url: string) => {
-    if (url === '/fundos') {
-      return Promise.resolve({data: FUNDOS});
-    }
-    if (url === '/especies') {
-      return Promise.resolve({data: ESPECIES});
-    }
-    if (url === '/etapas-fenologicas') {
-      return Promise.resolve({data: ETAPAS});
-    }
-    if (url === '/plagas') {
-      return Promise.resolve({data: PLAGAS});
-    }
-    if (url === '/requerimientos/5') {
-      return Promise.resolve({data: REQUERIMIENTO});
-    }
-    return Promise.resolve({data: []});
-  });
+  const {catalogosRepo} = require('../src/db/repositories');
+  catalogosRepo.getFundosLocal.mockResolvedValue(FUNDOS);
+  catalogosRepo.getEspeciesLocal.mockResolvedValue(ESPECIES);
+  catalogosRepo.getEtapasFenologicasLocal.mockResolvedValue(ETAPAS);
+  catalogosRepo.getPlagasLocal.mockResolvedValue(PLAGAS);
 
   let tree!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -125,9 +136,6 @@ describe('RequerimientoFormScreen — formulario admin', () => {
     await clearToken();
     mockRouteParams = {};
     mockGoBack.mockClear();
-    api.get.mockClear();
-    api.post.mockClear();
-    api.put.mockClear();
   });
 
   test('modo crear: Papel/Sobre deshabilitados (RF-162)', async () => {
@@ -142,6 +150,10 @@ describe('RequerimientoFormScreen — formulario admin', () => {
 
   test('modo editar con estado Entregado: Guardar exige papel+sobre=cantidad (RF-165)', async () => {
     mockRouteParams = {id: 5};
+
+    const {requerimientosRepo} = require('../src/db/repositories');
+    requerimientosRepo.getByServerId.mockResolvedValue(REQUERIMIENTO_LOCAL);
+
     const tree = await renderForm();
     await act(async () => {
       await flushPromises();

@@ -183,6 +183,8 @@ export interface JwtClaims {
   nombre?: string;
   dni?: string;
   passwordResetRequired?: boolean;
+  /** Expiration time (Unix timestamp en segundos). */
+  exp?: number;
 }
 
 /** Usuario de sesión decodificado del JWT en el cliente. */

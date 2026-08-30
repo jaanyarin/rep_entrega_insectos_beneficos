@@ -28,7 +28,6 @@ import {useAuth} from '../context/AuthContext';
 import type {RootStackParamList} from '../navigation/types';
 import {
   extractErrorMessage,
-  listarRequerimientos,
   type RequerimientoDto,
 } from '../services/ApiClient';
 import {theme} from '../theme';
@@ -37,6 +36,9 @@ import {formatFecha} from '../utils/programacion';
 import {
   esRangoValido,
 } from '../utils/requerimientos';
+import {requerimientosRepo, catalogosRepo} from '../db/repositories';
+import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
+import OfflineBanner from '../components/OfflineBanner';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -44,6 +46,7 @@ export default function RequerimientosListScreen() {
   const {user} = useAuth();
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
+  const isOnline = useOnlineStatus();
   const puedeGestionar = isAdminOrSuperAdmin(user);
 
   const [desdeTexto, setDesdeTexto] = useState('');
@@ -60,11 +63,51 @@ export default function RequerimientosListScreen() {
       setLoading(true);
       setError(null);
       try {
-        const lista = await listarRequerimientos({
+        // Si hay online, intentar pull del servidor (futuro SyncManager)
+        // Por ahora solo leemos de SQLite
+
+        // Siempre leer de SQLite
+        const reqsLocales = await requerimientosRepo.listLocal({
           fechaDesde: desdeISO ?? undefined,
           fechaHasta: hastaISO ?? undefined,
         });
-        setReqs(lista);
+
+        // Resolver IDs → nombres usando catálogos cache
+        const [fundos, especies, plagas] = await Promise.all([
+          catalogosRepo.getFundosLocal(),
+          catalogosRepo.getEspeciesLocal(),
+          catalogosRepo.getPlagasLocal(),
+        ]);
+        const fundoMap = new Map(fundos.map(f => [f.id, f.nombre]));
+        const especieMap = new Map(especies.map(e => [e.id, e.nombre]));
+        const plagaMap = new Map(plagas.map(p => [p.id, p.nombre]));
+
+        const reqsDto: RequerimientoDto[] = reqsLocales.map(r => ({
+          id: r.serverId ?? r.id,
+          fecha: r.fecha,
+          fundoId: r.fundoId,
+          fundo: fundoMap.get(r.fundoId) ?? '',
+          loteId: r.loteId,
+          lote: '',
+          especieId: r.especieId,
+          especie: especieMap.get(r.especieId) ?? '',
+          etapaFenologicaId: r.etapaFenologicaId,
+          etapaFenologica: null,
+          plagaId: r.plagaId,
+          plaga: r.plagaId ? (plagaMap.get(r.plagaId) ?? '') : null,
+          cantidad: r.cantidad,
+          estado: r.estado as never,
+          stockDisponible: r.stockDisponible ?? 0,
+          observaciones: r.observaciones,
+          papelConPostura: r.papelConPostura,
+          sobreConCascarilla: r.sobreConCascarilla,
+          fechaLiberacion: r.fechaLiberacion,
+          horaLiberacion: r.horaLiberacion,
+          creadoPor: r.creadoPor,
+          createdAt: r.createdAt?.toISOString() ?? '',
+          updatedAt: r.updatedAt?.toISOString() ?? '',
+        }));
+        setReqs(reqsDto);
       } catch (e) {
         setError(extractErrorMessage(e));
       } finally {
@@ -197,6 +240,7 @@ export default function RequerimientosListScreen() {
           ]}>
           {puedeGestionar ? (
             <>
+              {!isOnline && <OfflineBanner />}
               {renderFiltro}
               <AppButton
                 label="Nuevo"

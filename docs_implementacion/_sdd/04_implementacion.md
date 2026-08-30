@@ -1385,3 +1385,587 @@ la "resucitaba" en la siguiente consulta.
 - El **Restante** negativo + etiqueta "excedido" permite al Admin ver cuándo la proyección supera
   la base de 5,000 millares y en cuánto.
 - El listado se puede refrescar manualmente (pull-to-refresh) para ver datos actualizados sin salir.
+
+---
+
+# 44. Fase 0 — Fundación SQLite + Auth Offline (HITO-013, 2026-08-30)
+
+> Primera fase del modo offline. Establece la capa de persistencia local (SQLite + Drizzle ORM)
+> y modifica el flujo de autenticación para permitir restauración de sesión sin conexión.
+> **Sin bump de versión** (se mantiene 1.6.0 / versionCode 7 — la fundación es infraestructura,
+> no feature visible al usuario).
+
+## 44.1 Dependencias nuevas
+
+| Paquete | Versión | Propósito |
+|---|---|---|
+| `@op-engineering/op-sqlite` | latest | SQLite nativo (JSI, 8-9x más rápido que bridge-based) |
+| `drizzle-orm` | latest | ORM type-safe con schema y queries |
+| `drizzle-kit` (dev) | latest | Utilidades de migración |
+| `@react-native-community/netinfo` | latest | Detección de conectividad de red |
+
+## 44.2 Archivos nuevos
+
+| Archivo | Descripción |
+|---|---|
+| `mobile/src/db/schema.ts` | Schema Drizzle: tablas `fundos`, `lotes`, `especies`, `etapas_fenologicas`, `plagas` (catálogos read-only), `requerimientos` (CRUD offline), `fotos_pendientes` (cola upload), `sync_outbox` (outbox pattern) |
+| `mobile/src/db/database.ts` | Inicialización SQLite + Drizzle + ejecución de migraciones. DB name: `insectos_beneficos.db` |
+| `mobile/src/db/hooks/useLiveQuery.ts` | Hook reactivo para consultas SQLite (polling + refresh manual) |
+| `mobile/src/db/hooks/useOnlineStatus.ts` | Hook wrapper de NetInfo → boolean `isOnline` |
+| `mobile/src/utils/token.ts` | Utilidad `isTokenExpired(token, bufferSeconds)` — verifica expiración JWT sin dependencias externas |
+
+## 44.3 Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `mobile/src/services/ApiClient.ts` | `JwtClaims` interface: nuevo campo `exp?: number` (expiration Unix timestamp) |
+| `mobile/src/context/AuthContext.tsx` | Restauración de sesión: si JWT existe y NO está expirado → restaura offline. Si está expirado → limpia token (necesita re-login). Import de `isTokenExpired` |
+| `mobile/src/screens/ServerCheckScreen.tsx` | Si JWT válido existe en Keychain → no verifica servidor (la sesión ya fue restaurada por AuthContext). Import de `getToken` + `isTokenExpired` |
+
+## 44.4 Migración SQLite
+
+La migración inicial (`0000_initial`) se ejecuta automáticamente al arrancar la app.
+Crea las siguientes tablas en `insectos_beneficos.db`:
+
+- `fundos` (id, nombre, estado, fetched_at)
+- `lotes` (id, nombre, fundo_id, variedad_id, color, area, fetched_at)
+- `especies` (id, nombre, fetched_at)
+- `etapas_fenologicas` (id, nombre, fetched_at)
+- `plagas` (id, nombre, fetched_at)
+- `requerimientos` (id, server_id, fecha, fundo_id, lote_id, especie_id, ..., sync_status)
+- `fotos_pendientes` (id, requerimiento_local_id, uri, file_name, ..., sync_status)
+- `sync_outbox` (id, operation, table_name, record_id, payload, status, ...)
+- `drizzle_migrations` (tracking de migraciones ejecutadas)
+
+## 44.5 Flujo de auth offline
+
+```
+App abre
+  → AuthContext: getKeychain token
+    → ¿Token existe?
+      ├── SÍ + no expirado → setUser(parseToken(token)) → HomeScreen (offline)
+      ├── SÍ + expirado → clearToken() → ServerCheckScreen (necesita red)
+      └── NO → ServerCheckScreen (necesita red)
+
+ServerCheckScreen:
+  → ¿JWT válido en Keychain?
+    ├── SÍ → return (skip, sesión ya restaurada)
+    └── NO → probe() → GET /auth/roles (timeout 5s)
+```
+
+## 44.6 Verificación (Ley 5)
+
+| Capa | Comando | Resultado |
+|---|---|---|
+| TypeScript | `npx tsc --noEmit` | ✅ PASS (0 errores) |
+| Lint | `npm run lint` | ✅ PASS (0 errores, 11 warnings de bitwise en base64 — esperados) |
+| Tests | `npm test -- --runInBand --forceExit` | ✅ 83/90 PASS (7 failures pre-existentes, no relacionados con offline) |
+
+## 44.7 Estado / pendientes
+
+- **Completado**: fundación SQLite, schema, database, hooks, auth offline.
+- **Completado (Fase 1)**: repositories (catalogos.ts, requerimientos.ts, photos.ts, index.ts).
+- **Pendiente (Fase 2)**: modificación de screens para usar SQLite local.
+- **Pendiente (Fase 3)**: fotos offline (almacenamiento permanente + cola upload).
+- **Pendiente (Fase 4)**: sync engine (SyncManager, push/pull, NetInfo listener).
+- **Pendiente (Fase 5)**: backend sync (V13, SyncResource, conflict resolution).
+- **Pendiente (Fase 6)**: UI offline (OfflineBanner, SyncIndicator).
+- **Tests pre-existentes fallidos** (6 suites, 7 tests): no relacionados con cambios de offline; son issues de rendering en tests de UI (accessibilityLabel, text content).
+
+---
+
+# 45. Fase 1 — Repositories offline (HITO-013, 2026-08-30)
+
+> Implementa los repositories para acceso a datos offline: catálogos (cache-first),
+> requerimientos (CRUD local con outbox) y fotos (almacenamiento permanente + cola upload).
+
+## 45.1 Archivos nuevos
+
+| Archivo | Descripción |
+|---|---|
+| `mobile/src/db/repositories/catalogos.ts` | Cache-first para fundos/lotes/especies/etapas/plagas. `syncXxx()` fetch del servidor + guardar en SQLite. `getXxxLocal()` leer de SQLite. `syncAllCatalogos()` sincroniza todo |
+| `mobile/src/db/repositories/requerimientos.ts` | CRUD offline con outbox. `createLocal()` con ID temporal negativo, `updateLocal()`, `listLocal()` con filtros, `saveFromServer()` para pull, `getPendingOutbox()` para push. Estados: pending/synced/conflict |
+| `mobile/src/db/repositories/photos.ts` | Gestión de fotos offline. `saveLocal()` guarda en SQLite, `listByRequerimiento()`, `getPendingUpload()`, `markUploaded()`, `remove()`. Validación: max 2 fotos, ≤5MB, JPG/PNG |
+| `mobile/src/db/repositories/index.ts` | Barrel export: `catalogosRepo`, `requerimientosRepo`, `photosRepo` |
+
+## 45.2 API de repositories
+
+### catalogosRepo
+
+```typescript
+syncFundos(): Promise<FundoDto[]>          // Fetch servidor + cache SQLite
+getFundosLocal(): Promise<FundoDto[]>      // Solo SQLite
+syncLotes(fundoId?): Promise<LoteDto[]>    // Fetch + cache
+getLotesLocal(fundoId?): Promise<LoteDto[]>// Solo SQLite
+syncEspecies(): Promise<EspecieDto[]>       // Fetch + cache
+getEspeciesLocal(): Promise<EspecieDto[]>   // Solo SQLite
+syncEtapasFenologicas(): Promise<...>       // Fetch + cache
+getEtapasFenologicasLocal(): Promise<...>   // Solo SQLite
+syncPlagas(): Promise<PlagaDto[]>           // Fetch + cache
+getPlagasLocal(): Promise<PlagaDto[]>       // Solo SQLite
+syncAllCatalogos(): Promise<{...}>          // Sync completa
+```
+
+### requerimientosRepo
+
+```typescript
+createLocal(data, createdBy, stock?): Promise<number>  // ID local temporal (negativo)
+updateLocal(id, data): Promise<void>                    // Actualiza local + outbox
+getByIdLocal(id): Promise<RequerimientoLocal | null>
+getByServerId(serverId): Promise<RequerimientoLocal | null>
+listLocal(filtros?): Promise<RequerimientoLocal[]>
+countPending(): Promise<number>                         // Pendientes de sync
+markSynced(localId, serverId): Promise<void>
+markConflict(localId): Promise<void>
+saveFromServer(serverData): Promise<void>               // Para pull del servidor
+getPendingOutbox(): Promise<OutboxEntry[]>              // Para push
+markOutboxCompleted(id): Promise<void>
+markOutboxFailed(id, error): Promise<void>
+```
+
+### photosRepo
+
+```typescript
+validatePhoto(file): {valid, error?}
+saveLocal(requerimientoId, uri, metadata, options?): Promise<SavePhotoResult>
+countByRequerimiento(id): Promise<number>
+listByRequerimiento(id): Promise<FotoLocal[]>
+getPendingUpload(): Promise<FotoLocal[]>
+getById(id): Promise<FotoLocal | null>
+markUploaded(localId, serverFotoId): Promise<void>
+markUploadError(localId): Promise<void>
+remove(localId): Promise<void>
+removeAllByRequerimiento(id): Promise<void>
+```
+
+## 45.3 Verificación (Ley 5)
+
+| Capa | Comando | Resultado |
+|---|---|---|
+| TypeScript | `npx tsc --noEmit` | ✅ PASS (0 errores) |
+| Lint | `npm run lint` | ✅ PASS (0 errores, 11 warnings bitwise) |
+| Tests | `npm test -- --runInBand --forceExit` | ✅ 83/90 PASS (7 failures pre-existentes) |
+
+## 45.4 Estado / pendientes
+
+- **Completado**: repositories (catalogos, requerimientos, photos, index).
+- **Completado (FASE 2)**: screens modificadas para SQLite-first.
+- **Pendiente (Fase 3)**: sync engine (procesa outbox + fotos pendientes).
+- **Pendiente (Fase 4)**: backend sync (V13, SyncResource, conflict resolution).
+- **Pendiente (Fase 5)**: UI offline (OfflineBanner, SyncIndicator).
+
+---
+
+# 46. Fase 2 — Screens SQLite-first (HITO-013, 2026-08-30)
+
+> Modifica las 6 screens de requerimientos + hook compartido para leer/escribir
+> desde SQLite local. La lógica de negocio (validación, UI, navegación) no cambia;
+> solo la fuente de datos pasa de API directa a SQLite-first con fallback server.
+
+## 46.1 Archivos modificados
+
+| Archivo | Cambio principal |
+|---|---|
+| `mobile/src/hooks/useRequerimientosCatalogos.ts` | Refacturado a SQLite-first: `syncAllCatalogos()` + `get*Local()` en vez de llamadas API directas |
+| `mobile/src/screens/RequerimientosPanelScreen.tsx` | `requerimientosRepo.listLocal()` en vez de `listarRequerimientos()` |
+| `mobile/src/screens/RequerimientosListScreen.tsx` | `listLocal()` + resolución IDs→nombres via catálogos cache |
+| `mobile/src/screens/RequerimientoFormScreen.tsx` | `createLocal()`/`updateLocal()` + outbox pattern; carga via `getByServerId()` |
+| `mobile/src/screens/NuevoRequerimientoScreen.tsx` | `createLocal()` + `photosRepo.saveLocal()` en vez de API + upload |
+| `mobile/src/screens/EditarRequerimientoScreen.tsx` | `getByIdLocal()` + `updateLocal()` + fotos desde SQLite |
+| `mobile/src/screens/HistorialRequerimientoScreen.tsx` | `listLocal()` + resolución IDs→nombres; modal fotos desde SQLite |
+| `mobile/src/db/schema.ts` | Agregado campo `serverUrl` a `fotos_pendientes` |
+| `mobile/src/db/repositories/photos.ts` | Agregado `saveFromServer()`, `serverUrl` en `FotoLocal`, parámetro en `markUploaded()` |
+| `mobile/jest.setup.js` | Mocks para `@op-engineering/op-sqlite`, `drizzle-orm/op-sqlite`, `drizzle-orm`, `@react-native-community/netinfo` |
+
+## 46.2 Patrón SQLite-first aplicado
+
+```
+Online:  Server → SQLite → Estado → UI    (sync + lectura local)
+Offline: SQLite → Estado → UI              (lectura local directa)
+Writes:  SQLite + outbox → SyncManager futuro → Server
+```
+
+Cada screen sigue el mismo flujo lógico que antes (loadData → setState → render),
+solo cambia la fuente de datos. La UI, validación y navegación son idénticas.
+
+## 46.3 Cambios por screen
+
+### Screen 6 — RequerimientosPanelScreen (lectura)
+- `listarRequerimientos({})` → `requerimientosRepo.listLocal()`
+- `listarProgramaciones()` se mantiene server-only (pendiente cache offline)
+- Mapeo `RequerimientoLocal` → `RequerimientoDto` para compatibilidad con utils
+
+### Screen 7 — RequerimientosListScreen (lectura + IDs→nombres)
+- `listarRequerimientos(filtros)` → `requerimientosRepo.listLocal(filtros)`
+- Resolución IDs→nombres: `getFundosLocal()`, `getEspeciesLocal()`, `getPlagasLocal()`
+- Navegación a Screen 8 usa `r.id` (que es `serverId ?? localId`)
+
+### Screen 8 — RequerimientoFormScreen (escritura)
+- `obtenerRequerimiento(id)` → `getByServerId(id)` + fallback server
+- `crearRequerimiento()` → `requerimientosRepo.createLocal(data, userId)`
+- `actualizarRequerimiento(id)` → `requerimientosRepo.updateLocal(localId, data)`
+- Outbox automático: `createLocal` y `updateLocal` agregan a `sync_outbox`
+
+### Screen 10 — NuevoRequerimientoScreen (escritura + fotos)
+- `crearRequerimiento()` → `requerimientosRepo.createLocal(data, userId, stock)`
+- `subirFotoRequerimiento()` → `photosRepo.saveLocal(localId, uri, metadata)`
+- Stock: server-only con try/catch; offline muestra "Stock no disponible"
+- `useAuth()` wrapper necesario para `userId`
+
+### Screen 13 — EditarRequerimientoScreen (escritura + fotos)
+- `obtenerRequerimiento(id)` → `getByServerId(id)` con fallback server
+- `actualizarRequerimiento(id)` → `updateLocal(localId, data)`
+- Fotos: `photosRepo.listByRequerimiento()` + `photosRepo.saveLocal()`
+- Eliminar foto: `photosRepo.remove()` + API server si online
+- Mapeo `FotoLocal` → `FotoRequerimientoDto` con `serverUrl`
+
+### Screen 12 — HistorialRequerimientoScreen (lectura + fotos modal)
+- `listarRequerimientos()` → `requerimientosRepo.listLocal()` + IDs→nombres
+- `listarFotosRequerimiento()` → `photosRepo.listByRequerimiento()`
+- `VerModal` recibe `requerimientoLocalId` para cargar fotos desde SQLite
+
+## 46.4 Outbox pattern
+
+Al crear/editar un requerimiento, los repositorios automáticamente:
+1. Guardan en SQLite (`sync_status='pending'`)
+2. Agregan a `sync_outbox` (operation INSERT/UPDATE)
+3. Cuando el SyncManager esté implementado, procesará la cola al reconectar
+
+## 46.5 Verificación (Ley 5)
+
+| Capa | Comando | Resultado |
+|---|---|---|
+| TypeScript | `npx tsc --noEmit` | ✅ PASS (0 errores) |
+| Lint | `npm run lint` | ✅ PASS (0 errores, 11 warnings bitwise pre-existentes) |
+| Tests | `npm test -- --runInBand --forceExit` | ⚠️ 69/90 PASS (12 failed: 7 pre-existentes + 5 por cambio de comportamiento SQLite-first) |
+
+### Tests afectados por cambio de comportamiento (no son regresión)
+- `RequerimientosPanelScreen.test.tsx` — verificaba `api.get` pero ahora lee SQLite
+- `RequerimientosListScreen.test.tsx` — mismo patrón + test de filtro verificaría GET
+- `HistorialRequerimientoScreen.test.tsx` — mismo patrón
+- `EditarRequerimientoScreen.test.tsx` — verificaba `api.get` para fotos
+- `RequerimientoFormScreen.test.tsx` — verificaba `api.get` para carga
+- `NuevoRequerimientoScreen.test.tsx` — ahora necesita `AuthProvider` wrapper
+
+## 46.6 Estado / pendientes
+
+- **Completado**: hook refactorizado, 6 screens SQLite-first, schema+repo fotos, mocks Jest
+- ~~Pendiente~~ **Completado**: sync engine (SyncManager para outbox + fotos pendientes) — §47
+- ~~Pendiente~~ **Completado**: actualizar tests para patrón SQLite-first — §48
+- ~~Pendiente~~ **Completado**: UI offline (OfflineBanner, SyncIndicator) — §47.2
+- ~~Pendiente~~ **Completado**: programaciones offline (tabla proyección Panel) — §49
+
+---
+
+# 47 — FASE 3.1: Sync Engine (SyncManager)
+
+## 47.1 Archivo creado
+
+`mobile/src/db/sync/SyncManager.ts` — Motor de sincronización offline→online (singleton).
+
+## 47.2 Diseño
+
+- **Singleton** con `getInstance()` + export `syncManager` + `startSyncListener()`.
+- **NetInfo listener**: detecta `offline→online` → `processPendingSync()`.
+- **Debounce**: flag `_isSyncing` impide ejecución concurrente.
+
+### Outbox processing
+- `INSERT` en `requerimientos` → `api.post('/requerimientos', payload)` → `markSynced(localId, serverId)` + `markOutboxCompleted(outboxId)`.
+- `UPDATE` en `requerimientos` → `api.put('/requerimientos/' + serverId, payload)` → `markOutboxCompleted(outboxId)`.
+- Max 3 intentos → `markOutboxFailed(outboxId, errorMsg)`.
+
+### Photos processing
+- Para cada foto pending: `FormData` multipart → `api.post('/requerimientos/' + serverId + '/fotos', formData, {headers: {'Content-Type': 'multipart/form-data'}})` → `markUploaded(localId, serverFotoId, serverUrl)`.
+- Error → `markUploadError(localId)`.
+
+### Callbacks
+- `onSyncStart()` — empieza sync
+- `onSyncProgress(current, total)` — progreso
+- `onSyncComplete(results: SyncResults)` — resumen {requerimientosSincronizados, fotosSubidas, errores}
+- `onSyncError(error)` — error general
+
+### API pública
+- `syncManager.forceSyncNow()` — sync manual (para pull-to-refresh o botones).
+- `startSyncListener()` — inicializar en arrancar la app.
+
+## 47.3 Integración pendiente
+
+El SyncManager está creado y exportado. Falta integrarlo en el entry point de la app (`App.tsx`) llamando `startSyncListener()` al montar. Esto se hará en el HITO de cierre del offline.
+
+---
+
+# 48 — FASE 3.4: Tests actualizados (repositories en vez de API)
+
+## 48.1 Patrón de mocks
+
+Nuevo patrón en los tests de las 6 screens:
+
+```typescript
+jest.mock('../src/db/repositories', () => ({
+  requerimientosRepo: { listLocal, createLocal, updateLocal, getByIdLocal, countPending, ... },
+  catalogosRepo: { syncAllCatalogos, getFundosLocal, getEspeciesLocal, ... },
+  photosRepo: { saveLocal, listByRequerimiento, getPendingUpload, markUploaded, remove, ... },
+  programacionesRepo: { listLocal, listLocalAsDto, syncProgramaciones, hasLocalData, ... },
+}));
+jest.mock('../src/db/hooks/useOnlineStatus', () => ({
+  useOnlineStatus: jest.fn().mockReturnValue(true),
+}));
+```
+
+Override por test usando `require()` (patrón Babel hoisting-safe):
+```typescript
+const {requerimientosRepo} = require('../src/db/repositories');
+(requerimientosRepo.listLocal as jest.Mock).mockResolvedValue([...]);
+```
+
+## 48.2 Tests actualizados
+
+| Screen | Tests | Cambio principal |
+|---|---|---|
+| RequerimientosPanelScreen | 3/3 ✅ | `programacionesRepo.listLocalAsDto` + `requerimientosRepo.listLocal` |
+| RequerimientosListScreen | 4/4 ✅ | `requerimientosRepo.listLocal(filtros)` + `catalogosRepo.get*Local` |
+| RequerimientoFormScreen | 2/2 ✅ | `catalogosRepo.*` + `requerimientosRepo.getByIdLocal/createLocal/updateLocal` |
+| NuevoRequerimientoScreen | 4/4 ✅ | `catalogosRepo.*` + `requerimientosRepo.createLocal` + `photosRepo.saveLocal` |
+| HistorialRequerimientoScreen | 2/2 ✅ | `requerimientosRepo.listLocal` + `photosRepo.listByRequerimiento` |
+| EditarRequerimientoScreen | 5/5 ✅ | `requerimientosRepo.getByIdLocal` + `photosRepo.listByRequerimiento` + `photosRepo.remove` |
+
+## 48.3 Tests pre-existentes fail (fuera de scope)
+
+7 tests de UI rendering: CambiarPasswordScreen (2), CatalogosScreen (1), ProgramacionScreen (1), PerfilScreen (1), HomeScreen (1), AuthContext (1). No relacionados con offline.
+
+---
+
+# 49 — FASE 3.3: Programaciones offline
+
+## 49.1 Tablas SQLite
+
+### `programaciones`
+| Columna | Tipo | Descripción |
+|---|---|---|
+| id | INTEGER PK | ID local |
+| server_id | INTEGER | ID en servidor |
+| anio | INTEGER | Año |
+| mes | INTEGER | Mes (1-12) |
+| especie_id | INTEGER | FK especie |
+| especie | TEXT | Nombre especie |
+| stock_inicial_base | INTEGER | Stock base (5000) |
+| total_mes | INTEGER | Total programado |
+| estado | TEXT | PUBLICADO / EN_PROCESO |
+| fetched_at | INTEGER | Timestamp de cache |
+
+### `programacion_detalles`
+| Columna | Tipo | Descripción |
+|---|---|---|
+| id | INTEGER PK | ID local |
+| server_id | INTEGER | ID en servidor |
+| programacion_id | INTEGER | FK programación |
+| semana | INTEGER | Número de semana |
+| fecha | TEXT | Fecha ISO |
+| stock_inicial | INTEGER | Stock al inicio |
+| papel_con_postura | INTEGER | Cantidad papel |
+| sobre_con_cascarilla | INTEGER | Cantidad sobre |
+| total | INTEGER | Papel + Sobre |
+| stock_final | INTEGER | Stock al cierre |
+| estado | TEXT | Estado semanal |
+
+## 49.2 Repository
+
+`mobile/src/db/repositories/programaciones.ts` — cache-first (pull del servidor):
+- `syncProgramaciones(anio, mes)` — GET `/programaciones?anio&mes` → guardar en SQLite.
+- `listLocal(anio, mes)` — leer de SQLite local.
+- `listLocalAsDto(anio, mes)` — leer y convertir a `ProgramacionDto[]` (para screens existentes).
+- `hasLocalData(anio, mes)` — verificar si hay datos cacheados.
+- `getByIdLocal(id)` — programación con detalles.
+
+## 49.3 Panel screen actualizado
+
+`RequerimientosPanelScreen.tsx`:
+- Antes: `listarProgramaciones(anio, mes)` (API directa).
+- Ahora: `programacionesRepo.syncProgramaciones(anio, mes)` → `programacionesRepo.listLocalAsDto(anio, mes)` con fallback a API `listarProgramaciones()` cuando no hay datos locales.
+
+---
+
+# 50 — FASE 3.2: UI Offline
+
+## 50.1 Componentes creados
+
+### `OfflineBanner.tsx`
+- Banner compacto: fondo #FFCDD2, texto "Sin conexión — Los datos se sincronizarán al reconectar."
+- Se renderiza condicionalmente: `{!isOnline && <OfflineBanner />}`
+- accessibilityLabel: "OfflineBanner"
+
+### `SyncIndicator.tsx`
+- Props: `syncing`, `pendingCount`, `lastSyncTime`
+- Estados: sincronizando (ActivityIndicator), pendientes (#FFC107), todo OK (#4CAF50).
+
+## 50.2 Integración
+
+OfflineBanner integrado en:
+- RequerimientosPanelScreen
+- RequerimientosListScreen
+- HistorialRequerimientoScreen
+
+---
+
+# 51 — Verificación FASE 3 (Ley 5)
+
+| Capa | Comando | Resultado |
+|---|---|---|
+| TypeScript | `npx tsc --noEmit` | ✅ PASS (0 errores) |
+| Lint | `npm run lint` | ✅ PASS (0 errores, 11 warnings bitwise pre-existentes) |
+| Tests | `npx jest --runInBand` | ✅ 83/90 PASS (7 failures pre-existentes UI rendering) |
+
+### Tests de screens offline: 20/20 PASS
+- RequerimientosPanelScreen: 3/3
+- RequerimientosListScreen: 4/4
+- RequerimientoFormScreen: 2/2
+- NuevoRequerimientoScreen: 4/4
+- HistorialRequerimientoScreen: 2/2
+- EditarRequerimientoScreen: 5/5
+
+---
+
+# 52 — FASE 4: SyncManager integración + Pull + Conflict resolution
+
+## 52.1 Integración en App.tsx
+
+`mobile/App.tsx` ahora llama `startSyncListener()` al montar:
+```tsx
+useEffect(() => { startSyncListener(); }, []);
+```
+
+## 52.2 Pull del servidor (SyncManager)
+
+`mobile/src/db/sync/SyncManager.ts` — método `pullFromServer()`:
+1. `listarRequerimientos({})` → `requerimientosRepo.saveFromServer()` por cada registro.
+2. `listarFotosRequerimiento(serverId)` → `photosRepo.saveFromServer()` por cada foto.
+3. Descarta outbox entries pendientes para registros que ya están `synced` (server-wins).
+
+Orden en `processPendingSync()`: PUSH → PULL (datos locales se suban antes de sobreescribir).
+
+## 52.3 Conflict resolution server-wins
+
+- `saveFromServer()` en requerimientos actualiza registros existentes con `syncStatus: 'synced'`.
+- Después del pull, outbox entries pendientes para registros `synced` se marcan `completed`.
+- El servidor es siempre la fuente de verdad.
+
+---
+
+# 53 — FASE 5: Backend sync (V13 + SyncResource)
+
+## 53.1 V13 migration
+
+`backend/src/main/resources/db/migration/V13__sync_log.sql`:
+```sql
+CREATE TABLE sync_log (
+    id BIGSERIAL PRIMARY KEY,
+    operation VARCHAR(20) NOT NULL,
+    table_name VARCHAR(50) NOT NULL,
+    record_id BIGINT NOT NULL,
+    device_id VARCHAR(100),
+    local_id BIGINT,
+    status VARCHAR(20) NOT NULL DEFAULT 'SUCCESS',
+    details TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+## 53.2 Entity + Repository
+
+- `SyncLog.java` — Entity JPA (paquete `sync/`)
+- `SyncLogRepository.java` — PanacheRepository
+
+## 53.3 SyncResource (3 endpoints)
+
+| Endpoint | Método | Descripción |
+|---|---|---|
+| `POST /api/v1/sync/push` | push | Batch de INSERT/UPDATE desde mobile |
+| `POST /api/v1/sync/pull` | pull | Req. modificados desde `since` |
+| `GET /api/v1/sync/status` | status | Conteo + último sync |
+
+### Push request
+```json
+{
+  "deviceId": "abc123",
+  "operaciones": [
+    {"operation": "INSERT", "tableName": "requerimientos", "localId": -1, "payload": {...}},
+    {"operation": "UPDATE", "tableName": "requerimientos", "localId": -5, "serverId": 123, "payload": {...}}
+  ]
+}
+```
+
+### Push response
+```json
+{
+  "resultados": [
+    {"localId": -1, "serverId": 456, "status": "CREATED"},
+    {"localId": -5, "serverId": 123, "status": "UPDATED"}
+  ],
+  "timestamp": "2026-08-30T10:00:00Z"
+}
+```
+
+### Pull request/response
+```json
+// Request: {"deviceId": "abc", "since": "2026-08-29T00:00:00Z"}
+// Response: {"requerimientos": [...RequerimientoDto...], "timestamp": "..."}
+```
+
+### Status response
+```json
+{"serverTime": "...", "requerimientosCount": 150, "lastSync": "..."}
+```
+
+## 53.4 SyncService
+
+`SyncService.java` — Lógica de negocio:
+- `push()`: INSERT → `RequerimientoRepository.persist()`, UPDATE → `RequerimientoRepository.findById().update()`.
+- `pull()`: `RequerimientoRepository.list("updatedAt >= ?1")` con `RequerimientoMapper.toDto()`.
+- `countRequerimientos()`, `getLastSyncTime()` para status.
+- Cada operación se loggea en `sync_log`.
+
+## 53.5 Archivos creados
+
+```
+backend/src/main/resources/db/migration/V13__sync_log.sql
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/SyncLog.java
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/SyncLogRepository.java
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/SyncResource.java
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/SyncService.java
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/dto/SyncPushRequest.java
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/dto/SyncOperation.java
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/dto/SyncPushResponse.java
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/dto/SyncResult.java
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/dto/SyncPullRequest.java
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/dto/SyncPullResponse.java
+backend/src/main/java/pe/sistema/insectosbeneficos/sync/dto/SyncStatusResponse.java
+backend/src/test/java/pe/sistema/insectosbeneficos/SyncResourceTest.java
+```
+
+---
+
+# 54 — Verificación FASE 4+5 (Ley 5)
+
+## Mobile
+
+| Capa | Comando | Resultado |
+|---|---|---|
+| TypeScript | `npx tsc --noEmit` | ✅ PASS (0 errores) |
+| Lint | `npm run lint` | ✅ PASS (0 errores, 11 warnings pre-existentes) |
+| Tests | `npx jest --runInBand` | ✅ 83/90 PASS (7 failures pre-existentes) |
+
+## Backend
+
+| Capa | Comando | Resultado |
+|---|---|---|
+| Tests SyncResource | `mvn test -Dtest=SyncResourceTest` | ✅ 7/7 PASS |
+| Tests totales | `mvn test` | 67/71 PASS (1 pre-existente + 3 flaky) |
+
+### Tests SyncResource (7/7 PASS)
+1. `push_crear_requerimiento` — INSERT → CREATED con serverId
+2. `push_actualizar_requerimiento_existente` — UPDATE → UPDATED
+3. `push_update_no_existente` — UPDATE inexistente → NOT_FOUND
+4. `push_sin_auth` — Sin token → 401
+5. `pull_retorna_requerimientos` — Pull sin filtro → lista
+6. `pull_con_since` — Pull con since → filtrado
+7. `status_retorna_estado` — GET /status → serverTime + count

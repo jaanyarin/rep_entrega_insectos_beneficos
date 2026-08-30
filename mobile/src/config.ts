@@ -7,7 +7,7 @@
  * usuario aún no ha guardado una URL o al "Restablecer" (Settings/ServerCheck).
  * Mantiene el host de la red activa de la laptop del responsable — IP actual
  * 10.13.18.103:6101 (red 10.13.18.0/23). Histórico: 10.13.18.97 (HITO-001),
- * 10.13.18.93, 192.168.18.229 (HITO-003, red LUZ - 5G) y 10.13.18.103.
+ * 10.13.18.93, 192.168.18.229 (red LUZ - 5G) y 10.13.18.103.
  * La IP cambia según la red; la URL es runtime (ServerCheck/Settings) y este
  * valor solo se usa como fallback al no haber URL guardada o al "Restablecer".
  */
