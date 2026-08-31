@@ -128,7 +128,9 @@ public class ProgramacionService {
 
         for (DetalleProgramacion d : detalles) {
             for (UpdateProgramacionRequest.UpdateDetalleRequest req : request.getDetalles()) {
-                if (d.getId().equals(req.getId())) {
+                boolean match = (req.getId() != null && d.getId().equals(req.getId()))
+                        || (req.getFecha() != null && d.getFecha().toString().equals(req.getFecha()));
+                if (match) {
                     if (req.getPapelConPostura() != null) d.setPapelConPostura(req.getPapelConPostura());
                     if (req.getSobreConCascarilla() != null) d.setSobreConCascarilla(req.getSobreConCascarilla());
                 }

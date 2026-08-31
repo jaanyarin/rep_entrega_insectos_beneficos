@@ -13,11 +13,17 @@ public class UpdateProgramacionRequest {
 
     public static class UpdateDetalleRequest {
         private Long id;
+        private String fecha;
+        private Integer semana;
         private Integer papelConPostura;
         private Integer sobreConCascarilla;
 
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
+        public String getFecha() { return fecha; }
+        public void setFecha(String fecha) { this.fecha = fecha; }
+        public Integer getSemana() { return semana; }
+        public void setSemana(Integer semana) { this.semana = semana; }
         public Integer getPapelConPostura() { return papelConPostura; }
         public void setPapelConPostura(Integer papelConPostura) { this.papelConPostura = papelConPostura; }
         public Integer getSobreConCascarilla() { return sobreConCascarilla; }

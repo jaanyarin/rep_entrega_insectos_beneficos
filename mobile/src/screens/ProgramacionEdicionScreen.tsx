@@ -132,7 +132,9 @@ export default function ProgramacionEdicionScreen() {
   } | null>(null);
 
   const puedeEditar =
-    esDiaEditable() && programacion?.estado === 'EN_PROCESO';
+    modo === 'crear'
+      ? esDiaEditable()
+      : esDiaEditable() && programacion?.estado === 'EN_PROCESO';
 
   /** Carga el catálogo de especies una única vez (montaje). */
   useEffect(() => {

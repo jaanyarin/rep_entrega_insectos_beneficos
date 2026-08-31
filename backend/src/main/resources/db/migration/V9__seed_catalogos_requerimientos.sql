@@ -5,13 +5,13 @@
 -- BAYAS" completo; "Lepidópteros larva" -> "LEPIDÓPTEROS LARVA".
 
 INSERT INTO etapas_fenologicas (nombre) VALUES
+    ('FORMACIÓN'),
+    ('POST COSECHA'),
     ('BROTACIÓN'),
     ('FLORACIÓN Y CUAJA'),
     ('CRECIMIENTO DE BAYAS'),
-    ('EMVERO'),
-    ('COSECHA'),
-    ('POST-COSECHA'),
-    ('FORMACIÓN');
+    ('ENVERO'),
+    ('COSECHA');
 
 INSERT INTO plagas (nombre) VALUES
     ('PSEUDOCOCCIDAE'),
