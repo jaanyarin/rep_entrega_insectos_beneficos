@@ -46,6 +46,8 @@ import {
 import {requerimientosRepo, photosRepo, catalogosRepo} from '../db/repositories';
 import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
 import OfflineBanner from '../components/OfflineBanner';
+import SyncIndicator from '../components/SyncIndicator';
+import {onSyncCallbacks} from '../db/sync/SyncManager';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -188,6 +190,9 @@ export default function HistorialRequerimientoScreen() {
   const [error, setError] = useState<string | null>(null);
   const [ver, setVer] = useState<RequerimientoDto | null>(null);
   const [verLocalId, setVerLocalId] = useState<number | undefined>(undefined);
+  const [syncing, setSyncing] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   const cargar = useCallback(
     async (desdeISO: string | null, hastaISO: string | null) => {
@@ -254,6 +259,27 @@ export default function HistorialRequerimientoScreen() {
   useEffect(() => {
     cargar(null, null);
   }, [cargar]);
+
+  // SyncIndicator: listen for sync events
+  useEffect(() => {
+    const unsubscribe = onSyncCallbacks({
+      onSyncStart: () => setSyncing(true),
+      onSyncComplete: res => {
+        setSyncing(false);
+        if (res.requerimientosSincronizados > 0 || res.fotosSubidas > 0) {
+          setLastSyncTime(new Date());
+          cargar(null, null);
+        }
+      },
+      onSyncError: () => setSyncing(false),
+    });
+    return unsubscribe;
+  }, [cargar]);
+
+  // SyncIndicator: count pending
+  useEffect(() => {
+    requerimientosRepo.countPending().then(c => setPendingCount(c)).catch(() => {});
+  }, [reqs]);
 
   const aplicarFiltro = () => {
     const desdeISO = desdeTexto || null;
@@ -383,6 +409,7 @@ export default function HistorialRequerimientoScreen() {
             {paddingBottom: 32 + insets.bottom},
           ]}>
           {!isOnline && <OfflineBanner />}
+          <SyncIndicator syncing={syncing} pendingCount={pendingCount} lastSyncTime={lastSyncTime} />
           {renderFiltro}
           {renderContenido()}
         </ScrollView>

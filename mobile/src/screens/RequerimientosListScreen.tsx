@@ -39,6 +39,8 @@ import {
 import {requerimientosRepo, catalogosRepo} from '../db/repositories';
 import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
 import OfflineBanner from '../components/OfflineBanner';
+import SyncIndicator from '../components/SyncIndicator';
+import {onSyncCallbacks} from '../db/sync/SyncManager';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -54,6 +56,9 @@ export default function RequerimientosListScreen() {
   const [reqs, setReqs] = useState<RequerimientoDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   const cargar = useCallback(
     async (desdeISO: string | null, hastaISO: string | null) => {
@@ -120,6 +125,27 @@ export default function RequerimientosListScreen() {
   useEffect(() => {
     cargar(null, null);
   }, [cargar]);
+
+  // SyncIndicator: listen for sync events
+  useEffect(() => {
+    const unsubscribe = onSyncCallbacks({
+      onSyncStart: () => setSyncing(true),
+      onSyncComplete: res => {
+        setSyncing(false);
+        if (res.requerimientosSincronizados > 0 || res.fotosSubidas > 0) {
+          setLastSyncTime(new Date());
+          cargar(null, null);
+        }
+      },
+      onSyncError: () => setSyncing(false),
+    });
+    return unsubscribe;
+  }, [cargar]);
+
+  // SyncIndicator: count pending
+  useEffect(() => {
+    requerimientosRepo.countPending().then(c => setPendingCount(c)).catch(() => {});
+  }, [reqs]);
 
   const aplicarFiltro = () => {
     const desdeISO = desdeTexto || null;
@@ -241,6 +267,7 @@ export default function RequerimientosListScreen() {
           {puedeGestionar ? (
             <>
               {!isOnline && <OfflineBanner />}
+              <SyncIndicator syncing={syncing} pendingCount={pendingCount} lastSyncTime={lastSyncTime} />
               {renderFiltro}
               <AppButton
                 label="Nuevo"

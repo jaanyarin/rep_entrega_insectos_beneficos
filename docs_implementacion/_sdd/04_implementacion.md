@@ -10,8 +10,8 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | HITO-012 cerrado; tabla de programación intra-semana (Lunes/Jueves reales) |
-| Versión | 1.6.0 / versionCode 7 (bump en HITO-012) |
+| Estado | HITO-013 FASE 7 completada; modo offline completo con tests |
+| Versión | 1.6.0 / versionCode 7 (bump pendiente HITO-013) |
 | Fecha | 2026-08-27 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
@@ -1969,3 +1969,117 @@ backend/src/test/java/pe/sistema/insectosbeneficos/SyncResourceTest.java
 5. `pull_retorna_requerimientos` — Pull sin filtro → lista
 6. `pull_con_since` — Pull con since → filtrado
 7. `status_retorna_estado` — GET /status → serverTime + count
+
+---
+
+# 56 — FASE 6: UI Offline Completa (HITO-013)
+
+## 56.1 Objetivo
+
+Completar la experiencia de usuario offline: todos los componentes UI indicadores de
+estado offline/sync deben estar integrados en todas las screens principales.
+
+## 56.2 Componentes implementados
+
+| Componente | Archivo | Descripción |
+|---|---|---|
+| `OfflineBanner` | `src/components/OfflineBanner.tsx` | Banner amarillo "Sin conexión — modo offline" |
+| `SyncIndicator` | `src/components/SyncIndicator.tsx` | Chip con spinner/count/timestamp en header |
+| `SyncToast` | `src/components/SyncToast.tsx` | Toast flotante al completar sync exitosa (3s fade) |
+
+## 56.3 Integración por screen
+
+| Screen | OfflineBanner | SyncIndicator | SyncToast |
+|---|---|---|---|
+| HomeScreen | ✅ | — | — (global via App.tsx) |
+| NuevoRequerimientoScreen | ✅ | — | — |
+| EditarRequerimientoScreen | ✅ | — | — |
+| RequerimientoFormScreen | ✅ | — | — |
+| RequerimientosPanelScreen | ✅ | ✅ | — |
+| RequerimientosListScreen | ✅ | ✅ | — |
+| HistorialRequerimientoScreen | ✅ | ✅ | — |
+| **App.tsx** | — | — | ✅ (global) |
+
+## 56.4 SyncToast (nuevo)
+
+- Muestra icono `cloud-check` + texto "Sincronizado: N requerimiento(s), M foto(s)".
+- Aparece con animación fade-in (300ms), se oculta tras 3 segundos con fade-out.
+- Solo se muestra si la sync tuvo cambios reales (`requerimientosSincronizados > 0 || fotosSubidas > 0`).
+- Posicionado `absolute bottom: 80` sobre el contenido, `zIndex: 9999`.
+
+## 56.5 Cambios en mocks de test
+
+- Agregado `countPending: jest.fn().mockResolvedValue(0)` a mocks de `requerimientosRepo` en:
+  - `RequerimientosListScreen.test.tsx`
+  - `HistorialRequerimientoScreen.test.tsx`
+  (PanelScreen ya lo tenía)
+
+## 56.6 Verificación FASE 6 (Ley 5)
+
+| Capa | Comando | Resultado |
+|---|---|---|
+| TypeScript | `npx tsc --noEmit` | ✅ PASS (0 errores) |
+| Lint | `npm run lint` | ✅ PASS (0 errores, 11 warnings pre-existentes) |
+| Tests | `npm test -- --forceExit` | ✅ 83/90 PASS (7 failures pre-existentes) |
+
+### Archivos modificados/creados
+
+| Archivo | Acción |
+|---|---|
+| `src/components/SyncToast.tsx` | **CREADO** — toast de sync exitosa |
+| `App.tsx` | MODIFICADO — import + render `<SyncToast />` |
+| `src/screens/RequerimientosListScreen.tsx` | MODIFICADO — +SyncIndicator, state sync, useEffects |
+| `src/screens/HistorialRequerimientoScreen.tsx` | MODIFICADO — +SyncIndicator, state sync, useEffects |
+| `__tests__/RequerimientosListScreen.test.tsx` | MODIFICADO — +countPending en mock |
+| `__tests__/HistorialRequerimientoScreen.test.tsx` | MODIFICADO — +countPending en mock |
+
+---
+
+# 57. FASE 7 — Testing + Polish (HITO-013, 2026-08-30)
+
+Tests unitarios de la capa offline: repositories (requerimientos + fotos), SyncManager,
+componentes UI (OfflineBanner, SyncIndicator, SyncToast) y hooks (useOnlineStatus, useLiveQuery).
+
+## 57.1 Archivos creados
+
+| Archivo | Tests | Descripción |
+|---|---|---|
+| `__tests__/requerimientos.repository.test.ts` | 16 | CRUD offline + outbox + conflict resolution + saveFromServer |
+| `__tests__/photos.repository.test.ts` | 17 | CRUD fotos offline + validación + upload flow |
+| `__tests__/SyncManager.test.ts` | 9 | startSyncListener, onSyncCallbacks, forceSyncNow, debounce |
+| `__tests__/OfflineBanner.test.tsx` | 3 | Renderizado del banner offline |
+| `__tests__/SyncIndicator.test.tsx` | 4 | Indicador de sync con pendingCount/syncing |
+| `__tests__/SyncToast.test.tsx` | 4 | Toast de sincronización exitosa |
+| `__tests__/useOnlineStatus.test.tsx` | 5 | Hook de conectividad |
+| `__tests__/useLiveQuery.test.tsx` | 5 | Hook reactivo SQLite |
+
+**Total nuevos: 63 tests / 8 suites**
+
+## 57.2 Patrón de mock DB
+
+Los repositories usan Drizzle ORM con tablas como objetos (`Symbol.for('drizzle:Name')`).
+Los tests mockean `getDatabase()` con un singleton `mockStore` (Map<string, any[]>)
+que usa los symbols de las tablas como keys, permitiendo persistir datos entre
+llamadas encadenadas `insert→select→update→delete`.
+
+## 57.3 Verificación FASE 7 (Ley 5)
+
+| Comando | Resultado |
+|---|---|
+| `npx tsc --noEmit` (mobile) | ✅ PASS (0 errores) |
+| `npx jest --runInBand --forceExit` (mobile) | ✅ **139/146 PASS** (7 failures pre-existentes) |
+| Tests nuevos | ✅ **60/60 PASS** (8 suites) |
+| Tests pre-existentes | ✅ Sin regresiones |
+
+### Archivos nuevos (tests)
+
+| Archivo | Líneas |
+|---|---|
+| `mobile/__tests__/requerimientos.repository.test.ts` | 16 tests CRUD + outbox |
+| `mobile/__tests__/photos.repository.test.ts` | 17 tests fotos offline |
+| `mobile/__tests__/SyncManager.test.ts` | 9 tests motor sync |
+| `mobile/__tests__/OfflineBanner.test.tsx` | 3 tests componente |
+| `mobile/__tests__/SyncIndicator.test.tsx` | 4 tests componente |
+| `mobile/__tests__/SyncToast.test.tsx` | 4 tests componente |
+| `mobile/__tests__/useOnlineStatus.test.tsx` | 5 tests hook |
+| `mobile/__tests__/useLiveQuery.test.tsx` | 5 tests hook |

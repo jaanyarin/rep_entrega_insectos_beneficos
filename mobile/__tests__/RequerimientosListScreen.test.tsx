@@ -37,6 +37,7 @@ jest.mock('../src/db/repositories', () => ({
     updateLocal: jest.fn().mockResolvedValue(undefined),
     getByServerId: jest.fn().mockResolvedValue(null),
     getByIdLocal: jest.fn().mockResolvedValue(null),
+    countPending: jest.fn().mockResolvedValue(0),
   },
   catalogosRepo: {
     syncAllCatalogos: jest.fn().mockResolvedValue(undefined),

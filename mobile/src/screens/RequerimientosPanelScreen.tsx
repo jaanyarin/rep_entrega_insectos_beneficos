@@ -43,6 +43,8 @@ import {
 import {requerimientosRepo, programacionesRepo} from '../db/repositories';
 import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
 import OfflineBanner from '../components/OfflineBanner';
+import SyncIndicator from '../components/SyncIndicator';
+import {onSyncCallbacks} from '../db/sync/SyncManager';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -57,6 +59,9 @@ export default function RequerimientosPanelScreen() {
   const [requerimientos, setRequerimientos] = useState<RequerimientoDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   const anio = anioActual();
   const mes = mesActual();
@@ -121,6 +126,27 @@ export default function RequerimientosPanelScreen() {
     loadData();
   }, [loadData]);
 
+  // SyncIndicator: listen for sync events
+  useEffect(() => {
+    const unsubscribe = onSyncCallbacks({
+      onSyncStart: () => setSyncing(true),
+      onSyncComplete: (res) => {
+        setSyncing(false);
+        if (res.requerimientosSincronizados > 0 || res.fotosSubidas > 0) {
+          setLastSyncTime(new Date());
+          loadData();
+        }
+      },
+      onSyncError: () => setSyncing(false),
+    });
+    return unsubscribe;
+  }, [loadData]);
+
+  // SyncIndicator: count pending
+  useEffect(() => {
+    requerimientosRepo.countPending().then(c => setPendingCount(c)).catch(() => {});
+  }, [requerimientos]);
+
   if (!user) {
     return null;
   }
@@ -166,6 +192,7 @@ export default function RequerimientosPanelScreen() {
           {puedeGestionar ? (
             <>
               {!isOnline && <OfflineBanner />}
+              <SyncIndicator syncing={syncing} pendingCount={pendingCount} lastSyncTime={lastSyncTime} />
               <View style={styles.accion}>
                 <AppButton
                   label="Solicitud de Requerimiento"

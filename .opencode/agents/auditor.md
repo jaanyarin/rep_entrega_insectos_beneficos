@@ -4,6 +4,7 @@ mode: subagent
 permission:
   edit: deny
   bash: ask
+  task: deny
 ---
 
 Eres el **auditor** del proyecto "Sistema de Control de Entrega de Insectos Benéficos".

@@ -14,6 +14,8 @@ import MenuButton from '../components/MenuButton';
 import type {MenuScreen, RootStackParamList} from '../navigation/types';
 import BottomNavigation from '../components/BottomNavigation';
 import {theme} from '../theme';
+import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
+import OfflineBanner from '../components/OfflineBanner';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -62,6 +64,7 @@ const MENU_POR_PERFIL: Record<string, MenuItem[][]> = {
 export default function HomeScreen() {
   const {user} = useAuth();
   const navigation = useNavigation<Navigation>();
+  const isOnline = useOnlineStatus();
 
   // V6: back físico en raíz del stack autenticado → interceptar (no cerrar).
   useEffect(() => {
@@ -82,6 +85,8 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}>
         <Text style={styles.welcome}>Bienvenido(a), {user.nombre}</Text>
         <Text style={styles.perfil}>Perfil: {user.rol}</Text>
+
+        {!isOnline && <OfflineBanner />}
 
         {grupos.map((grupo, index) => (
           <View

@@ -51,6 +51,7 @@ import {
 import {requerimientosRepo, photosRepo} from '../db/repositories';
 import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
 import {useAuth} from '../context/AuthContext';
+import OfflineBanner from '../components/OfflineBanner';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -178,6 +179,7 @@ export default function NuevoRequerimientoScreen() {
         fallbackMessage="Reintente nuevamente o cierre su sesión.">
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
           <AppHeader title="Nuevo Requerimiento" showBack onBack={navigation.goBack} />
+          {!isOnline && <OfflineBanner />}
           <ErrorState onRetry={catalogo.reload} />
         </SafeAreaView>
       </ErrorBoundary>
@@ -194,6 +196,7 @@ export default function NuevoRequerimientoScreen() {
           showBack
           onBack={navigation.goBack}
         />
+        {!isOnline && <OfflineBanner />}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

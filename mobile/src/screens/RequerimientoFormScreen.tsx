@@ -57,6 +57,7 @@ import {
 } from '../utils/requerimientos';
 import {requerimientosRepo} from '../db/repositories';
 import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
+import OfflineBanner from '../components/OfflineBanner';
 
 type Route = RouteProp<RootStackParamList, 'RequerimientoForm'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -271,6 +272,7 @@ export default function RequerimientoFormScreen() {
           showBack
           onBack={navigation.goBack}
         />
+        {!isOnline && <OfflineBanner />}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

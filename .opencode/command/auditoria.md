@@ -1,6 +1,7 @@
 ---
 description: Ejecuta un gate review objetivo por tarea/HITO con el catálogo de 32 gates del perfil auditor (G-ARQ...G-DOC-SYNC). Uso: /auditoria <alcance|task|#hito>.
 agent: auditor
+subtask: true
 ---
 
 Eres el auditor del proyecto "Sistema de Control de Entrega de Insectos Benéficos".

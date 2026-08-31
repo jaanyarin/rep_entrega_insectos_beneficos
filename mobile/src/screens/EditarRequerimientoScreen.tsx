@@ -53,6 +53,7 @@ import RequerimientoStatusChip from '../components/RequerimientoStatusChip';
 import {formatFecha} from '../utils/programacion';
 import {requerimientosRepo, photosRepo} from '../db/repositories';
 import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
+import OfflineBanner from '../components/OfflineBanner';
 
 type Route = RouteProp<RootStackParamList, 'EditarRequerimiento'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -287,6 +288,7 @@ export default function EditarRequerimientoScreen() {
         fallbackMessage="Reintente nuevamente o cierre su sesión.">
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
           <AppHeader title="Editar Requerimiento" showBack onBack={navigation.goBack} />
+          {!isOnline && <OfflineBanner />}
           <ErrorState onRetry={undefined} />
         </SafeAreaView>
       </ErrorBoundary>
@@ -303,6 +305,7 @@ export default function EditarRequerimientoScreen() {
           showBack
           onBack={navigation.goBack}
         />
+        {!isOnline && <OfflineBanner />}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
