@@ -449,7 +449,7 @@ describe('ProgramacionEdicionScreen — edición (Admin)', () => {
     expect(api.post).toHaveBeenCalledWith('/programaciones/9/publicar');
     // 4. Navegar al listado después de 1.5s (goBack, no replace)
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(() => resolve(undefined), 2000));
     });
     expect(mockGoBackCrear).toHaveBeenCalled();
   }, 10000);

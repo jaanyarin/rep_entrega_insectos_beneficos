@@ -9,6 +9,7 @@
 import {open} from '@op-engineering/op-sqlite';
 import {drizzle} from 'drizzle-orm/op-sqlite';
 import * as schema from './schema';
+import {seedCatalogosIfEmpty} from './seed/catalogos';
 
 const DB_NAME = 'insectos_beneficos.db';
 
@@ -27,8 +28,8 @@ export function getDatabase() {
   _sqliteDb = open({name: DB_NAME});
   _db = drizzle(_sqliteDb, {schema});
 
-  // Ejecutar migraciones al iniciar
-  runMigrations();
+  // Ejecutar migraciones + seed al iniciar (fire-and-forget, completa antes de navegar)
+  runMigrations().then(() => seedCatalogosIfEmpty(_sqliteDb!));
 
   return _db;
 }
