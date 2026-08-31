@@ -376,14 +376,13 @@ describe('ProgramacionEdicionScreen — edición (Admin)', () => {
     ).toBe(1);
   });
 
-  test('modo crear: selecciona especie, hace POST /programaciones y replace a editar', async () => {
+  test('modo crear: selecciona especie, genera filas, Enviar stock crea+guarda+publica', async () => {
     (useRoute as unknown as jest.Mock).mockReturnValue({
       params: {anio: 2026, mes: 8, modo: 'crear'},
     });
-    const mockReplace = jest.fn();
+    const mockGoBackCrear = jest.fn();
     (useNavigation as unknown as jest.Mock).mockReturnValue({
-      goBack: jest.fn(),
-      replace: mockReplace,
+      goBack: mockGoBackCrear,
     });
 
     const tree = await renderEdicion();
@@ -410,8 +409,9 @@ describe('ProgramacionEdicionScreen — edición (Admin)', () => {
         detalles: [],
       },
     });
+    api.put.mockResolvedValue({data: {}});
 
-    // Seleccionar una especie del catálogo.
+    // Seleccionar una especie del catálogo → genera filas vacías localmente.
     await act(async () => {
       findByLabel(tree, 'Especie Chrysopa sp.').props.onPress();
     });
@@ -419,9 +419,13 @@ describe('ProgramacionEdicionScreen — edición (Admin)', () => {
       await flushPromises();
     });
 
-    // Presionar "Crear programación".
+    // La tabla ahora debe estar visible con filas generadas.
+    // Presionar "Enviar stock" → crea (POST) + guarda (PUT) + publica (POST /publicar).
     await act(async () => {
-      findByLabel(tree, 'Crear nueva programación').props.onPress();
+      findByLabel(tree, 'Enviar stock').props.onPress();
+    });
+    await act(async () => {
+      await flushPromises();
     });
     await act(async () => {
       await flushPromises();
@@ -430,16 +434,23 @@ describe('ProgramacionEdicionScreen — edición (Admin)', () => {
       await flushPromises();
     });
 
+    // 1. POST crear
     expect(api.post).toHaveBeenCalledWith('/programaciones', {
       anio: 2026,
       mes: 8,
       especieId: 1,
     });
-    expect(mockReplace).toHaveBeenCalledWith('ProgramacionEdicion', {
-      id: 9,
-      anio: 2026,
-      mes: 8,
-      modo: 'editar',
+    // 2. PUT actualizar detalles (las filas vacías generadas)
+    expect(api.put).toHaveBeenCalledWith(
+      '/programaciones/9',
+      expect.objectContaining({stockInicialBase: 5000}),
+    );
+    // 3. POST publicar
+    expect(api.post).toHaveBeenCalledWith('/programaciones/9/publicar');
+    // 4. Navegar al listado después de 1.5s (goBack, no replace)
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 2000));
     });
-  });
+    expect(mockGoBackCrear).toHaveBeenCalled();
+  }, 10000);
 });

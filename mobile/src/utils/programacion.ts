@@ -88,6 +88,28 @@ function parsearFechaLocal(iso: string): Date {
 }
 
 /**
+ * Calcula el número de semana calendario (ISO) a partir de una fecha ISO.
+ * Retorna un número como 32, 33, 34... correspondiente a la semana del año.
+ * Usa el algoritmo ISO 8601: la semana 1 es la que contiene el primer jueves del año.
+ */
+export function semanaCalendario(iso: string | null | undefined): number {
+  if (!iso) {
+    return 0;
+  }
+  const d = parsearFechaLocal(iso);
+  if (Number.isNaN(d.getTime())) {
+    return 0;
+  }
+  // Algoritmo ISO 8601 simplificado
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  // Ajustar al jueves más cercano (ISO week starts on Monday)
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return weekNo;
+}
+
+/**
  * Formatea un ISO como 'Lun 03' / 'Jue 06' (HITO-012): etiqueta corta del día real
  * (derivada de la fecha, no de una columna `dia`) + día del mes. '—' si inválido.
  */

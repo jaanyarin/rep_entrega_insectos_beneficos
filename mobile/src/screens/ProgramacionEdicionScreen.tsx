@@ -57,6 +57,7 @@ import {
   etiquetaPeriodo,
   formatFechaCorta,
   mesActual,
+  semanaCalendario,
 } from '../utils/programacion';
 
 type Route = RouteProp<RootStackParamList, 'ProgramacionEdicion'>;
@@ -78,6 +79,30 @@ const soloNumeros = (texto: string) => texto.replace(/[^0-9]/g, '');
 function aNumero(texto: string): number {
   const n = parseInt(texto, 10);
   return Number.isNaN(n) ? 0 : n;
+}
+
+/** Genera filas vacías para modo crear (replica la lógica del backend). */
+function generarFilasVacias(anio: number, mes: number): FilaEditable[] {
+  const result: FilaEditable[] = [];
+  let stockActual = 5000;
+  const lengthOfMonth = new Date(anio, mes, 0).getDate();
+  for (let day = 1; day <= lengthOfMonth; day++) {
+    const fecha = new Date(anio, mes - 1, day);
+    const dow = fecha.getDay(); // 0=Dom, 1=Lun, 4=Jue
+    if (dow === 1 || dow === 4) {
+      const iso = `${anio}-${String(mes).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      result.push({
+        detalleId: -day, // IDs negativos para filas no persistidas
+        semana: ((day - 1) / 7) + 1,
+        fecha: iso,
+        stockInicial: stockActual,
+        papel: '',
+        sobre: '',
+      });
+      // stockActual no cambia porque papel/sobre están vacíos
+    }
+  }
+  return result;
 }
 
 export default function ProgramacionEdicionScreen() {
@@ -196,7 +221,12 @@ export default function ProgramacionEdicionScreen() {
 
   const cambiarEspecie = (id: number) => {
     setEspecieId(id);
-    seleccionarProgramacionDelPeriodo(mes, anio, id);
+    if (modo === 'crear') {
+      // Generar filas vacías para la tabla
+      setFilas(generarFilasVacias(anio, mes));
+    } else {
+      seleccionarProgramacionDelPeriodo(mes, anio, id);
+    }
   };
 
   const moverMes = (delta: number) => {
@@ -207,24 +237,18 @@ export default function ProgramacionEdicionScreen() {
   };
 
   /** Filas con total y stock final computados (remanente visual RN-037). */
-  const filasComputadas = useMemo(
-    () =>
-      filas.map((f, idx) => {
-        const papelNum = aNumero(f.papel);
-        const sobreNum = aNumero(f.sobre);
-        const total = papelNum + sobreNum;
-        const anterior = filas[idx - 1];
-        const stockInicial =
-          idx === 0
-            ? f.stockInicial
-            : anterior.stockInicial -
-              aNumero(anterior.papel) -
-              aNumero(anterior.sobre);
-        const stockFinal = stockInicial - total;
-        return {...f, papelNum, sobreNum, total, stockInicial, stockFinal};
-      }),
-    [filas],
-  );
+  const filasComputadas = useMemo(() => {
+    let runningStock = filas.length > 0 ? filas[0].stockInicial : 5000;
+    return filas.map((f, idx) => {
+      const papelNum = aNumero(f.papel);
+      const sobreNum = aNumero(f.sobre);
+      const total = papelNum + sobreNum;
+      const stockInicial = idx === 0 ? f.stockInicial : runningStock;
+      const stockFinal = stockInicial - total;
+      runningStock = stockFinal;
+      return {...f, papelNum, sobreNum, total, stockInicial, stockFinal};
+    });
+  }, [filas]);
 
   const totalMes = useMemo(
     () => filasComputadas.reduce((acc, f) => acc + f.total, 0),
@@ -276,8 +300,8 @@ export default function ProgramacionEdicionScreen() {
     }
   };
 
-  /** Crea una nueva programacion (modo 'crear') y navega al modo 'editar'. */
-  const crearNuevaProgramacion = async () => {
+  /** Crea la programación, guarda los detalles y publica en un solo paso (modo crear). */
+  const enviarStockCrear = async () => {
     if (!especieId) {
       setNotificacion({tipo: 'error', texto: 'Selecciona una especie'});
       return;
@@ -285,22 +309,29 @@ export default function ProgramacionEdicionScreen() {
     setSaving(true);
     setNotificacion(null);
     try {
-      const nueva = await crearProgramacion({
-        anio,
-        mes,
-        especieId,
+      // 1. Crear programación (POST) — genera las filas vacías en backend
+      const nueva = await crearProgramacion({anio, mes, especieId});
+      // 2. Actualizar con los valores editados (PUT)
+      await actualizarProgramacion(nueva.id, {
+        stockInicialBase: 5000,
+        detalles: filas.map(f => ({
+          id: f.detalleId > 0 ? f.detalleId : undefined,
+          semana: f.semana,
+          fecha: f.fecha,
+          papelConPostura: aNumero(f.papel),
+          sobreConCascarilla: aNumero(f.sobre),
+        })),
       });
+      // 3. Publicar (POST)
+      const res = await publicarProgramacion(nueva.id);
       setNotificacion({
         tipo: 'ok',
-        texto: 'Programación creada. Ahora puedes editarla.',
+        texto: res.mensaje || 'Programación publicada. Se notificó a Sanidad por correo.',
       });
-      // Navegar al modo 'editar' con el id creado (replace para no acumular en stack)
-      navigation.replace('ProgramacionEdicion', {
-        id: nueva.id,
-        anio: nueva.anio,
-        mes: nueva.mes,
-        modo: 'editar',
-      });
+      // 4. Navegar al listado después de 1.5s
+      setTimeout(() => {
+        navigation.goBack();
+      }, 1500);
     } catch (e) {
       setNotificacion({tipo: 'error', texto: extractErrorMessage(e)});
     } finally {
@@ -382,9 +413,9 @@ export default function ProgramacionEdicionScreen() {
             key={f.detalleId}
             style={[
               styles.tablaFila,
-              f.semana % 2 === 1 && styles.tablaFilaBand,
+              semanaCalendario(f.fecha) % 2 === 1 && styles.tablaFilaBand,
             ]}>
-            <Text style={[styles.colSemana, styles.tablaCell]}>{f.semana}</Text>
+            <Text style={[styles.colSemana, styles.tablaCell]}>{semanaCalendario(f.fecha)}</Text>
             <Text style={[styles.colFecha, styles.tablaCell]}>
               {formatFechaCorta(f.fecha)}
             </Text>
@@ -460,21 +491,27 @@ export default function ProgramacionEdicionScreen() {
           {renderPeriodo}
           {renderNotificacion}
           {modo === 'crear' ? (
-            // MODO CREAR: formulario con selector de especie y botón "Crear"
+            // MODO CREAR: selector de especie + tabla + "Enviar stock" en un solo paso
             <>
               {renderEspecies}
+              {filas.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>Proyección del Mes</Text>
+                  {renderTabla()}
+                </>
+              )}
               {!esDiaEditable() ? (
                 <Text style={styles.avisoEdicion}>
                   La creación solo está permitida los lunes y jueves de 00:00 a 23:59.
                 </Text>
               ) : null}
               <AppButton
-                label="Crear programación"
-                icon="plus"
+                label="Enviar stock"
+                icon="send-outline"
                 loading={saving}
-                disabled={!especieId || !esDiaEditable()}
-                onPress={crearNuevaProgramacion}
-                accessibilityLabel="Crear nueva programación"
+                disabled={!especieId || !esDiaEditable() || filas.length === 0}
+                onPress={enviarStockCrear}
+                accessibilityLabel="Enviar stock"
               />
             </>
           ) : error ? (

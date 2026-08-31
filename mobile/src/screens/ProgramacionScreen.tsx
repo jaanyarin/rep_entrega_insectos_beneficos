@@ -53,6 +53,7 @@ import {
   etiquetaPeriodo,
   formatFecha,
   mesActual,
+  semanaCalendario,
 } from '../utils/programacion';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -107,7 +108,7 @@ function VerModal({
               <View key={d.id ?? d.semana} style={styles.verRow}>
                 <View style={styles.verCol}>
                   <Text style={styles.verCell}>
-                    Semana {d.semana} · {formatFecha(d.fecha)}
+                    Semana {semanaCalendario(d.fecha)} · {formatFecha(d.fecha)}
                   </Text>
                   <Text style={styles.verSub}>
                     Papel: {d.papelConPostura} · Sobre: {d.sobreConCascarilla}{' '}
