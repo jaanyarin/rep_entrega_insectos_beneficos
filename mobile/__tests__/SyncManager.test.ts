@@ -4,8 +4,6 @@
  * por los repository tests y SyncManagerIntegration.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 // ─── MOCKS ─────────────────────────────────────────────────────────────────
 const mockNetInfoListeners: any[] = [];
 
@@ -99,6 +97,7 @@ describe('SyncManager - forceSyncNow', () => {
   });
 
   test('forceSync retorna null si ya está sincronizando', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const SyncManager = require('../src/db/sync/SyncManager');
     // Make processPendingSync slow by having getPendingOutbox never resolve
     const requerimientosRepo = require('../src/db/repositories/requerimientos');
@@ -106,6 +105,7 @@ describe('SyncManager - forceSyncNow', () => {
       () => new Promise(() => {}), // Never resolves
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const p1 = forceSyncNow(); // Starts sync, never finishes
     const result = await forceSyncNow(); // Should return null (already syncing)
     expect(result).toBeNull();

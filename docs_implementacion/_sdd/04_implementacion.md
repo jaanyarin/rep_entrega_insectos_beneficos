@@ -10,9 +10,9 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | HITO-013 FASE 7 completada; modo offline completo con tests |
-| Versión | 1.6.0 / versionCode 7 (bump pendiente HITO-013) |
-| Fecha | 2026-08-27 |
+| Estado | HITO-013 cerrado + fix token.ts; 150 tests / 26 suites, 0 failures |
+| Versión | 1.6.1 / versionCode 8 |
+| Fecha | 2026-08-30 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
 | Clasificación | Interno |
@@ -2062,14 +2062,30 @@ Los tests mockean `getDatabase()` con un singleton `mockStore` (Map<string, any[
 que usa los symbols de las tablas como keys, permitiendo persistir datos entre
 llamadas encadenadas `insert→select→update→delete`.
 
-## 57.3 Verificación FASE 7 (Ley 5)
+## 57.3 Verificación FASE 7 + fix (Ley 5)
 
 | Comando | Resultado |
 |---|---|
 | `npx tsc --noEmit` (mobile) | ✅ PASS (0 errores) |
-| `npx jest --runInBand --forceExit` (mobile) | ✅ **139/146 PASS** (7 failures pre-existentes) |
-| Tests nuevos | ✅ **60/60 PASS** (8 suites) |
-| Tests pre-existentes | ✅ Sin regresiones |
+| `npx jest --runInBand --forceExit` (mobile) | ✅ **150/150 PASS** (26 suites, 0 failures) |
+| `npx eslint __tests__/ --ext .ts,.tsx` | ✅ PASS (0 errores) |
+| Tests HITO-013 (FASE 0–7) | ✅ **60/60 PASS** (8 suites) |
+| Tests pre-existentes corregidos | ✅ **90/90 PASS** (7 tests que fallaban por useOnlineStatus) |
+
+### 57.4 Fix de bug de producción (token.ts base64UrlDecode)
+
+Corrección de bug en `src/utils/token.ts` — `base64UrlDecode`: los checks `c !== 64` y `d !== 64`
+usaban `chars.indexOf('=')` que retornaba `-1` (el carácter `=` no está en la tabla base64).
+Los tokens sin claim `exp` fallaban silenciosamente al decodificar, impidiendo la restauración
+de sesión offline. Corregido para verificar el carácter de padding directamente (`base64[i + 2] !== '='`).
+
+### 57.5 Fix de tests UI (useOnlineStatus)
+
+Los tests de HomeScreen, PerfilScreen, CatalogosScreen, ProgramacionScreen, CambiarPasswordScreen
+y AuthContext fallaban porque la integración de `useOnlineStatus()` y `OfflineBanner` en las screens
+(HITO-013 FASE 6) agregó un ciclo async extra que `flushPromises()` no resolvía. Solución: mock
+global de `useOnlineStatus` en `jest.setup.js` (retorna `true` por defecto; tests específicos
+overridean con `jest.requireActual`).
 
 ### Archivos nuevos (tests)
 

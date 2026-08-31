@@ -14,16 +14,14 @@ describe('SyncIndicator', () => {
   });
 
   test('renderiza sin errores cuando syncing=true', () => {
-    let tree: any;
-    act(() => { tree = ReactTestRenderer.create(<SyncIndicator syncing={true} pendingCount={0} lastSyncTime={null} />); });
+    act(() => { ReactTestRenderer.create(<SyncIndicator syncing={true} pendingCount={0} lastSyncTime={null} />); });
     // Component may render null when syncing=true and pendingCount=0
     // Just verify it doesn't throw
     expect(true).toBe(true);
   });
 
   test('renderiza con lastSyncTime', () => {
-    let tree: any;
-    act(() => { tree = ReactTestRenderer.create(<SyncIndicator syncing={false} pendingCount={0} lastSyncTime={new Date('2026-08-30T12:00:00')} />); });
+    act(() => { ReactTestRenderer.create(<SyncIndicator syncing={false} pendingCount={0} lastSyncTime={new Date('2026-08-30T12:00:00')} />); });
     // May render null if no pending count — just verify no throw
     expect(true).toBe(true);
   });

@@ -13,6 +13,9 @@ jest.mock('../src/db/sync/SyncManager', () => ({
 import SyncToast from '../src/components/SyncToast';
 
 describe('SyncToast', () => {
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => { jest.useRealTimers(); });
+
   test('renderiza sin errores inicialmente', () => {
     let tree: any;
     act(() => { tree = ReactTestRenderer.create(<SyncToast />); });

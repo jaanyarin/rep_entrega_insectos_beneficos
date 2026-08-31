@@ -3,8 +3,6 @@
  * Mock DB singleton con Drizzle table symbols para extraer nombres.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const DRIZZLE_NAME = Symbol.for('drizzle:Name');
 
 // Store compartido entre todas las llamadas a getDatabase()
@@ -76,7 +74,7 @@ beforeEach(() => {
 
 describe('requerimientos repository', () => {
   test('createLocal retorna ID negativo y crea outbox entry', async () => {
-    const id = await createLocal({fecha: '2026-08-30', fundoId: 1, loteId: 10, especieId: 1, cantidad: 100}, 5);
+    const id = await createLocal({fecha: '2026-08-30', fundoId: 1, loteId: 10, especieId: 1, etapaFenologicaId: null, plagaId: null, cantidad: 100}, 5);
     expect(id).toBeLessThan(0);
 
     const reqs = mockStore.get('requerimientos') ?? [];
@@ -172,7 +170,7 @@ describe('requerimientos repository', () => {
 
   test('updateLocal crea outbox entry UPDATE', async () => {
     mockStore.set('requerimientos', [{id: -1, syncStatus: 'synced'}]);
-    await updateLocal(-1, {fecha: '2026-08-31', fundoId: 2, loteId: 20, especieId: 2, cantidad: 200, estado: 'PENDIENTE'});
+    await updateLocal(-1, {fecha: '2026-08-31', fundoId: 2, loteId: 20, especieId: 2, etapaFenologicaId: null, plagaId: null, cantidad: 200, estado: 'PENDIENTE'});
     expect(mockStore.get('requerimientos')![0].syncStatus).toBe('pending');
     const outbox = mockStore.get('sync_outbox') ?? [];
     expect(outbox.length).toBe(1);

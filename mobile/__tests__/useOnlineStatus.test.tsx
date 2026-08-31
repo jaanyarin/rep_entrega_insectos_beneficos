@@ -1,10 +1,22 @@
 /**
  * Tests de useOnlineStatus hook.
  * Usa react-test-renderer + act() (sin @testing-library).
+ *
+ * IMPORTANTE: jest.setup.js mockea useOnlineStatus globalmente (retorna true
+ * síncrono). Este test necesita el hook REAL (con NetInfo.fetch/addEventListener),
+ * así que overridea el mock global con jest.requireActual.
  */
 import React from 'react';
 import ReactTestRenderer, {act} from 'react-test-renderer';
 import NetInfo from '@react-native-community/netinfo';
+
+// Override del mock global de jest.setup.js — necesitamos la implementación real
+// para testear el comportamiento de NetInfo.fetch / addEventListener.
+jest.mock('../src/db/hooks/useOnlineStatus', () => {
+  const actual = jest.requireActual('../src/db/hooks/useOnlineStatus');
+  return actual;
+});
+
 import {useOnlineStatus} from '../src/db/hooks/useOnlineStatus';
 
 jest.mock('@react-native-community/netinfo', () => ({

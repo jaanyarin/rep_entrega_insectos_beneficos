@@ -3,8 +3,6 @@
  * Mock DB singleton con Drizzle table symbols.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const DRIZZLE_NAME = Symbol.for('drizzle:Name');
 const mockStore = new Map<string, any[]>();
 
@@ -143,12 +141,12 @@ describe('photos repository', () => {
   test('remove elimina foto', async () => {
     mockStore.set('fotos_pendientes', [{id: 1}]);
     await remove(1);
-    expect(mockStore.get('fotos_pendientes').length).toBe(0);
+    expect(mockStore.get('fotos_pendientes')!.length).toBe(0);
   });
 
   test('removeAllByRequerimiento elimina todas', async () => {
     mockStore.set('fotos_pendientes', [{id: 1, requerimientoLocalId: 1}, {id: 2, requerimientoLocalId: 1}, {id: 3, requerimientoLocalId: 2}]);
     await removeAllByRequerimiento(1);
-    expect(mockStore.get('fotos_pendientes').length).toBe(0);
+    expect(mockStore.get('fotos_pendientes')!.length).toBe(0);
   });
 });

@@ -29,7 +29,8 @@ backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, role
               fotos de requerimiento (migraciones V1-V12)
 mobile/       App React Native CLI 0.86 / React 19.2.3 — auth v2 (login 3 pasos, URL runtime,
               SecureStore/keychain), módulos Programación (Lunes/Jueves reales + Restante, pull-to-refresh),
-              Requerimientos, Catálogos y fotos de requerimiento + hook usePhotoCapture — versión 1.6.0
+              Requerimientos, Catálogos, fotos de requerimiento + hook usePhotoCapture,
+              modo offline (SQLite + outbox + sync) — versión 1.6.1
 web/          Frontend React + Vite (pendiente de scaffold)
 docs_implementacion/
 ├── _sdd/                      Especificación, plan, tareas e implementación
@@ -79,6 +80,11 @@ docs_implementacion/
   **Restante** (stock base 5000 − acumulado; puede ser negativo y muestra el excedido en rojo), inputs
   vacíos con valor 0, fondo suave por semana y pull-to-refresh. Migración V12 (`UNIQUE(programacion_id,
   fecha)`, sin columna `dia`). 90 tests MO / 18 suites (versión 1.6.0 / versionCode 7).
+- **HITO-013 cerrado (2026-08-30) = Modo Offline Completo**: persistencia SQLite con Drizzle ORM,
+  repositories CRUD offline (requerimientos + fotos), motor de sincronización outbox→push→pull,
+  UI adaptativa (OfflineBanner, SyncIndicator, SyncToast), hooks (useOnlineStatus, useLiveQuery).
+  Suite de testing: 150 tests / 26 suites (0 failures). Corrección de bug en decodificación
+  base64url de JWT (`token.ts`). Versión **1.6.1** / versionCode 8.
 - **Pendientes**: endpoint backend para servir fotos estáticas (requerido para visualización real en `<Image>`),
   validación end-to-end desde mobile contra el backend real, actas PDF, frontend web (React/Vite) y CI/CD
   (GitHub Actions). Ver [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).

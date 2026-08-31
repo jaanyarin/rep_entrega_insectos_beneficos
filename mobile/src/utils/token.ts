@@ -85,10 +85,10 @@ function base64UrlDecode(str: string): string {
 
     const bitmap = (a << 18) | (b << 12) | (c << 6) | d;
     result += String.fromCharCode((bitmap >> 16) & 255);
-    if (c !== 64) {
+    if (base64[i + 2] !== '=') {
       result += String.fromCharCode((bitmap >> 8) & 255);
     }
-    if (d !== 64) {
+    if (base64[i + 3] !== '=') {
       result += String.fromCharCode(bitmap & 255);
     }
   }

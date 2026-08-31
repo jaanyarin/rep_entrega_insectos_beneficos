@@ -6,6 +6,15 @@
 
 const versionHistory = [
   {
+    version: '1.6.1',
+    fecha: '2026-08-30',
+    cambios: [
+      'Corrección de bug en decodificación base64url de JWT (token.ts): el padding de tokens sin claim exp fallaba silenciosamente, impidiendo la restauración de sesión offline.',
+      'Suite de testing completa: 150 tests (26 suites) con 0 failures — mocks globales de useOnlineStatus e isTokenExpired para tests de UI.',
+      'Corrección de 7 tests de UI afectados por la integración de OfflineBanner/useOnlineStatus (HITO-013 FASE 6).',
+    ],
+  },
+  {
     version: '1.6.0',
     fecha: '2026-08-27',
     cambios: [

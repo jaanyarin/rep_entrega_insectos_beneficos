@@ -92,6 +92,19 @@ jest.mock('@react-native-community/netinfo', () => {
   };
 });
 
+// Mock de useOnlineStatus: por defecto online. Tests específicos pueden overridearlo.
+jest.mock('./src/db/hooks/useOnlineStatus', () => ({
+  __esModule: true,
+  useOnlineStatus: jest.fn(() => true),
+}));
+
+// Mock de isTokenExpired: por defecto NO expirado (tokens de test no tienen exp).
+// Tests que validen el flujo real de expiración pueden overridearlo con
+// jest.requireActual para testear la implementación de token.ts.
+jest.mock('./src/utils/token', () => ({
+  isTokenExpired: jest.fn(() => false),
+}));
+
 // Mock de axios: ApiClient usa `axios.create()` + interceptores; en Jest se
 // sustituye la instancia para que NINGÚN test haga llamadas de red. Por
 // defecto GET devuelve `[]` y POST `{}` (ampliable por test con jest.mock

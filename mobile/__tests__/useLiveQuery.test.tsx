@@ -13,7 +13,7 @@ jest.mock('../src/db/database', () => ({
 
 // Helper: componente que usa el hook y expone su estado
 function HookTest({queryFn, deps}: {queryFn: any; deps: any[]}) {
-  const {data, loading, error, refresh} = useLiveQuery(queryFn, deps);
+  const {data, loading, error} = useLiveQuery(queryFn, deps);
   return (
     <>
       <>{loading ? 'loading-true' : 'loading-false'}</>
@@ -59,7 +59,7 @@ describe('useLiveQuery', () => {
     (getDatabase as jest.Mock).mockReturnValue(makeDb(mockData));
     let tree: any;
     act(() => { tree = ReactTestRenderer.create(<HookTest queryFn={async (db: any) => { const r = db.select(); return r.from(); }} deps={[]} />); });
-    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+    await act(async () => { await new Promise<void>(r => setTimeout(r, 100)); });
     const json = JSON.stringify(tree.toJSON());
     expect(json).toContain('loading-false');
     expect(json).toContain('1'); // data.length
@@ -69,7 +69,7 @@ describe('useLiveQuery', () => {
     (getDatabase as jest.Mock).mockReturnValue(makeDb([], true));
     let tree: any;
     act(() => { tree = ReactTestRenderer.create(<HookTest queryFn={async (db: any) => { const r = db.select(); return r.from(); }} deps={[]} />); });
-    await act(async () => { await new Promise(r => setTimeout(r, 100)); });
+    await act(async () => { await new Promise<void>(r => setTimeout(r, 100)); });
     const json = JSON.stringify(tree.toJSON());
     expect(json).toContain('DB error');
   });
