@@ -11,6 +11,6 @@
  * La IP cambia según la red; la URL es runtime (ServerCheck/Settings) y este
  * valor solo se usa como fallback al no haber URL guardada o al "Restablecer".
  */
-const API_BASE_URL = 'http://10.13.18.103:6101/api/v1';
+const API_BASE_URL = 'http://10.13.18.118:6101/api/v1';
 
 export default API_BASE_URL;

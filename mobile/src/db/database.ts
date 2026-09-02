@@ -15,6 +15,7 @@ const DB_NAME = 'insectos_beneficos.db';
 
 let _db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 let _sqliteDb: ReturnType<typeof open> | null = null;
+let _dbReady: Promise<void> | null = null;
 
 /**
  * Inicializa la base de datos SQLite y Drizzle.
@@ -28,10 +29,27 @@ export function getDatabase() {
   _sqliteDb = open({name: DB_NAME});
   _db = drizzle(_sqliteDb, {schema});
 
-  // Ejecutar migraciones + seed al iniciar (fire-and-forget, completa antes de navegar)
-  runMigrations().then(() => seedCatalogosIfEmpty(_sqliteDb!));
+  // Ejecutar migraciones + seed al iniciar. El promise se expone vía
+  // waitForDatabase() para que los hooks puedan esperar antes de leer.
+  _dbReady = runMigrations()
+    .then(() => seedCatalogosIfEmpty(_sqliteDb!))
+    .catch(() => {});
 
   return _db;
+}
+
+/**
+ * Espera a que las migraciones + seed de la DB completen.
+ * Seguro de llamar múltiples veces (el mismo promise se reutiliza).
+ * Resuelve inmediatamente si la DB ya está inicializada.
+ */
+export function waitForDatabase(): Promise<void> {
+  if (_dbReady) {
+    return _dbReady;
+  }
+  // Si getDatabase() no se ha llamado aún, forzar inicialización.
+  getDatabase();
+  return _dbReady!;
 }
 
 /**

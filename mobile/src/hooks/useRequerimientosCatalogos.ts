@@ -25,6 +25,7 @@ import {
 } from '../services/ApiClient';
 import {catalogosRepo} from '../db/repositories';
 import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
+import {waitForDatabase} from '../db/database';
 
 export function useRequerimientosCatalogos() {
   const isOnline = useOnlineStatus();
@@ -53,6 +54,8 @@ export function useRequerimientosCatalogos() {
     setLoadingCatalogo(true);
     setErrorCatalogo(null);
     try {
+      // Esperar a que SQLite esté listo (migraciones + seed).
+      await waitForDatabase();
       if (isOnline) {
         // Sync completa desde servidor
         await catalogosRepo.syncAllCatalogos();
