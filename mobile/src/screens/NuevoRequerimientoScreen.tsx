@@ -37,8 +37,10 @@ import {usePhotoCapture} from '../hooks/usePhotoCapture';
 import {useRequerimientosCatalogos} from '../hooks/useRequerimientosCatalogos';
 import type {RootStackParamList} from '../navigation/types';
 import {
+  crearRequerimiento,
   extractErrorMessage,
   obtenerStockEspecie,
+  subirFotoRequerimiento,
 } from '../services/ApiClient';
 import {theme} from '../theme';
 import {
@@ -48,10 +50,6 @@ import {
   validarCantidadVsStock,
   type FormularioRequerimientoBasico,
 } from '../utils/requerimientos';
-import {requerimientosRepo, photosRepo} from '../db/repositories';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import {useAuth} from '../context/AuthContext';
-import OfflineBanner from '../components/OfflineBanner';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -60,8 +58,6 @@ const MAX_PHOTOS = 2;
 export default function NuevoRequerimientoScreen() {
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
-  const {user} = useAuth();
-  const isOnline = useOnlineStatus();
 
   const catalogo = useRequerimientosCatalogos();
   const {
@@ -82,8 +78,6 @@ export default function NuevoRequerimientoScreen() {
   const [observaciones, setObservaciones] = useState('');
 
   const [stock, setStock] = useState<number | null>(null);
-  // errorCatalogo (del hook) → ErrorState a pantalla completa; errorEnvio
-  // (fallo al crear) → alert inline sin ocultar los datos del formulario.
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -99,11 +93,6 @@ export default function NuevoRequerimientoScreen() {
       const eid = Number(value);
       setEspecieId(eid);
       setStock(null);
-      if (!isOnline) {
-        // Offline: stock no disponible
-        setStock(null);
-        return;
-      }
       try {
         const res = await obtenerStockEspecie(eid);
         setStock(res.stock);
@@ -111,7 +100,7 @@ export default function NuevoRequerimientoScreen() {
         setStock(null);
       }
     },
-    [isOnline],
+    [],
   );
 
   const cantidadNum = cantidadDesdeTexto(cantidadTexto);
@@ -135,28 +124,22 @@ export default function NuevoRequerimientoScreen() {
     setSaving(true);
     setErrorEnvio(null);
     try {
-      // Offline-first: guardar requerimiento en SQLite + outbox
-      const localId = await requerimientosRepo.createLocal(
-        {
-          fecha: isoFecha ?? hoyISO(),
-          fundoId: fundoId!,
-          loteId: loteId!,
-          especieId: especieId!,
-          etapaFenologicaId: etapaId,
-          cantidad: cantidadNum,
-          plagaId,
-          observaciones: observaciones.trim() || null,
-        },
-        Number(user?.sub) || 0,
-        stock ?? undefined,
-      );
-      // Guardar fotos localmente (en vez de subir al servidor)
+      const nuevo = await crearRequerimiento({
+        fecha: isoFecha ?? hoyISO(),
+        fundoId: fundoId!,
+        loteId: loteId!,
+        especieId: especieId!,
+        etapaFenologicaId: etapaId,
+        cantidad: cantidadNum,
+        plagaId,
+        observaciones: observaciones.trim() || null,
+      });
       for (const foto of fotos) {
-        await photosRepo.saveLocal(localId, foto.uri, {
+        await subirFotoRequerimiento(nuevo.id, {
+          uri: foto.uri,
           type: foto.type,
-          fileSize: foto.fileSize,
-          fileName: foto.fileName,
-        }, {metadatos: {tipo: 'EVIDENCIA'}});
+          name: foto.fileName,
+        }, JSON.stringify({tipo: 'EVIDENCIA'}));
       }
       navigation.goBack();
     } catch (e) {
@@ -179,11 +162,7 @@ export default function NuevoRequerimientoScreen() {
         fallbackMessage="Reintente nuevamente o cierre su sesión.">
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
           <AppHeader title="Nuevo Requerimiento" showBack onBack={navigation.goBack} />
-          {!isOnline && <OfflineBanner />}
-          <ErrorState
-            message={catalogo.errorCatalogo ?? undefined}
-            onRetry={catalogo.reload}
-          />
+          <ErrorState onRetry={catalogo.reload} />
         </SafeAreaView>
       </ErrorBoundary>
     );
@@ -199,7 +178,6 @@ export default function NuevoRequerimientoScreen() {
           showBack
           onBack={navigation.goBack}
         />
-        {!isOnline && <OfflineBanner />}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

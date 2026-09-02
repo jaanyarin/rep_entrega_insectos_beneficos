@@ -1,7 +1,9 @@
 /**
  * NuevoRequerimientoScreen — Screen 10: Formulario de Nuevo Requerimiento
- * (user). Approach: react-test-renderer + AuthProvider + mock de Keychain +
- * mock repositories (SQLite-first) + mock useOnlineStatus + mock api (stock).
+ * (user). Approach: react-test-renderer + mock de Keychain + mock axios
+ * (getMockApi) para los catálogos (GET /fundos, /especies, /etapas-fenologicas,
+ * /plagas, /lotes?fundoId), el stock (GET /programaciones/{especieId}/stock) y
+ * la creación (POST /requerimientos) con upload de fotos (POST multipart).
  *
  * Los desplegables (SelectField) abren un Modal: se abre el campo y luego se
  * elige la opción (accessibilityLabel "Opción <Campo> <Nombre>").
@@ -12,7 +14,6 @@ import ReactTestRenderer, {act} from 'react-test-renderer';
 import * as Keychain from 'react-native-keychain';
 import {launchImageLibrary} from 'react-native-image-picker';
 import {useNavigation} from '@react-navigation/native';
-import {AuthProvider} from '../src/context/AuthContext';
 import NuevoRequerimientoScreen from '../src/screens/NuevoRequerimientoScreen';
 import {clearToken} from '../src/services/ApiClient';
 import {
@@ -31,44 +32,6 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-jest.mock('../src/db/hooks/useOnlineStatus', () => ({
-  useOnlineStatus: jest.fn().mockReturnValue(true),
-}));
-
-jest.mock('../src/db/repositories', () => ({
-  requerimientosRepo: {
-    listLocal: jest.fn().mockResolvedValue([]),
-    createLocal: jest.fn().mockResolvedValue(-1),
-    updateLocal: jest.fn().mockResolvedValue(undefined),
-    getByServerId: jest.fn().mockResolvedValue(null),
-    getByIdLocal: jest.fn().mockResolvedValue(null),
-  },
-  catalogosRepo: {
-    syncAllCatalogos: jest.fn().mockResolvedValue(undefined),
-    syncFundos: jest.fn().mockResolvedValue([]),
-    syncLotes: jest.fn().mockResolvedValue([]),
-    syncEspecies: jest.fn().mockResolvedValue([]),
-    syncEtapasFenologicas: jest.fn().mockResolvedValue([]),
-    syncPlagas: jest.fn().mockResolvedValue([]),
-    getFundosLocal: jest.fn().mockResolvedValue([]),
-    getEspeciesLocal: jest.fn().mockResolvedValue([]),
-    getEtapasFenologicasLocal: jest.fn().mockResolvedValue([]),
-    getPlagasLocal: jest.fn().mockResolvedValue([]),
-    getLotesLocal: jest.fn().mockResolvedValue([]),
-  },
-  photosRepo: {
-    saveLocal: jest.fn().mockResolvedValue({success: true, fotoId: 1}),
-    listByRequerimiento: jest.fn().mockResolvedValue([]),
-    getPendingUpload: jest.fn().mockResolvedValue([]),
-    markUploaded: jest.fn().mockResolvedValue(undefined),
-    remove: jest.fn().mockResolvedValue(undefined),
-  },
-  programacionesRepo: {
-    listLocal: jest.fn().mockResolvedValue([]),
-    syncProgramaciones: jest.fn().mockResolvedValue(undefined),
-  },
-}));
-
 const TOKEN_USUARIO = makeToken({
   sub: '5',
   groups: ['Usuario'],
@@ -78,8 +41,8 @@ const TOKEN_USUARIO = makeToken({
   passwordResetRequired: false,
 });
 
-const FUNDOS = [{id: 1, nombre: 'Fundo Norte', createdAt: '', updatedAt: ''}];
-const LOTES = [{id: 10, fundoId: 1, fundo: '', variedadId: 0, variedad: '', variedadColor: '', nombre: 'Lote A', area: null, createdAt: '', updatedAt: ''}];
+const FUNDOS = [{id: 1, nombre: 'Fundo Norte', estado: true}];
+const LOTES = [{id: 10, fundoId: 1, nombre: 'Lote A', estado: true}];
 const ESPECIES = [{id: 1, nombre: 'Chrysopa sp.', estado: true}];
 const ETAPAS = [{id: 1, nombre: 'Emergencia', estado: true}];
 const PLAGAS = [{id: 1, nombre: 'Pulga', estado: true}];
@@ -91,7 +54,7 @@ const FOTO_ASSET = {
   fileSize: 1024000,
 };
 
-let axiosApi = getMockApi();
+let api = getMockApi();
 const mockGoBack = jest.fn();
 
 async function renderForm(stock = 30) {
@@ -104,42 +67,37 @@ async function renderForm(stock = 30) {
     navigate: jest.fn(),
   });
 
-  const {catalogosRepo} = require('../src/db/repositories');
-  catalogosRepo.getFundosLocal.mockResolvedValue(FUNDOS);
-  catalogosRepo.getLotesLocal.mockResolvedValue(LOTES);
-  catalogosRepo.getEspeciesLocal.mockResolvedValue(ESPECIES);
-  catalogosRepo.getEtapasFenologicasLocal.mockResolvedValue(ETAPAS);
-  catalogosRepo.getPlagasLocal.mockResolvedValue(PLAGAS);
-
-  // Mock stock endpoint via API (server-only fallback)
-  axiosApi.get.mockImplementation((url: string) => {
+  api.get.mockImplementation((url: string) => {
+    if (url === '/fundos') {
+      return Promise.resolve({data: FUNDOS});
+    }
+    if (url === '/lotes') {
+      return Promise.resolve({data: LOTES});
+    }
+    if (url === '/especies') {
+      return Promise.resolve({data: ESPECIES});
+    }
+    if (url === '/etapas-fenologicas') {
+      return Promise.resolve({data: ETAPAS});
+    }
+    if (url === '/plagas') {
+      return Promise.resolve({data: PLAGAS});
+    }
     if (url === '/programaciones/1/stock') {
       return Promise.resolve({data: {stock}});
     }
     return Promise.resolve({data: []});
   });
 
-  // Mock syncFundos/syncLotes etc. (called by useRequerimientosCatalogos when online)
-  catalogosRepo.syncFundos.mockResolvedValue(FUNDOS);
-  catalogosRepo.syncLotes.mockResolvedValue(LOTES);
-  catalogosRepo.syncEspecies.mockResolvedValue(ESPECIES);
-  catalogosRepo.syncEtapasFenologicas.mockResolvedValue(ETAPAS);
-  catalogosRepo.syncPlagas.mockResolvedValue(PLAGAS);
-
   let tree!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
-    tree = ReactTestRenderer.create(
-      <AuthProvider>
-        <NuevoRequerimientoScreen />
-      </AuthProvider>,
-    );
+    tree = ReactTestRenderer.create(<NuevoRequerimientoScreen />);
     await flushPromises();
     await flushPromises();
   });
   return tree;
 }
 
-/** Selecciona un desplegable abriéndolo y eligiendo la opción dada. */
 async function elegirOpcion(
   tree: ReactTestRenderer.ReactTestRenderer,
   campo: string,
@@ -160,7 +118,8 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
   beforeEach(async () => {
     await clearToken();
     mockGoBack.mockClear();
-    axiosApi.get.mockClear();
+    api.get.mockClear();
+    api.post.mockClear();
     (launchImageLibrary as jest.Mock).mockReset();
     (launchImageLibrary as jest.Mock).mockResolvedValue({didCancel: true});
   });
@@ -171,18 +130,13 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
       await flushPromises();
     });
 
-    // El botón Enviar está deshabilitado mientras falten obligatorios.
     expect(findByLabel(tree, 'Enviar Solicitud').props.disabled).toBe(true);
-
-    // Al elegir la especie se consulta el stock (RN-029/RN-176).
     await elegirOpcion(tree, 'Especie', 'Opción Especie Chrysopa sp.');
     expect(contarTexto(tree, '30 millares')).toBe(1);
   });
 
   test('selecciona todos los campos obligatorios y crea el requerimiento', async () => {
-    const {requerimientosRepo} = require('../src/db/repositories');
-    requerimientosRepo.createLocal.mockResolvedValue(-1);
-
+    api.post.mockResolvedValue({data: {id: 99, estado: 'REGISTRADO'}});
     const tree = await renderForm();
     await act(async () => {
       await flushPromises();
@@ -202,7 +156,6 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
     });
 
     expect(findByLabel(tree, 'Enviar Solicitud').props.disabled).toBe(false);
-
     await act(async () => {
       findByLabel(tree, 'Enviar Solicitud').props.onPress();
     });
@@ -210,7 +163,8 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
       await flushPromises();
     });
 
-    expect(requerimientosRepo.createLocal).toHaveBeenCalledWith(
+    expect(api.post).toHaveBeenCalledWith(
+      '/requerimientos',
       expect.objectContaining({
         fundoId: 1,
         loteId: 10,
@@ -219,8 +173,6 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
         cantidad: 20,
         plagaId: 1,
       }),
-      5, // user.sub
-      30, // stock
     );
     expect(mockGoBack).toHaveBeenCalled();
   });
@@ -244,16 +196,18 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
   });
 
   test('sube fotos después de crear el requerimiento', async () => {
-    const {requerimientosRepo, photosRepo} = require('../src/db/repositories');
-    requerimientosRepo.createLocal.mockResolvedValue(-1);
-    photosRepo.saveLocal.mockResolvedValue({success: true, fotoId: 1});
+    api.post.mockImplementation((url: string) => {
+      if (url === '/requerimientos') {
+        return Promise.resolve({data: {id: 99, estado: 'REGISTRADO'}});
+      }
+      return Promise.resolve({data: {id: 1, ruta: '/fotos/1.jpg'}});
+    });
 
     const tree = await renderForm();
     await act(async () => {
       await flushPromises();
     });
 
-    // Simular selección de foto desde galería
     (launchImageLibrary as jest.Mock).mockResolvedValue({
       didCancel: false,
       assets: [FOTO_ASSET],
@@ -272,7 +226,6 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
       await flushPromises();
     });
 
-    // Seleccionar foto
     await act(async () => {
       findByLabel(tree, 'Seleccionar foto de la galería').props.onPress();
     });
@@ -280,13 +233,11 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
       await flushPromises();
     });
 
-    // Verificar que la foto aparece en la UI (botón Quitar visible)
     const quitarBtns = tree.root.findAll(
       (node: any) => node.props.accessibilityLabel === 'Quitar foto 1',
     );
     expect(quitarBtns.length).toBeGreaterThanOrEqual(1);
 
-    // Enviar
     await act(async () => {
       findByLabel(tree, 'Enviar Solicitud').props.onPress();
     });
@@ -294,17 +245,14 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
       await flushPromises();
     });
 
-    // Verificar que se llamó a crear requerimiento Y a subir foto local
-    expect(requerimientosRepo.createLocal).toHaveBeenCalledWith(
+    expect(api.post).toHaveBeenCalledWith(
+      '/requerimientos',
       expect.objectContaining({fundoId: 1}),
-      5,
-      expect.any(Number),
     );
-    expect(photosRepo.saveLocal).toHaveBeenCalledWith(
-      -1, // localId del createLocal
-      'file:///tmp/foto.jpg',
-      expect.objectContaining({type: 'image/jpeg'}),
-      expect.objectContaining({metadatos: {tipo: 'EVIDENCIA'}}),
+    expect(api.post).toHaveBeenCalledWith(
+      '/requerimientos/99/fotos',
+      expect.any(FormData),
+      expect.objectContaining({headers: {'Content-Type': 'multipart/form-data'}}),
     );
     expect(mockGoBack).toHaveBeenCalled();
   });
