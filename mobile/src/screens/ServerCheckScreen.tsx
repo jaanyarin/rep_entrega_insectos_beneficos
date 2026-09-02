@@ -65,21 +65,23 @@ export default function ServerCheckScreen() {
   );
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      // Soporte offline: si ya existe un JWT válido, saltar verificación
-      // y navegar directamente a Home (la app puede funcionar offline).
-      const existingToken = await getToken();
-      if (existingToken && !isTokenExpired(existingToken, 60)) {
-        // JWT válido → la sesión ya fue restaurada por AuthContext
-        // No necesitamos verificar el servidor
-        return;
+      try {
+        const existingToken = await getToken();
+        if (!cancelled && existingToken && !isTokenExpired(existingToken, 60)) {
+          return; // JWT válido → AuthContext ya restauró la sesión
+        }
+      } catch {
+        // No-op — continuamos con el probe normal
       }
-
-      // Sin JWT o JWT expirado → verificar servidor (comportamiento original)
-      const savedUrl = await loadApiUrl();
-      setApiUrlInput(savedUrl);
+      if (!cancelled) {
+        const savedUrl = await loadApiUrl();
+        setApiUrlInput(savedUrl);
+        probe(savedUrl);
+      }
     })();
-    probe();
+    return () => { cancelled = true; };
   }, [probe]);
 
   // V6: back físico en raíz del stack anónimo → interceptar (no cerrar).

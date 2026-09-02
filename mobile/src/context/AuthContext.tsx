@@ -58,14 +58,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       try {
         const token = await getToken();
         if (mounted && token) {
-          // Verificar si el JWT no ha expirado (buffer 60s)
-          if (!isTokenExpired(token, 60)) {
-            // JWT válido → restaurar sesión offline
-            setUser(parseToken(token));
-          } else {
-            // JWT expirado → limpiar sesión (necesita re-login)
-            await clearToken();
-          }
+          // Restaurar sesión siempre que exista un token (incluso expirado).
+          // Esto permite uso offline: cuando el usuario vuelva online e intente
+          // una llamada API, el interceptor 401 manejará la expiración.
+          setUser(parseToken(token));
         }
       } catch {
         // Sin sesión persistida: flujo normal de login.

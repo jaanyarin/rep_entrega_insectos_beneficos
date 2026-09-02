@@ -32,6 +32,20 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+jest.mock('../src/db/repositories', () => ({
+  requerimientosRepo: {
+    saveFromServer: jest.fn().mockResolvedValue(undefined),
+  },
+  catalogosRepo: {
+    getFundosLocal: jest.fn().mockResolvedValue([]),
+    getEspeciesLocal: jest.fn().mockResolvedValue([]),
+    getPlagasLocal: jest.fn().mockResolvedValue([]),
+  },
+  photosRepo: {
+    listByRequerimiento: jest.fn().mockResolvedValue([]),
+  },
+}));
+
 const TOKEN_USUARIO = makeToken({
   sub: '5',
   groups: ['Usuario'],
@@ -136,7 +150,33 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
   });
 
   test('selecciona todos los campos obligatorios y crea el requerimiento', async () => {
-    api.post.mockResolvedValue({data: {id: 99, estado: 'REGISTRADO'}});
+    api.post.mockResolvedValue({
+      data: {
+        id: 99,
+        fecha: '2026-09-02',
+        fundoId: 1,
+        fundo: 'Fundo Norte',
+        loteId: 10,
+        lote: 'Lote A',
+        especieId: 1,
+        especie: 'Chrysopa sp.',
+        etapaFenologicaId: 1,
+        etapaFenologica: 'Emergencia',
+        cantidad: 20,
+        plagaId: 1,
+        plaga: 'Pulga',
+        estado: 'REGISTRADO',
+        stockDisponible: 30,
+        observaciones: null,
+        papelConPostura: null,
+        sobreConCascarilla: null,
+        fechaLiberacion: null,
+        horaLiberacion: null,
+        creadoPor: 5,
+        createdAt: '2026-09-02T10:00:00Z',
+        updatedAt: '2026-09-02T10:00:00Z',
+      },
+    });
     const tree = await renderForm();
     await act(async () => {
       await flushPromises();
@@ -166,6 +206,19 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
     expect(api.post).toHaveBeenCalledWith(
       '/requerimientos',
       expect.objectContaining({
+        fundoId: 1,
+        loteId: 10,
+        especieId: 1,
+        etapaFenologicaId: 1,
+        cantidad: 20,
+        plagaId: 1,
+      }),
+    );
+    const {requerimientosRepo} = require('../src/db/repositories');
+    expect(requerimientosRepo.saveFromServer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 99,
+        fecha: expect.any(String),
         fundoId: 1,
         loteId: 10,
         especieId: 1,

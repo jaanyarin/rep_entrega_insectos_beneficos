@@ -15,6 +15,7 @@
 
 import axios, {AxiosInstance, AxiosError} from 'axios';
 import * as Keychain from 'react-native-keychain';
+import NetInfo from '@react-native-community/netinfo';
 import API_BASE_URL from '../config';
 
 export const TOKEN_KEY = 'accessToken';
@@ -299,10 +300,17 @@ api.interceptors.response.use(
   response => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Sesión caducada/token inválido: se borra SOLO el token (la URL
-      // guardada se conserva) y se notifica para forzar relogin.
-      clearToken().catch(() => {});
-      _unauthorizedHandler?.();
+      // Solo limpiar token si tenemos conectividad real al backend.
+      // Offline: el 401 puede ser response stale o server caído; conservamos
+      // la sesión local para que la app siga funcionando.
+      NetInfo.fetch().then(state => {
+        if (state.isConnected) {
+          clearToken().catch(() => {});
+          _unauthorizedHandler?.();
+        }
+      }).catch(() => {
+        // NetInfo falló → conservar token
+      });
     }
     return Promise.reject(error);
   },

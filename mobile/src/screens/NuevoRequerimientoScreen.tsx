@@ -42,6 +42,7 @@ import {
   obtenerStockEspecie,
   subirFotoRequerimiento,
 } from '../services/ApiClient';
+import {requerimientosRepo} from '../db/repositories';
 import {theme} from '../theme';
 import {
   camposObligatoriosFaltantes,
@@ -141,6 +142,25 @@ export default function NuevoRequerimientoScreen() {
           name: foto.fileName,
         }, JSON.stringify({tipo: 'EVIDENCIA'}));
       }
+      // Guardar en SQLite local para que Historial/Panel lo muestren offline
+      await requerimientosRepo.saveFromServer({
+        id: nuevo.id,
+        fecha: nuevo.fecha,
+        fundoId: nuevo.fundoId,
+        loteId: nuevo.loteId,
+        especieId: nuevo.especieId,
+        etapaFenologicaId: nuevo.etapaFenologicaId,
+        plagaId: nuevo.plagaId,
+        cantidad: nuevo.cantidad,
+        estado: nuevo.estado,
+        stockDisponible: nuevo.stockDisponible,
+        observaciones: nuevo.observaciones,
+        papelConPostura: nuevo.papelConPostura,
+        sobreConCascarilla: nuevo.sobreConCascarilla,
+        fechaLiberacion: nuevo.fechaLiberacion,
+        horaLiberacion: nuevo.horaLiberacion,
+        creadoPor: Number(nuevo.creadoPor) || 0,
+      });
       navigation.goBack();
     } catch (e) {
       setErrorEnvio(extractErrorMessage(e));
