@@ -180,7 +180,10 @@ export default function NuevoRequerimientoScreen() {
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
           <AppHeader title="Nuevo Requerimiento" showBack onBack={navigation.goBack} />
           {!isOnline && <OfflineBanner />}
-          <ErrorState onRetry={catalogo.reload} />
+          <ErrorState
+            message={catalogo.errorCatalogo ?? undefined}
+            onRetry={catalogo.reload}
+          />
         </SafeAreaView>
       </ErrorBoundary>
     );

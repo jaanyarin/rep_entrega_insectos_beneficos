@@ -22,6 +22,7 @@ import {
   type FundoDto,
   type LoteDto,
   type PlagaDto,
+  extractErrorMessage,
 } from '../services/ApiClient';
 import {catalogosRepo} from '../db/repositories';
 import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
@@ -36,10 +37,10 @@ export function useRequerimientosCatalogos() {
   const [plagas, setPlagas] = useState<PlagaDto[]>([]);
   const [loadingCatalogo, setLoadingCatalogo] = useState(true);
   const [errorCatalogo, setErrorCatalogo] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const cargarLotes = useCallback(async (fundoId: number) => {
     try {
-      // Si hay red, intentar sync; si falla, usar cache local
       if (isOnline) {
         await catalogosRepo.syncLotes(fundoId);
       }
@@ -50,57 +51,70 @@ export function useRequerimientosCatalogos() {
     }
   }, [isOnline]);
 
-  const cargarCatalogos = useCallback(async () => {
-    setLoadingCatalogo(true);
-    setErrorCatalogo(null);
-    try {
-      // Esperar a que SQLite esté listo (migraciones + seed).
-      await waitForDatabase();
-      if (isOnline) {
-        // Sync completa desde servidor
-        await catalogosRepo.syncAllCatalogos();
-      }
-      // Siempre leer de SQLite (funciona online y offline)
-      const [f, e, et, p] = await Promise.all([
-        catalogosRepo.getFundosLocal(),
-        catalogosRepo.getEspeciesLocal(),
-        catalogosRepo.getEtapasFenologicasLocal(),
-        catalogosRepo.getPlagasLocal(),
-      ]);
-      setFundos(f);
-      setEspecies(e);
-      setEtapas(et);
-      setPlagas(p);
-      // Si todo vino vacío y estamos offline, reportar error
-      if (f.length === 0 && e.length === 0 && !isOnline) {
-        setErrorCatalogo(
-          'Sin conexión y sin datos locales. Conéctese una vez para descargar catálogos.',
-        );
-      }
-    } catch {
-      // Fallback: intentar leer de SQLite directamente
+  useEffect(() => {
+    let alive = true;
+
+    const cargar = async () => {
+      setLoadingCatalogo(true);
+      setErrorCatalogo(null);
       try {
+        await waitForDatabase();
+        if (!alive) { return; }
+        if (isOnline) {
+          await catalogosRepo.syncAllCatalogos();
+        }
+        if (!alive) { return; }
         const [f, e, et, p] = await Promise.all([
           catalogosRepo.getFundosLocal(),
           catalogosRepo.getEspeciesLocal(),
           catalogosRepo.getEtapasFenologicasLocal(),
           catalogosRepo.getPlagasLocal(),
         ]);
+        if (!alive) { return; }
         setFundos(f);
         setEspecies(e);
         setEtapas(et);
         setPlagas(p);
-      } catch {
-        setErrorCatalogo('Error al cargar catálogos.');
+        if (f.length === 0 && e.length === 0 && !isOnline) {
+          setErrorCatalogo(
+            'Sin conexión y sin datos locales. Conéctese una vez para descargar catálogos.',
+          );
+        } else {
+          setErrorCatalogo(null);
+        }
+      } catch (err) {
+        if (!alive) { return; }
+        try {
+          const [f, e, et, p] = await Promise.all([
+            catalogosRepo.getFundosLocal(),
+            catalogosRepo.getEspeciesLocal(),
+            catalogosRepo.getEtapasFenologicasLocal(),
+            catalogosRepo.getPlagasLocal(),
+          ]);
+          if (!alive) { return; }
+          setFundos(f);
+          setEspecies(e);
+          setEtapas(et);
+          setPlagas(p);
+          setErrorCatalogo(null);
+        } catch (innerErr) {
+          if (!alive) { return; }
+          setErrorCatalogo(
+            'Error al cargar catálogos: ' + extractErrorMessage(innerErr ?? err),
+          );
+        }
+      } finally {
+        if (alive) { setLoadingCatalogo(false); }
       }
-    } finally {
-      setLoadingCatalogo(false);
-    }
-  }, [isOnline]);
+    };
 
-  useEffect(() => {
-    cargarCatalogos();
-  }, [cargarCatalogos]);
+    cargar();
+    return () => { alive = false; };
+  }, [isOnline, reloadKey]);
+
+  const reload = useCallback(() => {
+    setReloadKey(k => k + 1);
+  }, []);
 
   return {
     fundos,
@@ -111,6 +125,6 @@ export function useRequerimientosCatalogos() {
     loadingCatalogo,
     errorCatalogo,
     cargarLotes,
-    reload: cargarCatalogos,
+    reload,
   };
 }
