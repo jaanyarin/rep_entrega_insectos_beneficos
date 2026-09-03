@@ -37,6 +37,14 @@ export type RootStackParamList = {
     | {id: number; anio: number; mes: number; modo?: 'editar'}
     | {anio: number; mes: number; modo: 'crear'};
   SolicitudRequerimientos: undefined;
+  /** HITO-015 — Despachos, Recepciones, Liberaciones y Detalle */
+  DespachoList: {requerimientoId: number};
+  DespachoForm: {requerimientoId: number};
+  RecepcionList: {requerimientoId: number};
+  RecepcionForm: {requerimientoId: number};
+  LiberacionList: {requerimientoId: number};
+  LiberacionForm: {requerimientoId: number};
+  DetalleRequerimiento: {id: number};
 };
 
 /**

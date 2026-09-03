@@ -165,3 +165,52 @@ export const cumplimientoProgramacion = sqliteTable('cumplimiento_programacion',
   createdAt: integer('created_at', {mode: 'timestamp'}),
   updatedAt: integer('updated_at', {mode: 'timestamp'}),
 });
+
+// ─── DESPACHOS (CRUD offline) ─────────────────────────────────────────────
+
+export const despachosOffline = sqliteTable('despachos_offline', {
+  id: integer('id').primaryKey(),
+  serverId: integer('server_id'),
+  requerimientoLocalId: integer('requerimiento_local_id').notNull(),
+  requerimientoServerId: integer('requerimiento_server_id'),
+  cantidadDespachada: integer('cantidad_despachada').notNull(),
+  papelConPostura: integer('papel_con_postura'),
+  sobreConCascarilla: integer('sobre_con_cascarilla'),
+  observaciones: text('observaciones'),
+  creadoPor: integer('creado_por'),
+  syncStatus: text('sync_status').notNull().default('pending'),
+  createdAt: integer('created_at', {mode: 'timestamp'}),
+});
+
+// ─── RECEPCIONES (CRUD offline) ───────────────────────────────────────────
+
+export const recepcionesOffline = sqliteTable('recepciones_offline', {
+  id: integer('id').primaryKey(),
+  serverId: integer('server_id'),
+  requerimientoLocalId: integer('requerimiento_local_id').notNull(),
+  requerimientoServerId: integer('requerimiento_server_id'),
+  conforme: integer('conforme', {mode: 'boolean'}).notNull().default(true),
+  observaciones: text('observaciones'),
+  fechaRecepcion: text('fecha_recepcion'),
+  creadoPor: integer('creado_por'),
+  syncStatus: text('sync_status').notNull().default('pending'),
+  createdAt: integer('created_at', {mode: 'timestamp'}),
+});
+
+// ─── LIBERACIONES (CRUD offline) ──────────────────────────────────────────
+
+export const liberacionesOffline = sqliteTable('liberaciones_offline', {
+  id: integer('id').primaryKey(),
+  serverId: integer('server_id'),
+  requerimientoLocalId: integer('requerimiento_local_id').notNull(),
+  requerimientoServerId: integer('requerimiento_server_id'),
+  fundoId: integer('fundo_id'),
+  loteId: integer('lote_id'),
+  cantidadLiberada: integer('cantidad_liberada').notNull(),
+  observaciones: text('observaciones'),
+  fechaLiberacion: text('fecha_liberacion'),
+  horaLiberacion: text('hora_liberacion'),
+  creadoPor: integer('creado_por'),
+  syncStatus: text('sync_status').notNull().default('pending'),
+  createdAt: integer('created_at', {mode: 'timestamp'}),
+});

@@ -18,6 +18,13 @@ import RequerimientoFormScreen from '../screens/RequerimientoFormScreen';
 import NuevoRequerimientoScreen from '../screens/NuevoRequerimientoScreen';
 import HistorialRequerimientoScreen from '../screens/HistorialRequerimientoScreen';
 import EditarRequerimientoScreen from '../screens/EditarRequerimientoScreen';
+import DespachoListScreen from '../screens/DespachoListScreen';
+import DespachoFormScreen from '../screens/DespachoFormScreen';
+import RecepcionListScreen from '../screens/RecepcionListScreen';
+import RecepcionFormScreen from '../screens/RecepcionFormScreen';
+import LiberacionListScreen from '../screens/LiberacionListScreen';
+import LiberacionFormScreen from '../screens/LiberacionFormScreen';
+import DetalleRequerimientoScreen from '../screens/DetalleRequerimientoScreen';
 import {theme} from '../theme';
 import type {RootStackParamList} from './types';
 
@@ -123,6 +130,41 @@ export default function RootNavigator() {
             <Stack.Screen
               name="SolicitudRequerimientos"
               component={RequerimientosPanelScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="DetalleRequerimiento"
+              component={DetalleRequerimientoScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="DespachoList"
+              component={DespachoListScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="DespachoForm"
+              component={DespachoFormScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="RecepcionList"
+              component={RecepcionListScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="RecepcionForm"
+              component={RecepcionFormScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="LiberacionList"
+              component={LiberacionListScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="LiberacionForm"
+              component={LiberacionFormScreen}
               options={{headerShown: false}}
             />
             <Stack.Screen

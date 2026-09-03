@@ -2360,3 +2360,78 @@ installed_rank=14 | version=14 | description=cumplimiento programacion | success
 | `763cd30` | `fix(db+mobile): corregir nombre tabla V14 (programacion_detalles→detalle_programaciones) + fix nombre app.json` |
 
 Push a `origin/main` verificado: `git status -sb` sin "ahead", `git log origin/main..HEAD` vacío.
+
+---
+
+# 61. HITO-015 — Flujo Despachos → Recepción → Liberación (v1.8.0)
+
+## 61.1 Resumen
+
+Cierre del ciclo de estados completo: APROBADO → ENTREGADO (despacho) → RECIBIDO (recepción) →
+LIBERADO (liberación en campo). Incluye backend (3 migraciones, 3 services, 3 resources),
+mobile (ApiClient + 7 screens + 3 repos offline + SyncManager extendido) y documentación.
+
+## 61.2 Decisiones
+
+| Decisión | Motivo |
+|---|---|
+| Tablas separadas (despachos/recepciones/liberaciones) | Escalabilidad, histórico completo por módulo |
+| Offline completo para perfil Usuario | Consistencia con HITO-013, funcionalidad sin red |
+| DetalleRequerimiento como screen dedicado | UX contextual: botones por estado, extensible |
+| Sin build APK | Ahorro de tiempo, el APK se construye al final del proyecto |
+
+## 61.3 Archivos
+
+### Backend (nuevos)
+
+- `V15__create_despachos.sql`, `V16__create_recepciones.sql`, `V17__create_liberaciones.sql`
+- `despachos/` (entity, repo, service, resource, mapper, DTOs)
+- `recepciones/` (entity, repo, service, resource, mapper, DTOs)
+- `liberaciones/` (entity, repo, service, resource, mapper, DTOs)
+- Tests: DespachoResourceTest, RecepcionResourceTest, LiberacionResourceTest
+
+### Mobile (nuevos)
+
+- `screens/`: DespachoListScreen, DespachoFormScreen, RecepcionListScreen, RecepcionFormScreen, LiberacionListScreen, LiberacionFormScreen, DetalleRequerimientoScreen
+- `db/repositories/`: despachos.ts, recepciones.ts, liberaciones.ts
+- `db/schema.ts`: +3 tablas (despachos_offline, recepciones_offline, liberaciones_offline)
+
+### Mobile (modificados)
+
+- `services/ApiClient.ts`: +6 interfaces, +6 functions
+- `navigation/types.ts`: +7 rutas
+- `navigation/RootNavigator.tsx`: +7 screen registrations
+- `screens/HistorialRequerimientoScreen.tsx`: +botón "Ver Detalle"
+- `db/repositories/index.ts`: +3 barrel exports
+- `db/sync/SyncManager.ts`: +3 tablas en outbox, SyncResults expandido
+
+### Versiones
+
+- `package.json`: 1.8.0
+- `build.gradle`: versionCode 11, versionName 1.8.0
+- `appVersion.ts`: 1.8.0
+- `versionHistory.js`: entrada 1.8.0
+
+## 61.4 Tests
+
+| Capa | Tests | Suites | Estado |
+|---|---|---|---|
+| Backend | 12 HITO-015 + preexistentes | 14 | PASS (--runInBand para MO) |
+| Mobile | 150 | 26 | PASS (--runInBand) |
+
+## 61.5 Bugs corregidos durante implementación
+
+| Bug | Causa | Fix |
+|---|---|---|
+| 3 tests BE con "Connection refused" | Faltaba @QuarkusTestResource(PostgresTestResource.class) | Agregado a los 3 archivos |
+| @BeforeAll static fallaba con REST Assured | El static corre antes del binding HTTP de Quarkus | Migrado a TestSupport.seedToken() inline |
+| 500 en GETs de listado | HQL usaba created_at (SQL) en vez de createdAt (Java) | Corregido en 3 repos |
+| Build pre-existente fallaba | .json() no existe en RestAssured 5.x | Corregido a .jsonPath()/.path() |
+
+## 61.6 Verificación post-implementación (Ley 5)
+
+| Comando | Resultado |
+|---|---|
+| `npx tsc --noEmit` (mobile) | PASS — 0 errores |
+| `npm test -- --forceExit --runInBand` (mobile) | PASS — 150 tests, 26 suites, 0 failures |
+| `mvnw test` (backend, solo HITO-015) | PASS — 12 tests, 0 failures |

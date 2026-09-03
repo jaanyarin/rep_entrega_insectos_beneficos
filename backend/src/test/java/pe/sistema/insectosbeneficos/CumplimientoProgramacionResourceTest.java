@@ -26,7 +26,7 @@ public class CumplimientoProgramacionResourceTest {
             .when().post("/api/v1/programaciones")
             .then()
             .statusCode(201)
-            .extract().body().json().getInt("id");
+            .extract().path("id");
 
         // Listar cumplimiento (debe estar vacío)
         given()
@@ -51,7 +51,7 @@ public class CumplimientoProgramacionResourceTest {
             .when().post("/api/v1/programaciones")
             .then()
             .statusCode(201)
-            .extract().body().json().getInt("id");
+            .extract().path("id");
 
         // Obtener el primer detalle
         Integer detalleId = given()
@@ -59,7 +59,7 @@ public class CumplimientoProgramacionResourceTest {
             .when().get("/api/v1/programaciones/" + programacionId)
             .then()
             .statusCode(200)
-            .extract().body().json().getJsonObject("detalles").getJsonArray("detalles").getJsonObject(0).getInt("id");
+            .extract().jsonPath().getInt("detalles.detalles[0].id");
 
         // Guardar cumplimiento
         given()
@@ -94,14 +94,14 @@ public class CumplimientoProgramacionResourceTest {
             .when().post("/api/v1/programaciones")
             .then()
             .statusCode(201)
-            .extract().body().json().getInt("id");
+            .extract().path("id");
 
         Integer detalleId = given()
             .auth().oauth2(TestSupport.seedToken())
             .when().get("/api/v1/programaciones/" + programacionId)
             .then()
             .statusCode(200)
-            .extract().body().json().getJsonObject("detalles").getJsonArray("detalles").getJsonObject(0).getInt("id");
+            .extract().jsonPath().getInt("detalles.detalles[0].id");
 
         // Intentar guardar con valores negativos
         given()

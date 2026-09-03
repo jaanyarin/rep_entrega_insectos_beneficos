@@ -6,6 +6,20 @@
 
 const versionHistory = [
   {
+    version: '1.8.0',
+    fecha: '2026-09-03',
+    cambios: [
+      'Flujo Despachos → Recepción → Liberación: ciclo completo de estados APROBADO → ENTREGADO → RECIBIDO → LIBERADO.',
+      'Pantalla de detalle de requerimiento con botones de acción contextuales según estado.',
+      'Módulo de Despachos: listado y registro (Admin/Super Admin) con validación cantidad ≤ requerida.',
+      'Módulo de Recepciones: listado y confirmación (Admin/Usuario) con conforme/observaciones.',
+      'Módulo de Liberaciones: listado y registro (Admin/Usuario) con selector fundo→lote dependiente.',
+      'Backend: migraciones V15 (despachos), V16 (recepciones), V17 (liberaciones) con ciclo de estados.',
+      'Offline completo para perfil Usuario: crear/editar/recepción/liberación/historial con sync outbox.',
+      'Histórico de requerimientos: botón "Ver Detalle" para acceder a acciones de despacho/recepción/liberación.',
+    ],
+  },
+  {
     version: '1.7.0',
     fecha: '2026-09-02',
     cambios: [

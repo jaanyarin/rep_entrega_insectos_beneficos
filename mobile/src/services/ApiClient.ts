@@ -902,3 +902,144 @@ export async function guardarCumplimiento(
   );
   return res.data as CumplimientoProgramacionDto;
 }
+
+/* ------------------------------------------------------------------ */
+/* Despachos / Recepciones / Liberaciones (HITO-015)                   */
+/* ------------------------------------------------------------------ */
+
+/** Despacho de insectos benéficos a un requerimiento (HITO-015 / MOD-06). */
+export interface DespachoDto {
+  id: number;
+  requerimientoId: number;
+  cantidadDespachada: number;
+  papelConPostura: number | null;
+  sobreConCascarilla: number | null;
+  observaciones: string | null;
+  creadoPor: number;
+  creadoPorNombre: string;
+  createdAt: string;
+}
+
+/** Request para registrar un despacho (RF-062..065). */
+export interface CrearDespachoRequest {
+  cantidadDespachada: number;
+  papelConPostura?: number | null;
+  sobreConCascarilla?: number | null;
+  observaciones?: string | null;
+}
+
+/** Recepción de un requerimiento en campo (HITO-015 / MOD-07). */
+export interface RecepcionDto {
+  id: number;
+  requerimientoId: number;
+  conforme: boolean;
+  observaciones: string | null;
+  fechaRecepcion: string;
+  creadoPor: number;
+  creadoPorNombre: string;
+  createdAt: string;
+}
+
+/** Request para confirmar una recepción (RF-072..075). */
+export interface ConfirmarRecepcionRequest {
+  conforme: boolean;
+  observaciones?: string | null;
+}
+
+/** Liberación de insectos en el fundo/lote destino (HITO-015 / MOD-08). */
+export interface LiberacionDto {
+  id: number;
+  requerimientoId: number;
+  fundoId: number;
+  fundoNombre: string;
+  loteId: number;
+  loteNombre: string;
+  cantidadLiberada: number;
+  observaciones: string | null;
+  fechaLiberacion: string;
+  horaLiberacion: string;
+  creadoPor: number;
+  creadoPorNombre: string;
+  createdAt: string;
+}
+
+/** Request para registrar una liberación en campo (RF-080..086). */
+export interface CrearLiberacionRequest {
+  fundoId: number;
+  loteId: number;
+  cantidadLiberada: number;
+  observaciones?: string | null;
+  horaLiberacion: string;
+}
+
+/** GET /api/v1/requerimientos/{id}/despachos — lista despachos de un requerimiento. */
+export async function listarDespachos(
+  requerimientoId: number,
+): Promise<DespachoDto[]> {
+  const res = await api.get<DespachoDto[]>(
+    `/requerimientos/${requerimientoId}/despachos`,
+  );
+  return unwrap(
+    res.data as DespachoDto[] | {data?: DespachoDto[]},
+  );
+}
+
+/** POST /api/v1/requerimientos/{id}/despachos — registra un despacho (Admin). */
+export async function crearDespacho(
+  requerimientoId: number,
+  req: CrearDespachoRequest,
+): Promise<DespachoDto> {
+  const res = await api.post<DespachoDto>(
+    `/requerimientos/${requerimientoId}/despachos`,
+    req,
+  );
+  return res.data as DespachoDto;
+}
+
+/** GET /api/v1/requerimientos/{id}/recepciones — lista recepciones de un requerimiento. */
+export async function listarRecepciones(
+  requerimientoId: number,
+): Promise<RecepcionDto[]> {
+  const res = await api.get<RecepcionDto[]>(
+    `/requerimientos/${requerimientoId}/recepciones`,
+  );
+  return unwrap(
+    res.data as RecepcionDto[] | {data?: RecepcionDto[]},
+  );
+}
+
+/** POST /api/v1/requerimientos/{id}/recepciones — confirma recepción (Admin/Usuario). */
+export async function confirmarRecepcion(
+  requerimientoId: number,
+  req: ConfirmarRecepcionRequest,
+): Promise<RecepcionDto> {
+  const res = await api.post<RecepcionDto>(
+    `/requerimientos/${requerimientoId}/recepciones`,
+    req,
+  );
+  return res.data as RecepcionDto;
+}
+
+/** GET /api/v1/requerimientos/{id}/liberaciones — lista liberaciones de un requerimiento. */
+export async function listarLiberaciones(
+  requerimientoId: number,
+): Promise<LiberacionDto[]> {
+  const res = await api.get<LiberacionDto[]>(
+    `/requerimientos/${requerimientoId}/liberaciones`,
+  );
+  return unwrap(
+    res.data as LiberacionDto[] | {data?: LiberacionDto[]},
+  );
+}
+
+/** POST /api/v1/requerimientos/{id}/liberaciones — registra liberación en campo (Admin/Usuario). */
+export async function crearLiberacion(
+  requerimientoId: number,
+  req: CrearLiberacionRequest,
+): Promise<LiberacionDto> {
+  const res = await api.post<LiberacionDto>(
+    `/requerimientos/${requerimientoId}/liberaciones`,
+    req,
+  );
+  return res.data as LiberacionDto;
+}

@@ -413,6 +413,15 @@ export default function HistorialRequerimientoScreen() {
                 accessibilityLabel={`Ver ${r.especie}`}
               />
               <AppButton
+                label="Ver Detalle"
+                variant="text"
+                icon="information-outline"
+                onPress={() =>
+                  navigation.navigate('DetalleRequerimiento', {id: r.id})
+                }
+                accessibilityLabel={`Detalle de ${r.especie}`}
+              />
+              <AppButton
                 label="Editar"
                 variant="text"
                 icon="pencil-outline"

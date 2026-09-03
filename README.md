@@ -26,12 +26,13 @@ Decisiones de arquitectura vigentes y decisiones descartadas: ver
 backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, programaciones
               (tabla intra-semana Lunes/Jueves reales + Restante), catálogos
               (fundos/variedades/lotes/etapas/plagas/nematodos/patrones), requerimientos,
-              fotos de requerimiento, sync offline y cumplimiento de producción
-              (migraciones V1-V14)
+              fotos de requerimiento, sync offline, cumplimiento de producción,
+              despachos/recepciones/liberaciones
+              (migraciones V1-V17)
 mobile/       App React Native CLI 0.86 / React 19.2.3 — auth v2 (login 3 pasos, URL runtime,
               SecureStore/keychain), módulos Programación (Lunes/Jueves reales + Restante, pull-to-refresh,
               cumplimiento de producción), Requerimientos, Catálogos, fotos de requerimiento
-              + hook usePhotoCapture, modo offline (SQLite + outbox + sync) — versión 1.7.0
+              + hook usePhotoCapture, modo offline (SQLite + outbox + sync) — versión 1.8.0
 web/          Frontend React + Vite (pendiente de scaffold)
 docs_implementacion/
 ├── _sdd/                      Especificación, plan, tareas e implementación
@@ -94,6 +95,12 @@ docs_implementacion/
 - **Fix V14 (2026-09-03)**: la migración V14 referenciaba tabla `programacion_detalles`
   (inexistente) en vez de `detalle_programaciones` (V4). Flyway abortaba → backend 500 en todos
   los endpoints. Corregido y push `763cd30`.
+- **HITO-015 cerrado (2026-09-03) = Flujo Despachos → Recepción → Liberación**: ciclo completo
+  de estados APROBADO → ENTREGADO → RECIBIDO → LIBERADO con tablas separadas. Backend: migraciones
+  V15-V17 (despachos, recepciones, liberaciones), services, resources, DTOs, 12 tests. Mobile:
+  ApiClient + 7 screens (DetalleRequerimiento con acciones contextuales), 3 repos offline,
+  SyncManager extendido, offline completo para perfil Usuario. Versión **1.8.0**, versionCode 11
+  (150 tests MO / 26 suites · 12 tests BE).
 - **Pendientes**: endpoint backend para servir fotos estáticas (requerido para visualización real en `<Image>`),
   validación end-to-end desde mobile contra el backend real, actas PDF, frontend web (React/Vite) y CI/CD
   (GitHub Actions). Ver [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).
@@ -104,10 +111,10 @@ Para desarrollo local se usa PostgreSQL 16 en Docker. Los **parámetros de conex
 [`docker-compose.yml`](docker-compose.yml) (raíz) y en
 [`backend/src/main/resources/application.properties`](backend/src/main/resources/application.properties).
 Son credenciales de **desarrollo** y no se exponen en este README por seguridad; conéctate a la BD que
-levantan esos archivos desde tu gestor (pgAdmin/DBeaver/DataGrip). Las migraciones Flyway `V1..V14`
+levantan esos archivos desde tu gestor (pgAdmin/DBeaver/DataGrip). Las migraciones Flyway `V1..V17`
 crean toda la estructura: `usuarios`, `roles`, `fundos`, `variedades`, `lotes`, `etapas_fenologicas`,
 `plagas`, `nematodos`, `patrones`, `programaciones`, `requerimientos`, `fotos_requerimiento`,
-`sync_log` y `cumplimiento_programacion`.
+`sync_log`, `cumplimiento_programacion`, `despachos`, `recepciones` y `liberaciones`.
 
 ## Verificación por capa
 
