@@ -142,25 +142,31 @@ export default function NuevoRequerimientoScreen() {
           name: foto.fileName,
         }, JSON.stringify({tipo: 'EVIDENCIA'}));
       }
-      // Guardar en SQLite local para que Historial/Panel lo muestren offline
-      await requerimientosRepo.saveFromServer({
-        id: nuevo.id,
-        fecha: nuevo.fecha,
-        fundoId: nuevo.fundoId,
-        loteId: nuevo.loteId,
-        especieId: nuevo.especieId,
-        etapaFenologicaId: nuevo.etapaFenologicaId,
-        plagaId: nuevo.plagaId,
-        cantidad: nuevo.cantidad,
-        estado: nuevo.estado,
-        stockDisponible: nuevo.stockDisponible,
-        observaciones: nuevo.observaciones,
-        papelConPostura: nuevo.papelConPostura,
-        sobreConCascarilla: nuevo.sobreConCascarilla,
-        fechaLiberacion: nuevo.fechaLiberacion,
-        horaLiberacion: nuevo.horaLiberacion,
-        creadoPor: Number(nuevo.creadoPor) || 0,
-      });
+      // Guardar en SQLite local para que Historial/Panel lo muestren offline.
+      // try/catch separado: si SQLite falla (release APK), no romper el flujo
+      // principal (el server ya guardó correctamente).
+      try {
+        await requerimientosRepo.saveFromServer({
+          id: nuevo.id,
+          fecha: nuevo.fecha,
+          fundoId: nuevo.fundoId,
+          loteId: nuevo.loteId,
+          especieId: nuevo.especieId,
+          etapaFenologicaId: nuevo.etapaFenologicaId,
+          plagaId: nuevo.plagaId,
+          cantidad: nuevo.cantidad,
+          estado: nuevo.estado,
+          stockDisponible: nuevo.stockDisponible,
+          observaciones: nuevo.observaciones,
+          papelConPostura: nuevo.papelConPostura,
+          sobreConCascarilla: nuevo.sobreConCascarilla,
+          fechaLiberacion: nuevo.fechaLiberacion,
+          horaLiberacion: nuevo.horaLiberacion,
+          creadoPor: Number(nuevo.creadoPor) || 0,
+        });
+      } catch {
+        // SQLite no disponible (release APK): el server ya guardó, es seguro navegar.
+      }
       navigation.goBack();
     } catch (e) {
       setErrorEnvio(extractErrorMessage(e));

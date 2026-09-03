@@ -239,6 +239,39 @@ async function runMigrations() {
       [Date.now()],
     );
   }
+
+  // ─── Migración 0002: Cumplimiento de producción ──────────────────────────
+  const result0002 = await db.execute(
+    `SELECT COUNT(*) as count FROM drizzle_migrations WHERE hash = '0002_cumplimiento'`,
+  );
+  const count0002 =
+    result0002.rows.length > 0
+      ? (result0002.rows[0] as {count: number}).count
+      : 0;
+
+  if (count0002 === 0) {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS cumplimiento_programacion (
+        id INTEGER PRIMARY KEY,
+        server_id INTEGER,
+        programacion_detalle_id INTEGER NOT NULL,
+        programacion_id INTEGER NOT NULL,
+        semana INTEGER NOT NULL,
+        fecha TEXT NOT NULL,
+        papel_real INTEGER NOT NULL DEFAULT 0,
+        sobre_real INTEGER NOT NULL DEFAULT 0,
+        total_real INTEGER NOT NULL DEFAULT 0,
+        creado_por INTEGER,
+        created_at INTEGER,
+        updated_at INTEGER
+      )
+    `);
+
+    await db.execute(
+      `INSERT INTO drizzle_migrations (hash, created_at) VALUES ('0002_cumplimiento', ?)`,
+      [Date.now()],
+    );
+  }
 }
 
 /**
