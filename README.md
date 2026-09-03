@@ -25,12 +25,13 @@ Decisiones de arquitectura vigentes y decisiones descartadas: ver
 ```text
 backend/      API Quarkus v2 — auth/usuarios bajo /api/v1, login 3 pasos, roles en tabla, programaciones
               (tabla intra-semana Lunes/Jueves reales + Restante), catálogos
-              (fundos/variedades/lotes/etapas/plagas/nematodos/patrones), requerimientos y
-              fotos de requerimiento (migraciones V1-V12)
+              (fundos/variedades/lotes/etapas/plagas/nematodos/patrones), requerimientos,
+              fotos de requerimiento, sync offline y cumplimiento de producción
+              (migraciones V1-V14)
 mobile/       App React Native CLI 0.86 / React 19.2.3 — auth v2 (login 3 pasos, URL runtime,
-              SecureStore/keychain), módulos Programación (Lunes/Jueves reales + Restante, pull-to-refresh),
-              Requerimientos, Catálogos, fotos de requerimiento + hook usePhotoCapture,
-              modo offline (SQLite + outbox + sync) — versión 1.6.1
+              SecureStore/keychain), módulos Programación (Lunes/Jueves reales + Restante, pull-to-refresh,
+              cumplimiento de producción), Requerimientos, Catálogos, fotos de requerimiento
+              + hook usePhotoCapture, modo offline (SQLite + outbox + sync) — versión 1.7.0
 web/          Frontend React + Vite (pendiente de scaffold)
 docs_implementacion/
 ├── _sdd/                      Especificación, plan, tareas e implementación
@@ -85,6 +86,14 @@ docs_implementacion/
   UI adaptativa (OfflineBanner, SyncIndicator, SyncToast), hooks (useOnlineStatus, useLiveQuery).
   Suite de testing: 150 tests / 26 suites (0 failures). Corrección de bug en decodificación
   base64url de JWT (`token.ts`). Versión **1.6.1** / versionCode 8.
+- **HITO-014 cerrado (2026-09-02) = Módulo de Cumplimiento de Producción**: registro real vs
+  programado por semana de programación (papel/sobre). Botón lápiz/lupa en tabla de edición,
+  modal de registro y consulta con porcentaje de cumplimiento. Backend: migración V14
+  (`cumplimiento_programacion`), entity, repository, DTO, resource con upsert. Offline:
+  repository SQLite. Versión **1.7.0** / versionCode 10 (150 tests / 26 suites).
+- **Fix V14 (2026-09-03)**: la migración V14 referenciaba tabla `programacion_detalles`
+  (inexistente) en vez de `detalle_programaciones` (V4). Flyway abortaba → backend 500 en todos
+  los endpoints. Corregido y push `763cd30`.
 - **Pendientes**: endpoint backend para servir fotos estáticas (requerido para visualización real en `<Image>`),
   validación end-to-end desde mobile contra el backend real, actas PDF, frontend web (React/Vite) y CI/CD
   (GitHub Actions). Ver [`docs_implementacion/_sdd/`](docs_implementacion/_sdd/).
@@ -95,9 +104,10 @@ Para desarrollo local se usa PostgreSQL 16 en Docker. Los **parámetros de conex
 [`docker-compose.yml`](docker-compose.yml) (raíz) y en
 [`backend/src/main/resources/application.properties`](backend/src/main/resources/application.properties).
 Son credenciales de **desarrollo** y no se exponen en este README por seguridad; conéctate a la BD que
-levantan esos archivos desde tu gestor (pgAdmin/DBeaver/DataGrip). Las migraciones Flyway `V1..V12`
+levantan esos archivos desde tu gestor (pgAdmin/DBeaver/DataGrip). Las migraciones Flyway `V1..V14`
 crean toda la estructura: `usuarios`, `roles`, `fundos`, `variedades`, `lotes`, `etapas_fenologicas`,
-`plagas`, `nematodos`, `patrones`, `programaciones`, `requerimientos` y `fotos_requerimiento`.
+`plagas`, `nematodos`, `patrones`, `programaciones`, `requerimientos`, `fotos_requerimiento`,
+`sync_log` y `cumplimiento_programacion`.
 
 ## Verificación por capa
 

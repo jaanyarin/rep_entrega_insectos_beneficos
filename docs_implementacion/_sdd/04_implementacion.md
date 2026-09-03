@@ -10,9 +10,9 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | v1.7.0: módulo cumplimiento producción; 150 tests / 26 suites, 0 failures |
+| Estado | v1.7.0: módulo cumplimiento producción + fix V14; backend operativo en :6101; 150 tests / 26 suites, 0 failures |
 | Versión | 1.7.0 / versionCode 10 |
-| Fecha | 2026-09-02 |
+| Fecha | 2026-09-03 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
 | Clasificación | Interno |
@@ -2287,3 +2287,76 @@ Nueva tabla `cumplimiento_programacion`:
 | Comando | Resultado |
 |---|---|
 | `npx jest --runInBand` (mobile) | ✅ **150/150 PASS** (26 suites, 0 failures) |
+
+---
+
+# 60. Fix V14 — Backend no arrancaba por FK a tabla inexistente (2026-09-03)
+
+> **Síntoma reportado:** la app mobile mostraba "No se pudo conectar, revise su conexión a la
+> dirección" al intentar pasar el ServerCheckScreen. Todos los endpoints del backend retornaban
+> HTTP 500 Internal Server Error.
+
+## 60.1 Causa raíz
+
+La migración **V14** (`V14__cumplimiento_programacion.sql`) referenciaba una tabla
+`programacion_detalles` que **no existe** en la BD. La tabla real se llama
+`detalle_programaciones` (creada en V4, modificada en V12).
+
+```sql
+-- V14 original (INCORRECTO):
+programacion_detalle_id BIGINT NOT NULL REFERENCES programacion_detalles(id)
+
+-- V14 corregido:
+programacion_detalle_id BIGINT NOT NULL REFERENCES detalle_programaciones(id)
+```
+
+Flyway validaba la migración pero al ejecutarla el PostgreSQL retornaba:
+`ERROR: relation "programacion_detalles" does not exist`. El backend abortaba el startup y
+retornaba 500 en todos los endpoints.
+
+## 60.2 Diagnóstico paso a paso
+
+| Paso | Observación |
+|---|---|
+| 1 | `curl localhost:6101/api/v1/auth/roles` → 500 (error interno del servidor) |
+| 2 | `curl localhost:6101/api/v1/programaciones?anio=2026&mes=9` → 500 |
+| 3 | `curl localhost:6101/api/v1/fundos` → 500 |
+| 4 | Logs Quarkus: `FlywayExecutor` → `Migrating schema to version 14` → `PSQLException: relation "programacion_detalles" does not exist` |
+| 5 | Se confirma: V14 no estaba en `flyway_schema_history` (falló antes de registrarse) |
+
+**Nota adicional:** Quarkus dev mode en Windows ignora `quarkus.http.port=6101` de
+`application.properties`. El puerto se fuerza con `-Dquarkus.http.port=6101` en la línea
+de comandos. Sin esto, arranca en el puerto default 8080.
+
+## 60.3 Corrección
+
+| Archivo | Cambio |
+|---|---|
+| `backend/src/main/resources/db/migration/V14__cumplimiento_programacion.sql` | L7: `programacion_detalles(id)` → `detalle_programaciones(id)` |
+
+## 60.4 Verificación post-fix (Ley 5)
+
+### Backend
+| Comando | Resultado |
+|---|---|
+| `curl localhost:6101/api/v1/auth/roles` | ✅ 200 — `[Super Admin, Admin, Usuario]` |
+| `curl localhost:6101/api/v1/programaciones?anio=2026&mes=9` | ✅ 200 — 8 detalles PUBLICADO |
+| `curl localhost:6101/api/v1/fundos` | ✅ 200 — 6 fundos |
+| `curl localhost:6101/api/v1/variedades` | ✅ 200 — 11 variedades |
+| `curl localhost:6101/api/v1/etapas-fenologicas` | ✅ 200 — 7 etapas |
+| `curl localhost:6101/api/v1/requerimientos` | ✅ 401 (auth requerida, correcto) |
+| `curl localhost:6101/api/v1/programaciones/1/stock?fecha=2026-09-03` | ✅ 401 (auth requerida, correcto) |
+| Flyway log | ✅ `Successfully applied 1 migration to schema "public", now at version v14` |
+
+### Flyway schema history (V14 registrada)
+```
+installed_rank=14 | version=14 | description=cumplimiento programacion | success=t
+```
+
+## 60.5 Commits
+
+| Commit | Descripción |
+|---|---|
+| `763cd30` | `fix(db+mobile): corregir nombre tabla V14 (programacion_detalles→detalle_programaciones) + fix nombre app.json` |
+
+Push a `origin/main` verificado: `git status -sb` sin "ahead", `git log origin/main..HEAD` vacío.
