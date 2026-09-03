@@ -17,7 +17,7 @@ import {
   setUnauthorizedHandler,
   type AuthUser,
 } from '../services/ApiClient';
-import {isTokenExpired} from '../utils/token';
+
 
 interface AuthContextType {
   /** Usuario decodificado del JWT (null = sin sesión). */

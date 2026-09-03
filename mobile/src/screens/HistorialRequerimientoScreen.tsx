@@ -41,11 +41,7 @@ import {
 } from '../services/ApiClient';
 import {theme} from '../theme';
 import {formatFecha} from '../utils/programacion';
-import {
-  esRangoValido,
-  toISODate,
-  formatoFechaInput,
-} from '../utils/requerimientos';
+import {esRangoValido, toISODate} from '../utils/requerimientos';
 import {requerimientosRepo, photosRepo, catalogosRepo} from '../db/repositories';
 import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
 import OfflineBanner from '../components/OfflineBanner';
@@ -290,6 +286,7 @@ export default function HistorialRequerimientoScreen() {
   );
 
   // Auto-cargar con fechas por defecto (lunes→hoy de la semana en curso)
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     cargar(desdeTexto || null, hastaTexto || null);
   }, [cargar]);

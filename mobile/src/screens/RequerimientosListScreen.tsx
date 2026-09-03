@@ -150,6 +150,7 @@ export default function RequerimientosListScreen() {
   );
 
   // Auto-cargar con fechas por defecto (lunes→hoy de la semana en curso)
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     cargar(desdeTexto || null, hastaTexto || null);
   }, [cargar]);

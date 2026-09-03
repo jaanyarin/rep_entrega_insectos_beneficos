@@ -26,8 +26,14 @@ export function getDatabase() {
     return _db;
   }
 
-  _sqliteDb = open({name: DB_NAME});
-  _db = drizzle(_sqliteDb, {schema});
+  try {
+    _sqliteDb = open({name: DB_NAME});
+    _db = drizzle(_sqliteDb, {schema});
+  } catch {
+    throw new Error(
+      'SQLite no disponible. La app funcionará sin modo offline.',
+    );
+  }
 
   // Ejecutar migraciones + seed al iniciar. El promise se expone vía
   // waitForDatabase() para que los hooks puedan esperar antes de leer.
@@ -49,7 +55,7 @@ export function waitForDatabase(): Promise<void> {
   }
   // Si getDatabase() no se ha llamado aún, forzar inicialización.
   getDatabase();
-  return _dbReady!;
+  return _dbReady ?? Promise.resolve();
 }
 
 /**

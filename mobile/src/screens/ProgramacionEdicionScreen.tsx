@@ -202,6 +202,7 @@ export default function ProgramacionEdicionScreen() {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Carga los cumplimientos de producción de una programación. */

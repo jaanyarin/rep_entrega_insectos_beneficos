@@ -68,7 +68,7 @@ export default function RecepcionFormScreen() {
           req,
           requerimientoId,
           null,
-          user?.sub ? parseInt(user.sub) : 0,
+          user?.sub ? parseInt(user.sub, 10) : 0,
         );
       }
       navigation.goBack();
