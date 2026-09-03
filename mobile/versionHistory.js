@@ -6,6 +6,32 @@
 
 const versionHistory = [
   {
+    version: '1.7.0',
+    fecha: '2026-09-02',
+    cambios: [
+      'Módulo de Cumplimiento de Producción: registro real vs programado por semana.',
+      'Botón de lápiz (editar) / lupa (ver) en la semana actual de la tabla de programación.',
+      'Modal de registro: inputs de papel y sobre producido con total automático.',
+      'Modal de consulta: valores registrados + porcentaje de cumplimiento vs programado.',
+      'Backend: migración V14, entity, repository, DTO, resource con upsert por detalle.',
+      'Offline: repository SQLite para cumplimiento con persistencia local.',
+    ],
+  },
+  {
+    version: '1.6.2',
+    fecha: '2026-09-02',
+    cambios: [
+      'Edición de requerimiento: fix silencioso — "Guardar" no persistía cambios cuando los datos se cargaban desde API (SQLite falla en release APK). Ahora usa PUT al servidor cuando el registro viene del backend.',
+      'Estado default al crear requerimiento: PENDIENTE (antes REGISTRADO) para alinear con el flujo operativo.',
+      'Chip de estado PENDIENTE: color orange #DB9647 con fondo suave #FAEBD8 (design system §16).',
+      'Cards de solicitudes (admin): fondo amarillo suave #FAEBD8 cuando el estado es PENDIENTE.',
+      'RequerimientoFormScreen: API fallback robusto — SQLite y API están en try/catch independientes; fallo de uno no bloquea el otro.',
+      'HistorialRequerimientoScreen: fechas default (lunes→hoy) + API fallback + auto-carga al montar.',
+      'RequerimientosPanelScreen y RequerimientosListScreen: API fallback cuando SQLite falla + fechas default.',
+      'ProgramacionScreen tests: meses dinámicos para evitar date-rollover.',
+    ],
+  },
+  {
     version: '1.6.1',
     fecha: '2026-08-30',
     cambios: [

@@ -848,3 +848,57 @@ export async function eliminarFotoRequerimiento(
 ): Promise<void> {
   await api.delete(`/requerimientos/${requerimientoId}/fotos/${fotoId}`);
 }
+
+/* ------------------------------------------------------------------ */
+/* Cumplimiento de producción (HITO-014)                                */
+/* ------------------------------------------------------------------ */
+
+export interface CumplimientoProgramacionDto {
+  id: number;
+  programacionDetalleId: number;
+  programacionId: number;
+  semana: number;
+  fecha: string;
+  papelReal: number;
+  sobreReal: number;
+  totalReal: number;
+  creadoPor: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GuardarCumplimientoRequest {
+  programacionDetalleId: number;
+  semana: number;
+  fecha: string;
+  papelReal: number;
+  sobreReal: number;
+}
+
+/**
+ * GET /api/v1/programaciones/{id}/cumplimiento — lista cumplimientos de una programación.
+ */
+export async function listarCumplimiento(
+  programacionId: number,
+): Promise<CumplimientoProgramacionDto[]> {
+  const res = await api.get<CumplimientoProgramacionDto[]>(
+    `/programaciones/${programacionId}/cumplimiento`,
+  );
+  return unwrap(
+    res.data as CumplimientoProgramacionDto[] | {data?: CumplimientoProgramacionDto[]},
+  );
+}
+
+/**
+ * PUT /api/v1/programaciones/{id}/cumplimiento — crear/actualizar cumplimiento (upsert).
+ */
+export async function guardarCumplimiento(
+  programacionId: number,
+  req: GuardarCumplimientoRequest,
+): Promise<CumplimientoProgramacionDto> {
+  const res = await api.put<CumplimientoProgramacionDto>(
+    `/programaciones/${programacionId}/cumplimiento`,
+    req,
+  );
+  return res.data as CumplimientoProgramacionDto;
+}

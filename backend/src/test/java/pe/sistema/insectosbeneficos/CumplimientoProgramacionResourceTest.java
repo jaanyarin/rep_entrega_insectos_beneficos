@@ -1,0 +1,121 @@
+package pe.sistema.insectosbeneficos;
+
+import io.quarkus.test.junit.QuarkusTest;
+import io.restassured.http.ContentType;
+import org.junit.jupiter.api.Test;
+
+import java.util.Map;
+
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+
+@QuarkusTest
+public class CumplimientoProgramacionResourceTest {
+
+    @Test
+    public void testListarCumplimientoSinDatos() {
+        // Crear programación primero
+        Integer programacionId = given()
+            .auth().oauth2(TestSupport.seedToken())
+            .contentType(ContentType.JSON)
+            .body(Map.of(
+                "anio", 2026,
+                "mes", 9,
+                "especieId", 1
+            ))
+            .when().post("/api/v1/programaciones")
+            .then()
+            .statusCode(201)
+            .extract().body().json().getInt("id");
+
+        // Listar cumplimiento (debe estar vacío)
+        given()
+            .auth().oauth2(TestSupport.seedToken())
+            .when().get("/api/v1/programaciones/" + programacionId + "/cumplimiento")
+            .then()
+            .statusCode(200)
+            .body("size()", is(0));
+    }
+
+    @Test
+    public void testGuardarCumplimiento() {
+        // Crear programación
+        Integer programacionId = given()
+            .auth().oauth2(TestSupport.seedToken())
+            .contentType(ContentType.JSON)
+            .body(Map.of(
+                "anio", 2026,
+                "mes", 9,
+                "especieId", 1
+            ))
+            .when().post("/api/v1/programaciones")
+            .then()
+            .statusCode(201)
+            .extract().body().json().getInt("id");
+
+        // Obtener el primer detalle
+        Integer detalleId = given()
+            .auth().oauth2(TestSupport.seedToken())
+            .when().get("/api/v1/programaciones/" + programacionId)
+            .then()
+            .statusCode(200)
+            .extract().body().json().getJsonObject("detalles").getJsonArray("detalles").getJsonObject(0).getInt("id");
+
+        // Guardar cumplimiento
+        given()
+            .auth().oauth2(TestSupport.seedToken())
+            .contentType(ContentType.JSON)
+            .body(Map.of(
+                "programacionDetalleId", detalleId,
+                "semana", 1,
+                "fecha", "2026-09-01",
+                "papelReal", 2500,
+                "sobreReal", 1800
+            ))
+            .when().put("/api/v1/programaciones/" + programacionId + "/cumplimiento")
+            .then()
+            .statusCode(200)
+            .body("papelReal", is(2500))
+            .body("sobreReal", is(1800))
+            .body("totalReal", is(4300));
+    }
+
+    @Test
+    public void testGuardarCumplimientoValidacionNegativo() {
+        // Crear programación
+        Integer programacionId = given()
+            .auth().oauth2(TestSupport.seedToken())
+            .contentType(ContentType.JSON)
+            .body(Map.of(
+                "anio", 2026,
+                "mes", 9,
+                "especieId", 1
+            ))
+            .when().post("/api/v1/programaciones")
+            .then()
+            .statusCode(201)
+            .extract().body().json().getInt("id");
+
+        Integer detalleId = given()
+            .auth().oauth2(TestSupport.seedToken())
+            .when().get("/api/v1/programaciones/" + programacionId)
+            .then()
+            .statusCode(200)
+            .extract().body().json().getJsonObject("detalles").getJsonArray("detalles").getJsonObject(0).getInt("id");
+
+        // Intentar guardar con valores negativos
+        given()
+            .auth().oauth2(TestSupport.seedToken())
+            .contentType(ContentType.JSON)
+            .body(Map.of(
+                "programacionDetalleId", detalleId,
+                "semana", 1,
+                "fecha", "2026-09-01",
+                "papelReal", -100,
+                "sobreReal", 500
+            ))
+            .when().put("/api/v1/programaciones/" + programacionId + "/cumplimiento")
+            .then()
+            .statusCode(400);
+    }
+}

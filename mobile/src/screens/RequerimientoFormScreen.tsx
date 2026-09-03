@@ -91,6 +91,8 @@ export default function RequerimientoFormScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [avisoActa, setAvisoActa] = useState<string | null>(null);
+  // Trackea si el registro cargó desde SQLite local o desde API
+  const [dataSource, setDataSource] = useState<'local' | 'api'>('local');
 
   // Fecha por defecto (creación): hoy.
   useEffect(() => {
@@ -142,6 +144,7 @@ export default function RequerimientoFormScreen() {
           sobreConCascarilla: local.sobreConCascarilla,
         });
         foundLocal = true;
+        setDataSource('local');
       }
     } catch {
       // SQLite falló (release APK) — continuar con fallback API
@@ -153,6 +156,7 @@ export default function RequerimientoFormScreen() {
         const {obtenerRequerimiento} = await import('../services/ApiClient');
         const r = await obtenerRequerimiento(targetId);
         fillFromDto(r);
+        setDataSource('api');
       } catch (e) {
         setError(extractErrorMessage(e));
       }
@@ -219,8 +223,26 @@ export default function RequerimientoFormScreen() {
           },
           Number(user?.sub) || 0,
         );
+      } else if (dataSource === 'api' && isOnline) {
+        // Los datos vinieron del servidor → actualizar vía API PUT
+        const {actualizarRequerimiento} = await import('../services/ApiClient');
+        await actualizarRequerimiento(id!, {
+          fecha: isoFecha ?? hoyISO(),
+          fundoId: fundoId!,
+          loteId: loteId!,
+          especieId: especieId!,
+          etapaFenologicaId: null,
+          cantidad: cantidadNum,
+          plagaId,
+          estado,
+          papelConPostura: papelNum > 0 ? papelNum : null,
+          sobreConCascarilla: sobreNum > 0 ? sobreNum : null,
+          fechaLiberacion: isoFechaLiberacion,
+          horaLiberacion: horaLiberacion.trim() || null,
+          observaciones: observaciones.trim() || null,
+        });
       } else {
-        // Editar: encontrar el localId real
+        // Los datos vinieron de SQLite → actualizar localmente + outbox
         let localId = id!;
         const local = await requerimientosRepo.getByServerId(id!);
         if (local) {

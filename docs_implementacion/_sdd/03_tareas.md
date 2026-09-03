@@ -137,6 +137,10 @@ cada tarea cierra con verificación (Ley 5) y, al fin del HITO, auditoría integ
 | MO-015 | ApiClient: funciones fotos (subir/listar/eliminar) + 5 tests | Alta | Completado (HITO-010) |
 | MO-016 | Wire fotos a screens: hook usePhotoCapture (DRY) + upload crear + cargar/subir/eliminar editar + thumbnails historial | Alta | Completado (HITO-011) |
 | MO-017 | Tabla intra-semana de programación: columnas Sem/Fecha/Papel/Sobre/Total/Restante, fecha corta (Lun 03), restante con excedido, inputs vacíos, fondo alternado + pull-to-refresh en listado | Alta | Completado (HITO-012) |
+| MO-018 | Fixes offline/online post-HITO-013: API fallback en edición, chip PENDIENTE, cards bg, estado default | Alta | Completado (v1.6.2) |
+| MO-019 | Bump versión 1.6.2 / versionCode 9 + versionHistory | Alta | Completado (v1.6.2) |
+| MO-020 | Módulo Cumplimiento de Producción: botón lápiz/lupa en semana actual, modal registro/consulta | Alta | Completado (v1.7.0) |
+| BE-015 | Backend cumplimiento producción: V14, entity, repository, DTO, resource, upsert | Alta | Completado (v1.7.0) |
 
 ---
 

@@ -10,9 +10,9 @@
 | Documento | 04_IMPLEMENTACION — Estado e historial de implementación |
 | Proyecto | Sistema de Control de Entrega de Insectos Benéficos |
 | Tipo Documento | SDD (historial de implementación) |
-| Estado | HITO-013 cerrado + fix token.ts; 150 tests / 26 suites, 0 failures |
-| Versión | 1.6.1 / versionCode 8 |
-| Fecha | 2026-08-30 |
+| Estado | v1.7.0: módulo cumplimiento producción; 150 tests / 26 suites, 0 failures |
+| Versión | 1.7.0 / versionCode 10 |
+| Fecha | 2026-09-02 |
 | Responsable | Orchestrator / Developer |
 | Repositorio | C:\repos\rep_entrega_insectos_beneficos |
 | Clasificación | Interno |
@@ -28,9 +28,8 @@ decisiones/avances por HITO. Se alimenta en cada tarea y se consulta antes de re
 
 # 3. Alcance del Documento
 
-Cubre el historial de implementación desde HITO-001 hasta HITO-012 (incluye backend de
-requerimientos, catálogos, fotos, el wiring en mobile, el cambio de autogeneración de
-programaciones y la tabla intra-semana de Lunes/Jueves reales). Es la fuente de retorno para
+Cubre el historial de implementación desde HITO-001 hasta HITO-013 (incluye offline completo)
+más fixes post-HITO-013 (v1.6.2). Es la fuente de retorno para
 continuar el desarrollo sin depender de la memoria de una sesión anterior.
 
 ---
@@ -2099,3 +2098,192 @@ overridean con `jest.requireActual`).
 | `mobile/__tests__/SyncToast.test.tsx` | 4 tests componente |
 | `mobile/__tests__/useOnlineStatus.test.tsx` | 5 tests hook |
 | `mobile/__tests__/useLiveQuery.test.tsx` | 5 tests hook |
+
+---
+
+# 58. POST-HITO-013 — Fixes offline/online + UX PENDIENTE + documentación (2026-09-02)
+
+Corrección de bugs reportados tras HITO-013, mejora de UX del chip de estado PENDIENTE,
+bump de versión y documentación de todo lo implementado desde el último registro.
+
+## 58.1 Problema: edición de requerimiento no persistía cambios
+
+**Síntoma**: Al editar un requerimiento desde el panel admin (Screen 7 → Screen 8) y cambiar
+el estado (ej. REGISTRADO → APROBADO), el botón "Guardar" no navegaba atrás y el estado
+no se actualizaba.
+
+**Causa raíz**: En release APK, `@op-engineering/op-sqlite` falla (`getDatabase().open()` lanza
+"undefined is not a function"). La pantalla cargaba los datos vía API fallback pero al guardar
+usaba `requerimientosRepo.updateLocal(serverId, ...)` — el `UPDATE` se ejecutaba con
+`WHERE id = serverId` pero la fila tiene `id = -N` (negativo) → 0 filas afectadas, sin error visible.
+
+**Solución**: Nuevo state `dataSource` ('local' | 'api') que trackea la fuente de los datos.
+En modo edición:
+- Si `dataSource === 'api'` e online → `actualizarRequerimiento(id, ...)` (PUT al servidor)
+- Si `dataSource === 'local'` → `updateLocal(localId, ...)` (SQLite + outbox)
+
+## 58.2 Problema: API fallback en RequerimientoFormScreen
+
+**Síntoma**: El catch exterior de `cargarRequerimiento` capturaba errores de SQLite Y de API
+en el mismo bloque, impidiendo el fallback.
+
+**Solución**: SQLite y API ahora tienen try/catch independientes. Si SQLite falla, se intenta
+API sin importar el resultado anterior.
+
+## 58.3 Estado default al crear requerimiento
+
+**Cambio**: `createLocal` ahora usa `estado: 'PENDIENTE'` (antes `'REGISTRADO'`).
+El form screen también inicializa con `'PENDIENTE'` en lugar de `'APROBADO'`.
+
+**Justificación**: PENDIENTE refleja mejor el estado real de una solicitud recién creada
+que espera revisión del admin.
+
+## 58.4 Chip de estado PENDIENTE — design system §16
+
+**Cambio visual**:
+- Color texto: `#FFC107` → `#DB9647` (orange consistente)
+- Color fondo: `${color}22` genérico → `#FAEBD8` (yellow suave específico)
+- Cards en RequerimientosListScreen: fondo `#FAEBD8` cuando estado = PENDIENTE
+
+**Archivos modificados**:
+- `src/utils/requerimientos.ts` — `EstadoInfo.bg?: string`, PENDIENTE `bg: '#FAEBD8'`
+- `src/components/RequerimientoStatusChip.tsx` — usa `info.bg` cuando existe
+- `src/screens/RequerimientosListScreen.tsx` — `[styles.card, info.bg ? {backgroundColor: info.bg} : undefined]`
+
+## 58.5 Bump de versión
+
+| Archivo | Antes | Ahora |
+|---|---|---|
+| `package.json` | 1.6.1 | 1.6.2 |
+| `android/app/build.gradle` | versionCode 8 / versionName 1.6.1 | versionCode 9 / versionName 1.6.2 |
+| `src/constants/appVersion.ts` | '1.6.1' | '1.6.2' |
+| `versionHistory.js` | — | Entrada 1.6.2 con 8 cambios documentados |
+
+## 58.6 Historial de sesiones offline (API fallback en todas las screens)
+
+Las siguientes pantallas ya tenían API fallback (corregido en sesiones anteriores):
+- `HistorialRequerimientoScreen` — fechas default lunes→hoy + API fallback + auto-carga
+- `RequerimientosPanelScreen` — API fallback cuando SQLite falla
+- `RequerimientosListScreen` — API fallback + fechas default + auto-carga
+
+## 58.7 ProgramacionScreen tests — fix date-rollover
+
+Tests que usaban mes hardcoded (ej. `mes: 9`) ahora usan `new Date().getMonth() + 1`
+para evitar que fallen al cambiar de mes.
+
+## 58.8 Archivos modificados (sesión 2026-09-02)
+
+| Archivo | Cambio |
+|---|---|
+| `src/screens/RequerimientoFormScreen.tsx` | API fallback robusto (try/catch separados) + dataSource tracking + PUT vía API |
+| `src/screens/RequerimientosListScreen.tsx` | Cards con fondo PENDIENTE + import estadoInfo |
+| `src/screens/HistorialRequerimientoScreen.tsx` | API fallback + fechas default + auto-carga |
+| `src/screens/RequerimientosPanelScreen.tsx` | API fallback |
+| `src/components/RequerimientoStatusChip.tsx` | `info.bg` para fondo |
+| `src/utils/requerimientos.ts` | `EstadoInfo.bg`, PENDIENTE #DB9647/#FAEBD8 |
+| `src/db/repositories/requerimientos.ts` | createLocal: estado default PENDIENTE |
+| `__tests__/ProgramacionScreen.test.tsx` | Meses dinámicos |
+| `__tests__/NuevoRequerimientoScreen.test.tsx` | Mock saveFromServer |
+| `mobile/package.json` | version 1.6.2 |
+| `mobile/android/app/build.gradle` | versionCode 9 / versionName 1.6.2 |
+| `src/constants/appVersion.ts` | '1.6.2' |
+| `mobile/versionHistory.js` | Entrada 1.6.2 |
+
+## 58.9 Verificación (Ley 5)
+
+| Comando | Resultado |
+|---|---|
+| `npx jest --runInBand` (mobile) | ✅ **150/150 PASS** (26 suites, 0 failures) |
+
+---
+
+# 59. HITO-014 — Módulo de Cumplimiento de Producción (2026-09-02)
+
+Feature nueva: permite registrar la producción real (papel/sobre) por semana de programación
+y compararla con lo programado, para llevar trazabilidad de cumplimiento.
+
+## 59.1 Modelo de datos
+
+Nueva tabla `cumplimiento_programacion`:
+- `programacion_detalle_id` (FK, unique) — referencia a la fila de semana
+- `programacion_id` (FK) — referencia a la programación
+- `semana`, `fecha` — datos de la fila
+- `papel_real`, `sobre_real`, `total_real` — producción real
+- `creado_por`, `created_at`, `updated_at` — auditoría
+
+## 59.2 Backend
+
+| Componente | Archivo | Descripción |
+|---|---|---|
+| Migración V14 | `V14__cumplimiento_programacion.sql` | Tabla + unique constraint + índices |
+| Entity | `CumplimientoProgramacion.java` | JPA entity con relationships |
+| Repository | `CumplimientoProgramacionRepository.java` | findByProgramacionId, findByDetalleId |
+| DTO (response) | `CumplimientoProgramacionDto.java` | CamelCase response |
+| DTO (request) | `GuardarCumplimientoRequest.java` | Bean Validation @NotNull @Min(0) |
+| Service | `CumplimientoProgramacionService.java` | Upsert + validación FK |
+| Resource | `CumplimientoProgramacionResource.java` | GET + PUT under /api/v1/programaciones/{id}/cumplimiento |
+| Test | `CumplimientoProgramacionResourceTest.java` | 3 tests: listar vacío, guardar, validación negativo |
+
+## 59.3 Mobile
+
+| Componente | Cambio |
+|---|---|
+| `schema.ts` | +tabla `cumplimientoProgramacion` |
+| `repositories/cumplimiento.ts` | Nuevo: guardarCumplimiento, getCumplimientoPorDetalle, getCumplimientosPorProgramacion |
+| `repositories/index.ts` | +export `cumplimientoRepo` |
+| `ApiClient.ts` | +2 funciones: `listarCumplimiento`, `guardarCumplimiento` + tipos DTO |
+| `utils/programacion.ts` | +`semanaActual()` — semana ISO del año actual |
+| `ProgramacionEdicionScreen.tsx` | Columna "Producción" con botón lápiz/lupa + modal |
+
+## 59.4 UX (ProgramacionEdicionScreen)
+
+**Tabla**: `Sem | Fecha | Papel | Sobre | Total | Restante | Producción`
+
+**Columna "Producción"**:
+- Solo visible en modo edición cuando la programación está PUBLICADA
+- Solo en la fila de la semana ISO actual (ej. semana 36)
+- Sin datos → icono ✏️ (lápiz, gris)
+- Con datos → icono 🔍 (lupa, color)
+
+**Modal edición (lápiz)**:
+- Título: "Registro de Producción — Semana {N}"
+- Subtítulo: "Lun 03" (fecha corta)
+- Inputs: Papel producido, Sobre producido (millares)
+- Total calculado en tiempo real
+- Validación: al menos un valor > 0
+
+**Modal vista (lupa)**:
+- Título: "Producción Registrada — Semana {N}"
+- Valores: Papel, Sobre, Total producido
+- Comparación: Programado vs Producción
+- Porcentaje de cumplimiento (verde ≥80%, amarillo <80%)
+
+## 59.5 Archivos modificados/creados
+
+| Archivo | Acción |
+|---|---|
+| `backend/.../V14__cumplimiento_programacion.sql` | NUEVO |
+| `backend/.../CumplimientoProgramacion.java` | NUEVO |
+| `backend/.../CumplimientoProgramacionRepository.java` | NUEVO |
+| `backend/.../dto/CumplimientoProgramacionDto.java` | NUEVO |
+| `backend/.../dto/GuardarCumplimientoRequest.java` | NUEVO |
+| `backend/.../CumplimientoProgramacionService.java` | NUEVO |
+| `backend/.../CumplimientoProgramacionResource.java` | NUEVO |
+| `backend/.../CumplimientoProgramacionResourceTest.java` | NUEVO |
+| `mobile/src/db/schema.ts` | MODIFICADO — +tabla cumplimiento |
+| `mobile/src/db/repositories/cumplimiento.ts` | NUEVO |
+| `mobile/src/db/repositories/index.ts` | MODIFICADO — +export |
+| `mobile/src/services/ApiClient.ts` | MODIFICADO — +2 funcs + tipos |
+| `mobile/src/utils/programacion.ts` | MODIFICADO — +semanaActual() |
+| `mobile/src/screens/ProgramacionEdicionScreen.tsx` | MODIFICADO — columna Producción + modal |
+| `mobile/package.json` | MODIFICADO — version 1.7.0 |
+| `mobile/android/app/build.gradle` | MODIFICADO — versionCode 10 / versionName 1.7.0 |
+| `mobile/src/constants/appVersion.ts` | MODIFICADO — '1.7.0' |
+| `mobile/versionHistory.js` | MODIFICADO — entrada 1.7.0 |
+| `mobile/__tests__/PerfilScreen.test.tsx` | MODIFICADO — versión 1.7.0 |
+
+## 59.6 Verificación (Ley 5)
+
+| Comando | Resultado |
+|---|---|
+| `npx jest --runInBand` (mobile) | ✅ **150/150 PASS** (26 suites, 0 failures) |

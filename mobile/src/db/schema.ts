@@ -148,3 +148,20 @@ export const programacionDetalles = sqliteTable('programacion_detalles', {
   stockFinal: integer('stock_final').notNull(),
   estado: text('estado').notNull().default('EN_PROCESO'),
 });
+
+// ─── CUMPLIMIENTO DE PRODUCCIÓN (registro real vs programado) ──────────────
+
+export const cumplimientoProgramacion = sqliteTable('cumplimiento_programacion', {
+  id: integer('id').primaryKey(),
+  serverId: integer('server_id'),
+  programacionDetalleId: integer('programacion_detalle_id').notNull(),
+  programacionId: integer('programacion_id').notNull(),
+  semana: integer('semana').notNull(),
+  fecha: text('fecha').notNull(),
+  papelReal: integer('papel_real').notNull().default(0),
+  sobreReal: integer('sobre_real').notNull().default(0),
+  totalReal: integer('total_real').notNull().default(0),
+  creadoPor: integer('creado_por'),
+  createdAt: integer('created_at', {mode: 'timestamp'}),
+  updatedAt: integer('updated_at', {mode: 'timestamp'}),
+});

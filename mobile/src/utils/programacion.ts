@@ -124,3 +124,13 @@ export function formatFechaCorta(iso: string | null | undefined): string {
   const dia = DIAS_CORTOS[d.getDay()] ?? '—';
   return `${dia} ${String(d.getDate()).padStart(2, '0')}`;
 }
+
+/**
+ * Retorna el número de semana ISO del año de la fecha actual.
+ * Ej: si hoy es 02/09/2026 → retorna 36.
+ */
+export function semanaActual(): number {
+  const now = new Date();
+  const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return semanaCalendario(iso);
+}

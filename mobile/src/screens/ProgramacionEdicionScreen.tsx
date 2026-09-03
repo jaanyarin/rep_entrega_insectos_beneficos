@@ -19,6 +19,7 @@
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -43,10 +44,13 @@ import {
   actualizarProgramacion,
   crearProgramacion,
   extractErrorMessage,
+  guardarCumplimiento,
+  listarCumplimiento,
   listarEspecies,
   listarProgramaciones,
   obtenerProgramacion,
   publicarProgramacion,
+  type CumplimientoProgramacionDto,
   type EspecieDto,
   type ProgramacionDto,
 } from '../services/ApiClient';
@@ -57,6 +61,7 @@ import {
   etiquetaPeriodo,
   formatFechaCorta,
   mesActual,
+  semanaActual,
   semanaCalendario,
 } from '../utils/programacion';
 
@@ -131,6 +136,18 @@ export default function ProgramacionEdicionScreen() {
     texto: string;
   } | null>(null);
 
+  // Cumplimiento de producción
+  const [cumplimientos, setCumplimientos] = useState<Map<number, CumplimientoProgramacionDto>>(new Map());
+  const [cumplimientoModalVisible, setCumplimientoModalVisible] = useState(false);
+  const [cumplimientoModalMode, setCumplimientoModalMode] = useState<'edit' | 'view'>('edit');
+  const [cumplimientoSeleccionado, setCumplimientoSeleccionado] = useState<FilaEditable | null>(null);
+  const [cumplimientoPapel, setCumplimientoPapel] = useState('');
+  const [cumplimientoSobre, setCumplimientoSobre] = useState('');
+  const [cumplimientoSaving, setCumplimientoSaving] = useState(false);
+  const [cumplimientoError, setCumplimientoError] = useState<string | null>(null);
+
+  const semanaActualNum = semanaActual();
+
   const puedeEditar =
     modo === 'crear'
       ? esDiaEditable()
@@ -178,10 +195,26 @@ export default function ProgramacionEdicionScreen() {
           sobre: d.sobreConCascarilla === 0 ? '' : String(d.sobreConCascarilla),
         })),
       );
+      // Cargar cumplimientos de producción
+      await cargarCumplimientos(detalle.id);
     } catch (e) {
       setError(extractErrorMessage(e));
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  /** Carga los cumplimientos de producción de una programación. */
+  const cargarCumplimientos = useCallback(async (programacionId: number) => {
+    try {
+      const data = await listarCumplimiento(programacionId);
+      const map = new Map<number, CumplimientoProgramacionDto>();
+      for (const c of data) {
+        map.set(c.programacionDetalleId, c);
+      }
+      setCumplimientos(map);
+    } catch {
+      // Silenciar: el cumplimiento es opcional
     }
   }, []);
 
@@ -268,6 +301,57 @@ export default function ProgramacionEdicionScreen() {
         f.detalleId === detalleId ? {...f, [campo]: limpio} : f,
       ),
     );
+  };
+
+  // ─── CUMPLIMIENTO DE PRODUCCIÓN ────────────────────────────────────────
+
+  /** Abre el modal de cumplimiento en modo edición (lápiz) o vista (lupa). */
+  const abrirCumplimiento = (fila: FilaEditable, mode: 'edit' | 'view') => {
+    setCumplimientoSeleccionado(fila);
+    setCumplimientoModalMode(mode);
+    setCumplimientoError(null);
+    if (mode === 'edit') {
+      // Precargar valores existentes si los hay
+      const existente = cumplimientos.get(fila.detalleId);
+      setCumplimientoPapel(existente ? String(existente.papelReal) : '');
+      setCumplimientoSobre(existente ? String(existente.sobreReal) : '');
+    }
+    setCumplimientoModalVisible(true);
+  };
+
+  /** Guarda el cumplimiento de producción. */
+  const guardarCumplimientoHandler = async () => {
+    if (!cumplimientoSeleccionado || !programacion) {
+      return;
+    }
+    const papelNum = aNumero(cumplimientoPapel);
+    const sobreNum = aNumero(cumplimientoSobre);
+    if (papelNum <= 0 && sobreNum <= 0) {
+      setCumplimientoError('Ingresa al menos un valor (papel o sobre).');
+      return;
+    }
+    setCumplimientoSaving(true);
+    setCumplimientoError(null);
+    try {
+      const resultado = await guardarCumplimiento(programacion.id, {
+        programacionDetalleId: cumplimientoSeleccionado.detalleId,
+        semana: cumplimientoSeleccionado.semana,
+        fecha: cumplimientoSeleccionado.fecha,
+        papelReal: papelNum,
+        sobreReal: sobreNum,
+      });
+      // Actualizar el mapa local
+      setCumplimientos(prev => {
+        const next = new Map(prev);
+        next.set(cumplimientoSeleccionado.detalleId, resultado);
+        return next;
+      });
+      setCumplimientoModalVisible(false);
+    } catch (e) {
+      setCumplimientoError(extractErrorMessage(e));
+    } finally {
+      setCumplimientoSaving(false);
+    }
   };
 
   const enviarStock = async () => {
@@ -409,8 +493,15 @@ export default function ProgramacionEdicionScreen() {
           <Text style={[styles.colInput, styles.tablaHeaderText]}>Sobre</Text>
           <Text style={[styles.colNum, styles.tablaHeaderText]}>Total</Text>
           <Text style={[styles.colNum, styles.tablaHeaderText]}>Restante</Text>
+          {modo === 'editar' && programacion?.estado === 'PUBLICADO' && (
+            <Text style={[styles.colAccion, styles.tablaHeaderText]}>Producción</Text>
+          )}
         </View>
-        {filasComputadas.map((f) => (
+        {filasComputadas.map((f) => {
+          const esSemanaActual = semanaCalendario(f.fecha) === semanaActualNum;
+          const tieneCumplimiento = cumplimientos.has(f.detalleId);
+          const mostrarAccion = modo === 'editar' && programacion?.estado === 'PUBLICADO' && esSemanaActual;
+          return (
           <View
             key={f.detalleId}
             style={[
@@ -452,8 +543,17 @@ export default function ProgramacionEdicionScreen() {
                 <Text style={styles.restanteExcedidoLabel}>excedido</Text>
               ) : null}
             </View>
+            {mostrarAccion && (
+              <Pressable
+                style={styles.colAccion}
+                onPress={() => abrirCumplimiento(f, tieneCumplimiento ? 'view' : 'edit')}
+                accessibilityLabel={tieneCumplimiento ? `Ver producción ${formatFechaCorta(f.fecha)}` : `Registrar producción ${formatFechaCorta(f.fecha)}`}>
+                <Text style={styles.accionIcono}>{tieneCumplimiento ? '🔍' : '✏️'}</Text>
+              </Pressable>
+            )}
           </View>
-        ))}
+          );
+        })}
         <View style={styles.tablaPie}>
           <Text style={styles.totalMes}>
             Total del mes: <Text style={styles.totalMesBold}>{totalMes} millares</Text>
@@ -542,6 +642,128 @@ export default function ProgramacionEdicionScreen() {
             />
           )}
         </ScrollView>
+        {/* Modal de cumplimiento de producción */}
+        <Modal
+          visible={cumplimientoModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCumplimientoModalVisible(false)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>
+                {cumplimientoModalMode === 'edit'
+                  ? 'Registro de Producción'
+                  : 'Producción Registrada'}
+                {' — '}Semana {cumplimientoSeleccionado ? semanaCalendario(cumplimientoSeleccionado.fecha) : ''}
+              </Text>
+              {cumplimientoSeleccionado && (
+                <Text style={styles.modalSub}>
+                  {formatFechaCorta(cumplimientoSeleccionado.fecha)}
+                </Text>
+              )}
+
+              {cumplimientoModalMode === 'edit' ? (
+                <>
+                  <View style={styles.modalField}>
+                    <Text style={styles.modalLabel}>Papel producido (millares)</Text>
+                    <TextInput
+                      style={styles.modalInput}
+                      value={cumplimientoPapel}
+                      onChangeText={setCumplimientoPapel}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      placeholder="0"
+                      accessibilityLabel="Papel producido"
+                    />
+                  </View>
+                  <View style={styles.modalField}>
+                    <Text style={styles.modalLabel}>Sobre producido (millares)</Text>
+                    <TextInput
+                      style={styles.modalInput}
+                      value={cumplimientoSobre}
+                      onChangeText={setCumplimientoSobre}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      placeholder="0"
+                      accessibilityLabel="Sobre producido"
+                    />
+                  </View>
+                  <View style={styles.modalTotal}>
+                    <Text style={styles.modalTotalLabel}>Total:</Text>
+                    <Text style={styles.modalTotalValue}>
+                      {aNumero(cumplimientoPapel) + aNumero(cumplimientoSobre)} millares
+                    </Text>
+                  </View>
+                  {cumplimientoError && (
+                    <Text style={styles.modalError}>{cumplimientoError}</Text>
+                  )}
+                  <View style={styles.modalActions}>
+                    <AppButton
+                      label="Cancelar"
+                      variant="secondary"
+                      onPress={() => setCumplimientoModalVisible(false)}
+                    />
+                    <AppButton
+                      label="Guardar"
+                      icon="content-save-outline"
+                      loading={cumplimientoSaving}
+                      onPress={guardarCumplimientoHandler}
+                    />
+                  </View>
+                </>
+              ) : (
+                <>
+                  {cumplimientoSeleccionado && (() => {
+                    const c = cumplimientos.get(cumplimientoSeleccionado.detalleId);
+                    if (!c) { return null; }
+                    const programadoPapel = aNumero(cumplimientoSeleccionado.papel);
+                    const programadoSobre = aNumero(cumplimientoSeleccionado.sobre);
+                    const programadoTotal = programadoPapel + programadoSobre;
+                    const cumplimientoPct = programadoTotal > 0
+                      ? Math.round((c.totalReal / programadoTotal) * 100)
+                      : 0;
+                    return (
+                      <>
+                        <View style={styles.modalField}>
+                          <Text style={styles.modalLabel}>Papel producido</Text>
+                          <Text style={styles.modalValue}>{c.papelReal.toLocaleString()} millares</Text>
+                        </View>
+                        <View style={styles.modalField}>
+                          <Text style={styles.modalLabel}>Sobre producido</Text>
+                          <Text style={styles.modalValue}>{c.sobreReal.toLocaleString()} millares</Text>
+                        </View>
+                        <View style={styles.modalField}>
+                          <Text style={styles.modalLabel}>Total producido</Text>
+                          <Text style={styles.modalValueBold}>{c.totalReal.toLocaleString()} millares</Text>
+                        </View>
+                        <View style={styles.modalDivider} />
+                        <View style={styles.modalField}>
+                          <Text style={styles.modalLabel}>Programado</Text>
+                          <Text style={styles.modalValue}>
+                            {programadoPapel.toLocaleString()} / {programadoSobre.toLocaleString()} = {programadoTotal.toLocaleString()} millares
+                          </Text>
+                        </View>
+                        <View style={styles.modalField}>
+                          <Text style={styles.modalLabel}>Cumplimiento</Text>
+                          <Text style={[styles.modalValueBold, cumplimientoPct >= 80 ? {color: theme.colors.status.success} : {color: theme.colors.status.warning}]}>
+                            {cumplimientoPct}%
+                          </Text>
+                        </View>
+                        <View style={styles.modalActions}>
+                          <AppButton
+                            label="Cerrar"
+                            variant="secondary"
+                            onPress={() => setCumplimientoModalVisible(false)}
+                          />
+                        </View>
+                      </>
+                    );
+                  })()}
+                </>
+              )}
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </ErrorBoundary>
   );
@@ -708,5 +930,106 @@ const styles = StyleSheet.create({
   totalMesBold: {
     fontFamily: theme.typography.subtitle2.fontFamily,
     color: theme.colors.text.primary,
+  },
+  colAccion: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accionIcono: {
+    fontSize: 18,
+  },
+  // Modal de cumplimiento
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: theme.colors.background.backdrop,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing[6],
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: theme.colors.background.paper,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing[6],
+    ...theme.shadows.modal,
+  },
+  modalTitle: {
+    fontFamily: theme.typography.h4.fontFamily,
+    fontSize: theme.typography.h4.fontSize,
+    lineHeight: theme.typography.h4.lineHeight,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing[1],
+  },
+  modalSub: {
+    fontFamily: theme.typography.body2.fontFamily,
+    fontSize: theme.typography.body2.fontSize,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing[4],
+  },
+  modalField: {
+    marginBottom: theme.spacing[3],
+  },
+  modalLabel: {
+    fontFamily: theme.typography.caption.fontFamily,
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing[1],
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[2],
+    fontFamily: theme.typography.body1.fontFamily,
+    fontSize: theme.typography.body1.fontSize,
+    color: theme.colors.text.primary,
+    backgroundColor: theme.colors.background.paper,
+  },
+  modalValue: {
+    fontFamily: theme.typography.body1.fontFamily,
+    fontSize: theme.typography.body1.fontSize,
+    color: theme.colors.text.primary,
+  },
+  modalValueBold: {
+    fontFamily: theme.typography.subtitle1.fontFamily,
+    fontSize: theme.typography.subtitle1.fontSize,
+    color: theme.colors.text.primary,
+  },
+  modalTotal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.background.neutral,
+    borderRadius: theme.radius.sm,
+    padding: theme.spacing[3],
+    marginBottom: theme.spacing[3],
+  },
+  modalTotalLabel: {
+    fontFamily: theme.typography.subtitle2.fontFamily,
+    color: theme.colors.text.secondary,
+  },
+  modalTotalValue: {
+    fontFamily: theme.typography.subtitle1.fontFamily,
+    color: theme.colors.text.primary,
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: theme.colors.border.subtle,
+    marginVertical: theme.spacing[3],
+  },
+  modalError: {
+    fontFamily: theme.typography.caption.fontFamily,
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.status.error,
+    marginBottom: theme.spacing[3],
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: theme.spacing[2],
+    marginTop: theme.spacing[2],
   },
 });

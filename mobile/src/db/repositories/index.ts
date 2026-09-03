@@ -11,8 +11,9 @@ import * as catalogosRepo from './catalogos';
 import * as requerimientosRepo from './requerimientos';
 import * as photosRepo from './photos';
 import * as programacionesRepo from './programaciones';
+import * as cumplimientoRepo from './cumplimiento';
 
-export {catalogosRepo, requerimientosRepo, photosRepo, programacionesRepo};
+export {catalogosRepo, requerimientosRepo, photosRepo, programacionesRepo, cumplimientoRepo};
 export type {RequerimientoLocal, FiltrosRequerimiento} from './requerimientos';
 export type {FotoLocal, SavePhotoResult} from './photos';
 export type {
@@ -20,3 +21,4 @@ export type {
   ProgramacionDetalleLocal,
   ProgramacionConDetalle,
 } from './programaciones';
+export type {CumplimientoLocal} from './cumplimiento';
