@@ -28,6 +28,7 @@ import {useAuth} from '../context/AuthContext';
 import type {RootStackParamList} from '../navigation/types';
 import {
   extractErrorMessage,
+  listarRequerimientos,
   type RequerimientoDto,
 } from '../services/ApiClient';
 import {theme} from '../theme';
@@ -35,6 +36,8 @@ import {isAdminOrSuperAdmin} from '../utils/roles';
 import {formatFecha} from '../utils/programacion';
 import {
   esRangoValido,
+  estadoInfo,
+  toISODate,
 } from '../utils/requerimientos';
 import {requerimientosRepo, catalogosRepo} from '../db/repositories';
 import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
@@ -44,6 +47,19 @@ import {onSyncCallbacks} from '../db/sync/SyncManager';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
+function lunesSemanaActual(): string {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diff);
+  return toISODate(monday);
+}
+
+function hoyISO(): string {
+  return toISODate(new Date());
+}
+
 export default function RequerimientosListScreen() {
   const {user} = useAuth();
   const navigation = useNavigation<Navigation>();
@@ -51,8 +67,8 @@ export default function RequerimientosListScreen() {
   const isOnline = useOnlineStatus();
   const puedeGestionar = isAdminOrSuperAdmin(user);
 
-  const [desdeTexto, setDesdeTexto] = useState('');
-  const [hastaTexto, setHastaTexto] = useState('');
+  const [desdeTexto, setDesdeTexto] = useState(lunesSemanaActual);
+  const [hastaTexto, setHastaTexto] = useState(hoyISO);
   const [reqs, setReqs] = useState<RequerimientoDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,50 +84,61 @@ export default function RequerimientosListScreen() {
       setLoading(true);
       setError(null);
       try {
-        // Si hay online, intentar pull del servidor (futuro SyncManager)
-        // Por ahora solo leemos de SQLite
+        let reqsDto: RequerimientoDto[] = [];
 
-        // Siempre leer de SQLite
-        const reqsLocales = await requerimientosRepo.listLocal({
-          fechaDesde: desdeISO ?? undefined,
-          fechaHasta: hastaISO ?? undefined,
-        });
+        // Intentar SQLite-first
+        try {
+          const reqsLocales = await requerimientosRepo.listLocal({
+            fechaDesde: desdeISO ?? undefined,
+            fechaHasta: hastaISO ?? undefined,
+          });
 
-        // Resolver IDs → nombres usando catálogos cache
-        const [fundos, especies, plagas] = await Promise.all([
-          catalogosRepo.getFundosLocal(),
-          catalogosRepo.getEspeciesLocal(),
-          catalogosRepo.getPlagasLocal(),
-        ]);
-        const fundoMap = new Map(fundos.map(f => [f.id, f.nombre]));
-        const especieMap = new Map(especies.map(e => [e.id, e.nombre]));
-        const plagaMap = new Map(plagas.map(p => [p.id, p.nombre]));
+          const [fundos, especies, plagas] = await Promise.all([
+            catalogosRepo.getFundosLocal(),
+            catalogosRepo.getEspeciesLocal(),
+            catalogosRepo.getPlagasLocal(),
+          ]);
+          const fundoMap = new Map(fundos.map(f => [f.id, f.nombre]));
+          const especieMap = new Map(especies.map(e => [e.id, e.nombre]));
+          const plagaMap = new Map(plagas.map(p => [p.id, p.nombre]));
 
-        const reqsDto: RequerimientoDto[] = reqsLocales.map(r => ({
-          id: r.serverId ?? r.id,
-          fecha: r.fecha,
-          fundoId: r.fundoId,
-          fundo: fundoMap.get(r.fundoId) ?? '',
-          loteId: r.loteId,
-          lote: '',
-          especieId: r.especieId,
-          especie: especieMap.get(r.especieId) ?? '',
-          etapaFenologicaId: r.etapaFenologicaId,
-          etapaFenologica: null,
-          plagaId: r.plagaId,
-          plaga: r.plagaId ? (plagaMap.get(r.plagaId) ?? '') : null,
-          cantidad: r.cantidad,
-          estado: r.estado as never,
-          stockDisponible: r.stockDisponible ?? 0,
-          observaciones: r.observaciones,
-          papelConPostura: r.papelConPostura,
-          sobreConCascarilla: r.sobreConCascarilla,
-          fechaLiberacion: r.fechaLiberacion,
-          horaLiberacion: r.horaLiberacion,
-          creadoPor: r.creadoPor,
-          createdAt: r.createdAt?.toISOString() ?? '',
-          updatedAt: r.updatedAt?.toISOString() ?? '',
-        }));
+          reqsDto = reqsLocales.map(r => ({
+            id: r.serverId ?? r.id,
+            fecha: r.fecha,
+            fundoId: r.fundoId,
+            fundo: fundoMap.get(r.fundoId) ?? '',
+            loteId: r.loteId,
+            lote: '',
+            especieId: r.especieId,
+            especie: especieMap.get(r.especieId) ?? '',
+            etapaFenologicaId: r.etapaFenologicaId,
+            etapaFenologica: null,
+            plagaId: r.plagaId,
+            plaga: r.plagaId ? (plagaMap.get(r.plagaId) ?? '') : null,
+            cantidad: r.cantidad,
+            estado: r.estado as never,
+            stockDisponible: r.stockDisponible ?? 0,
+            observaciones: r.observaciones,
+            papelConPostura: r.papelConPostura,
+            sobreConCascarilla: r.sobreConCascarilla,
+            fechaLiberacion: r.fechaLiberacion,
+            horaLiberacion: r.horaLiberacion,
+            creadoPor: r.creadoPor,
+            createdAt: r.createdAt?.toISOString() ?? '',
+            updatedAt: r.updatedAt?.toISOString() ?? '',
+          }));
+        } catch {
+          // SQLite falló → fallback API
+          try {
+            reqsDto = await listarRequerimientos({
+              fechaDesde: desdeISO ?? undefined,
+              fechaHasta: hastaISO ?? undefined,
+            });
+          } catch {
+            throw new Error('No se pudieron cargar las solicitudes. Verifica tu conexión.');
+          }
+        }
+
         setReqs(reqsDto);
       } catch (e) {
         setError(extractErrorMessage(e));
@@ -122,8 +149,9 @@ export default function RequerimientosListScreen() {
     [puedeGestionar],
   );
 
+  // Auto-cargar con fechas por defecto (lunes→hoy de la semana en curso)
   useEffect(() => {
-    cargar(null, null);
+    cargar(desdeTexto || null, hastaTexto || null);
   }, [cargar]);
 
   // SyncIndicator: listen for sync events
@@ -134,13 +162,15 @@ export default function RequerimientosListScreen() {
         setSyncing(false);
         if (res.requerimientosSincronizados > 0 || res.fotosSubidas > 0) {
           setLastSyncTime(new Date());
-          cargar(null, null);
+          const desdeISO = desdeTexto || lunesSemanaActual();
+          const hastaISO = hastaTexto || hoyISO();
+          cargar(desdeISO, hastaISO);
         }
       },
       onSyncError: () => setSyncing(false),
     });
     return unsubscribe;
-  }, [cargar]);
+  }, [cargar, desdeTexto, hastaTexto]);
 
   // SyncIndicator: count pending
   useEffect(() => {
@@ -148,8 +178,8 @@ export default function RequerimientosListScreen() {
   }, [reqs]);
 
   const aplicarFiltro = () => {
-    const desdeISO = desdeTexto || null;
-    const hastaISO = hastaTexto || null;
+    const desdeISO = desdeTexto || lunesSemanaActual();
+    const hastaISO = hastaTexto || hoyISO();
     if (!esRangoValido(desdeISO, hastaISO)) {
       setError('Rango de fechas inválido. Use dd/mm/aaaa con desde ≤ hasta.');
       return;
@@ -158,9 +188,9 @@ export default function RequerimientosListScreen() {
   };
 
   const limpiarFiltro = () => {
-    setDesdeTexto('');
-    setHastaTexto('');
-    cargar(null, null);
+    setDesdeTexto(lunesSemanaActual());
+    setHastaTexto(hoyISO());
+    cargar(lunesSemanaActual(), hoyISO());
   };
 
   const renderFiltro = (
@@ -207,7 +237,7 @@ export default function RequerimientosListScreen() {
       return <LoadingState message="Cargando solicitudes…" />;
     }
     if (error) {
-      return <ErrorState onRetry={() => cargar(null, null)} />;
+      return <ErrorState onRetry={() => cargar(desdeTexto || lunesSemanaActual(), hastaTexto || hoyISO())} />;
     }
     if (reqs.length === 0) {
       return (
@@ -220,8 +250,10 @@ export default function RequerimientosListScreen() {
     }
     return (
       <View style={styles.list}>
-        {reqs.map(r => (
-          <AppCard key={r.id} style={styles.card}>
+        {reqs.map(r => {
+          const info = estadoInfo(r.estado);
+          return (
+          <AppCard key={r.id} style={[styles.card, info.bg ? {backgroundColor: info.bg} : undefined]}>
             <View style={styles.cardHeader}>
               <View style={styles.cardTitle}>
                 <Text style={styles.cardTitleText}>{r.especie}</Text>
@@ -243,7 +275,8 @@ export default function RequerimientosListScreen() {
               />
             </View>
           </AppCard>
-        ))}
+          );
+        })}
       </View>
     );
   };

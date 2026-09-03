@@ -169,7 +169,7 @@ describe('ProgramacionScreen — listado por mes (Admin)', () => {
       await flushPromises();
     });
 
-    expect(api.get).toHaveBeenCalledWith('/programaciones', {params: {anio: 2026, mes: 9}});
+    expect(api.get).toHaveBeenCalledWith('/programaciones', {params: {anio: 2026, mes: new Date().getMonth() + 2}});
   });
 
   test('Ver abre el modal de solo lectura con las semanas programadas', async () => {
@@ -216,7 +216,7 @@ describe('ProgramacionScreen — listado por mes (Admin)', () => {
     expect(mockNavigate).toHaveBeenCalledWith('ProgramacionEdicion', {
       modo: 'crear',
       anio: 2026,
-      mes: 8,
+      mes: new Date().getMonth() + 1,
     });
   });
 
@@ -247,7 +247,7 @@ describe('ProgramacionScreen — listado por mes (Admin)', () => {
     });
 
     expect(api.get).toHaveBeenCalledWith('/programaciones', {
-      params: {anio: 2026, mes: 8},
+      params: {anio: 2026, mes: new Date().getMonth() + 1},
     });
   });
 });

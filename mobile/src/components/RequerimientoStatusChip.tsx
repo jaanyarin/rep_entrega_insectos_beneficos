@@ -24,7 +24,7 @@ export default function RequerimientoStatusChip({estado}: Props) {
   const info = estadoInfo(estado);
   return (
     <View
-      style={[styles.chip, {backgroundColor: `${info.color}22`}]}
+      style={[styles.chip, {backgroundColor: info.bg ?? `${info.color}22`}]}
       accessibilityRole="text">
       <Text style={[styles.text, {color: info.color}]}>{info.label}</Text>
     </View>

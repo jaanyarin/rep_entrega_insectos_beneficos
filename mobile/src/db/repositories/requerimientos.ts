@@ -82,7 +82,7 @@ export async function createLocal(
     etapaFenologicaId: data.etapaFenologicaId ?? null,
     plagaId: data.plagaId ?? null,
     cantidad: data.cantidad,
-    estado: 'REGISTRADO',
+    estado: 'PENDIENTE',
     stockDisponible: stockDisponible ?? null,
     observaciones: data.observaciones ?? null,
     papelConPostura: null,
@@ -98,7 +98,7 @@ export async function createLocal(
   // Agregar a cola de sync
   await addToOutbox('INSERT', 'requerimientos', localId, {
     ...data,
-    estado: 'REGISTRADO',
+    estado: 'PENDIENTE',
     creadoPor,
   });
 

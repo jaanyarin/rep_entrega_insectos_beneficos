@@ -23,12 +23,14 @@ import type {
 export interface EstadoInfo {
   label: string;
   color: string;
+  /** Color de fondo suave para chips/cards (hex sin alpha). */
+  bg?: string;
 }
 
 /** Estados del ciclo con label + color exacto (RN-022 / transcripcion.md Screen 7). */
 export const ESTADOS_REQUERIMIENTO: Record<EstadoRequerimiento, EstadoInfo> = {
   REGISTRADO: {label: 'Registrado', color: '#9E9E9E'},
-  PENDIENTE: {label: 'Pendiente', color: '#FFC107'},
+  PENDIENTE: {label: 'Pendiente', color: '#DB9647', bg: '#FAEBD8'},
   APROBADO: {label: 'Aprobado', color: '#4CAF50'},
   ENTREGADO: {label: 'Entregado', color: '#2196F3'},
   RECIBIDO: {label: 'Recibido', color: '#009688'},

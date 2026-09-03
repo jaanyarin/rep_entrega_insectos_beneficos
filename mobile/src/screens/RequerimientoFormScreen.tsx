@@ -80,7 +80,7 @@ export default function RequerimientoFormScreen() {
   const [especieId, setEspecieId] = useState<number | null>(null);
   const [cantidadTexto, setCantidadTexto] = useState('');
   const [plagaId, setPlagaId] = useState<number | null>(null);
-  const [estado, setEstado] = useState<EstadoRequerimiento>('APROBADO');
+  const [estado, setEstado] = useState<EstadoRequerimiento>('PENDIENTE');
   const [fechaLiberacionInput, setFechaLiberacionInput] = useState('');
   const [horaLiberacion, setHoraLiberacion] = useState('');
   const [observaciones, setObservaciones] = useState('');
@@ -102,51 +102,64 @@ export default function RequerimientoFormScreen() {
   const cargarRequerimiento = useCallback(async (targetId: number) => {
     setLoading(true);
     setError(null);
+
+    // Helper: llenar state desde un DTO del API
+    const fillFromDto = (r: {fecha: string; fundoId: number; loteId: number; especieId: number; cantidad: number; plagaId: number | null; estado: EstadoRequerimiento; fechaLiberacion?: string | null; horaLiberacion?: string | null; observaciones?: string | null; papelConPostura?: number | null; sobreConCascarilla?: number | null}) => {
+      setFechaInput(r.fecha);
+      setFundoId(r.fundoId);
+      setLoteId(r.loteId);
+      setEspecieId(r.especieId);
+      setCantidadTexto(String(r.cantidad));
+      setPlagaId(r.plagaId);
+      setEstado(r.estado);
+      setFechaLiberacionInput(r.fechaLiberacion ?? '');
+      setHoraLiberacion(r.horaLiberacion ?? '');
+      setObservaciones(r.observaciones ?? '');
+      setPapelTexto(r.papelConPostura != null ? String(r.papelConPostura) : '');
+      setSobreTexto(r.sobreConCascarilla != null ? String(r.sobreConCascarilla) : '');
+    };
+
+    // Paso 1: intentar SQLite (puede fallar en release APK)
+    let foundLocal = false;
     try {
-      // SQLite-first: buscar localmente por serverId o por localId
       let local = await requerimientosRepo.getByServerId(targetId);
       if (!local && targetId < 0) {
         local = await requerimientosRepo.getByIdLocal(targetId);
       }
-
       if (local) {
-        setFechaInput(local.fecha);
-        setFundoId(local.fundoId);
-        setLoteId(local.loteId);
-        setEspecieId(local.especieId);
-        setCantidadTexto(String(local.cantidad));
-        setPlagaId(local.plagaId);
-        setEstado(local.estado as EstadoRequerimiento);
-        setFechaLiberacionInput(local.fechaLiberacion ?? '');
-        setHoraLiberacion(local.horaLiberacion ?? '');
-        setObservaciones(local.observaciones ?? '');
-        setPapelTexto(local.papelConPostura != null ? String(local.papelConPostura) : '');
-        setSobreTexto(local.sobreConCascarilla != null ? String(local.sobreConCascarilla) : '');
-      } else if (isOnline) {
-        // Fallback: intentar servidor si online
+        fillFromDto({
+          fecha: local.fecha,
+          fundoId: local.fundoId,
+          loteId: local.loteId,
+          especieId: local.especieId,
+          cantidad: local.cantidad,
+          plagaId: local.plagaId,
+          estado: local.estado as EstadoRequerimiento,
+          fechaLiberacion: local.fechaLiberacion,
+          horaLiberacion: local.horaLiberacion,
+          observaciones: local.observaciones,
+          papelConPostura: local.papelConPostura,
+          sobreConCascarilla: local.sobreConCascarilla,
+        });
+        foundLocal = true;
+      }
+    } catch {
+      // SQLite falló (release APK) — continuar con fallback API
+    }
+
+    // Paso 2: si no se encontró localmente, intentar API
+    if (!foundLocal) {
+      try {
         const {obtenerRequerimiento} = await import('../services/ApiClient');
         const r = await obtenerRequerimiento(targetId);
-        setFechaInput(r.fecha);
-        setFundoId(r.fundoId);
-        setLoteId(r.loteId);
-        setEspecieId(r.especieId);
-        setCantidadTexto(String(r.cantidad));
-        setPlagaId(r.plagaId);
-        setEstado(r.estado);
-        setFechaLiberacionInput(r.fechaLiberacion ?? '');
-        setHoraLiberacion(r.horaLiberacion ?? '');
-        setObservaciones(r.observaciones ?? '');
-        setPapelTexto(r.papelConPostura != null ? String(r.papelConPostura) : '');
-        setSobreTexto(r.sobreConCascarilla != null ? String(r.sobreConCascarilla) : '');
-      } else {
-        setError('Requerimiento no encontrado en caché local.');
+        fillFromDto(r);
+      } catch (e) {
+        setError(extractErrorMessage(e));
       }
-    } catch (e) {
-      setError(extractErrorMessage(e));
-    } finally {
-      setLoading(false);
     }
-  }, [isOnline]);
+
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     if (modo === 'editar' && id != null) {

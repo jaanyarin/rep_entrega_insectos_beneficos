@@ -25,6 +25,7 @@ import {useAuth} from '../context/AuthContext';
 import type {RootStackParamList} from '../navigation/types';
 import {
   extractErrorMessage,
+  listarRequerimientos,
   type ProgramacionDto,
   type RequerimientoDto,
 } from '../services/ApiClient';
@@ -76,42 +77,49 @@ export default function RequerimientosPanelScreen() {
       // Programaciones: cache-first (local → sync si online)
       let prog: ProgramacionDto[] = [];
       try {
-        // Intentar sincronizar del servidor si hay red
         await programacionesRepo.syncProgramaciones(anio, mes);
       } catch {
         // Offline o error → usar cache local
       }
-      // Siempre leer de SQLite local (cache-first)
       prog = await programacionesRepo.listLocalAsDto(anio, mes);
 
-      // Siempre leer de SQLite
-      const reqsLocales = await requerimientosRepo.listLocal();
-      // Mapear a RequerimientoDto para la lógica existente
-      const reqsDto: RequerimientoDto[] = reqsLocales.map(r => ({
-        id: r.serverId ?? r.id,
-        fecha: r.fecha,
-        fundoId: r.fundoId,
-        fundo: '',
-        loteId: r.loteId,
-        lote: '',
-        especieId: r.especieId,
-        especie: '',
-        etapaFenologicaId: r.etapaFenologicaId,
-        etapaFenologica: null,
-        plagaId: r.plagaId,
-        plaga: null,
-        cantidad: r.cantidad,
-        estado: r.estado as never,
-        stockDisponible: r.stockDisponible ?? 0,
-        observaciones: r.observaciones,
-        papelConPostura: r.papelConPostura,
-        sobreConCascarilla: r.sobreConCascarilla,
-        fechaLiberacion: r.fechaLiberacion,
-        horaLiberacion: r.horaLiberacion,
-        creadoPor: r.creadoPor,
-        createdAt: r.createdAt?.toISOString() ?? '',
-        updatedAt: r.updatedAt?.toISOString() ?? '',
-      }));
+      // Requerimientos: intentar SQLite, fallback a API
+      let reqsDto: RequerimientoDto[] = [];
+      try {
+        const reqsLocales = await requerimientosRepo.listLocal();
+        reqsDto = reqsLocales.map(r => ({
+          id: r.serverId ?? r.id,
+          fecha: r.fecha,
+          fundoId: r.fundoId,
+          fundo: '',
+          loteId: r.loteId,
+          lote: '',
+          especieId: r.especieId,
+          especie: '',
+          etapaFenologicaId: r.etapaFenologicaId,
+          etapaFenologica: null,
+          plagaId: r.plagaId,
+          plaga: null,
+          cantidad: r.cantidad,
+          estado: r.estado as never,
+          stockDisponible: r.stockDisponible ?? 0,
+          observaciones: r.observaciones,
+          papelConPostura: r.papelConPostura,
+          sobreConCascarilla: r.sobreConCascarilla,
+          fechaLiberacion: r.fechaLiberacion,
+          horaLiberacion: r.horaLiberacion,
+          creadoPor: r.creadoPor,
+          createdAt: r.createdAt?.toISOString() ?? '',
+          updatedAt: r.updatedAt?.toISOString() ?? '',
+        }));
+      } catch {
+        // SQLite falló → fallback API
+        try {
+          reqsDto = await listarRequerimientos({});
+        } catch {
+          throw new Error('No se pudieron cargar los requerimientos.');
+        }
+      }
 
       setProgramaciones(prog);
       setRequerimientos(reqsDto);
