@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS cumplimiento_programacion (
     id BIGSERIAL PRIMARY KEY,
-    programacion_detalle_id BIGINT NOT NULL REFERENCES programacion_detalles(id),
+    programacion_detalle_id BIGINT NOT NULL REFERENCES detalle_programaciones(id),
     programacion_id BIGINT NOT NULL REFERENCES programaciones(id),
     semana INT NOT NULL,
     fecha DATE NOT NULL,
