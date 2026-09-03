@@ -219,6 +219,48 @@ class SyncManagerImpl {
       try {
         const payload = JSON.parse(entry.payload);
 
+        // ── Despachos, recepciones, liberaciones (tablas separadas) ──
+        if (
+          entry.tableName === 'despachos_offline' ||
+          entry.tableName === 'recepciones_offline' ||
+          entry.tableName === 'liberaciones_offline'
+        ) {
+          const endpoint =
+            entry.tableName === 'despachos_offline'
+              ? 'despachos'
+              : entry.tableName === 'recepciones_offline'
+                ? 'recepciones'
+                : 'liberaciones';
+
+          // requerimientoServerId must exist in payload
+          if (!payload.requerimientoId) {
+            // Skip silently — retries on next sync when parent may be synced
+            continue;
+          }
+
+          try {
+            await api.post(
+              `/requerimientos/${payload.requerimientoId}/${endpoint}`,
+              payload,
+            );
+            await requerimientosRepo.markOutboxCompleted(entry.id);
+            if (entry.tableName === 'despachos_offline') {
+              results.despachosSincronizados++;
+            } else if (entry.tableName === 'recepciones_offline') {
+              results.recepcionesSincronizadas++;
+            } else {
+              results.liberacionesSincronizadas++;
+            }
+          } catch (error) {
+            const errorMsg =
+              error instanceof Error ? error.message : 'Request failed';
+            await requerimientosRepo.markOutboxFailed(entry.id, errorMsg);
+            results.errores++;
+          }
+          continue;
+        }
+
+        // ── Requerimientos (tabla principal) ──
         if (entry.operation === 'INSERT') {
           // POST al servidor
           const serverResponse = await api.post('/requerimientos', payload);
@@ -253,51 +295,6 @@ class SyncManagerImpl {
           await requerimientosRepo.markOutboxCompleted(entry.id);
 
           results.requerimientosSincronizados++;
-        }
-
-        // Handle despachos, recepciones, liberaciones
-        if (
-          entry.tableName === 'despachos_offline' ||
-          entry.tableName === 'recepciones_offline' ||
-          entry.tableName === 'liberaciones_offline'
-        ) {
-          const payload = JSON.parse(entry.payload);
-          const endpoint =
-            entry.tableName === 'despachos_offline'
-              ? 'despachos'
-              : entry.tableName === 'recepciones_offline'
-                ? 'recepciones'
-                : 'liberaciones';
-
-          // requerimientoServerId must exist in payload
-          if (!payload.requerimientoId) {
-            await requerimientosRepo.markOutboxFailed(
-              entry.id,
-              'No requerimientoId in payload',
-            );
-            results.errores++;
-            continue;
-          }
-
-          try {
-            await api.post(
-              `/requerimientos/${payload.requerimientoId}/${endpoint}`,
-              payload,
-            );
-            await requerimientosRepo.markOutboxCompleted(entry.id);
-            if (entry.tableName === 'despachos_offline') {
-              results.despachosSincronizados++;
-            } else if (entry.tableName === 'recepciones_offline') {
-              results.recepcionesSincronizadas++;
-            } else {
-              results.liberacionesSincronizadas++;
-            }
-          } catch (error) {
-            const errorMsg =
-              error instanceof Error ? error.message : 'Request failed';
-            await requerimientosRepo.markOutboxFailed(entry.id, errorMsg);
-            results.errores++;
-          }
         }
       } catch (error) {
         const errorMsg =

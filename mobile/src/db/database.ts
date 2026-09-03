@@ -272,6 +272,71 @@ async function runMigrations() {
       [Date.now()],
     );
   }
+
+  // ─── Migración 0003: Despachos, Recepciones, Liberaciones offline (HITO-015) ──
+  const result0003 = await db.execute(
+    `SELECT COUNT(*) as count FROM drizzle_migrations WHERE hash = '0003_despachos_recepciones_liberaciones'`,
+  );
+  const count0003 =
+    result0003.rows.length > 0
+      ? (result0003.rows[0] as {count: number}).count
+      : 0;
+
+  if (count0003 === 0) {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS despachos_offline (
+        id INTEGER PRIMARY KEY,
+        server_id INTEGER,
+        requerimiento_local_id INTEGER NOT NULL,
+        requerimiento_server_id INTEGER,
+        cantidad_despachada INTEGER NOT NULL,
+        papel_con_postura INTEGER,
+        sobre_con_cascarilla INTEGER,
+        observaciones TEXT,
+        creado_por INTEGER,
+        sync_status TEXT NOT NULL DEFAULT 'pending',
+        created_at INTEGER
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS recepciones_offline (
+        id INTEGER PRIMARY KEY,
+        server_id INTEGER,
+        requerimiento_local_id INTEGER NOT NULL,
+        requerimiento_server_id INTEGER,
+        conforme INTEGER NOT NULL DEFAULT 1,
+        observaciones TEXT,
+        fecha_recepcion TEXT,
+        creado_por INTEGER,
+        sync_status TEXT NOT NULL DEFAULT 'pending',
+        created_at INTEGER
+      )
+    `);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS liberaciones_offline (
+        id INTEGER PRIMARY KEY,
+        server_id INTEGER,
+        requerimiento_local_id INTEGER NOT NULL,
+        requerimiento_server_id INTEGER,
+        fundo_id INTEGER,
+        lote_id INTEGER,
+        cantidad_liberada INTEGER NOT NULL,
+        observaciones TEXT,
+        fecha_liberacion TEXT,
+        hora_liberacion TEXT,
+        creado_por INTEGER,
+        sync_status TEXT NOT NULL DEFAULT 'pending',
+        created_at INTEGER
+      )
+    `);
+
+    await db.execute(
+      `INSERT INTO drizzle_migrations (hash, created_at) VALUES ('0003_despachos_recepciones_liberaciones', ?)`,
+      [Date.now()],
+    );
+  }
 }
 
 /**
