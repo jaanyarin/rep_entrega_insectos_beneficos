@@ -26,6 +26,7 @@ import type {RootStackParamList} from '../navigation/types';
 import {
   extractErrorMessage,
   listarRequerimientos,
+  listarProgramaciones,
   type ProgramacionDto,
   type RequerimientoDto,
 } from '../services/ApiClient';
@@ -41,11 +42,6 @@ import {
   filasProyeccion,
   totalProyeccion,
 } from '../utils/requerimientos';
-import {requerimientosRepo, programacionesRepo} from '../db/repositories';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
-import SyncIndicator from '../components/SyncIndicator';
-import {onSyncCallbacks} from '../db/sync/SyncManager';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -54,15 +50,11 @@ export default function RequerimientosPanelScreen() {
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
   const puedeGestionar = isAdminOrSuperAdmin(user);
-  const isOnline = useOnlineStatus();
 
   const [programaciones, setProgramaciones] = useState<ProgramacionDto[]>([]);
   const [requerimientos, setRequerimientos] = useState<RequerimientoDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   const anio = anioActual();
   const mes = mesActual();
@@ -74,52 +66,10 @@ export default function RequerimientosPanelScreen() {
     setLoading(true);
     setError(null);
     try {
-      // Programaciones: cache-first (local → sync si online)
-      let prog: ProgramacionDto[] = [];
-      try {
-        await programacionesRepo.syncProgramaciones(anio, mes);
-      } catch {
-        // Offline o error → usar cache local
-      }
-      prog = await programacionesRepo.listLocalAsDto(anio, mes);
-
-      // Requerimientos: intentar SQLite, fallback a API
-      let reqsDto: RequerimientoDto[] = [];
-      try {
-        const reqsLocales = await requerimientosRepo.listLocal();
-        reqsDto = reqsLocales.map(r => ({
-          id: r.serverId ?? r.id,
-          fecha: r.fecha,
-          fundoId: r.fundoId,
-          fundo: '',
-          loteId: r.loteId,
-          lote: '',
-          especieId: r.especieId,
-          especie: '',
-          etapaFenologicaId: r.etapaFenologicaId,
-          etapaFenologica: null,
-          plagaId: r.plagaId,
-          plaga: null,
-          cantidad: r.cantidad,
-          estado: r.estado as never,
-          stockDisponible: r.stockDisponible ?? 0,
-          observaciones: r.observaciones,
-          papelConPostura: r.papelConPostura,
-          sobreConCascarilla: r.sobreConCascarilla,
-          fechaLiberacion: r.fechaLiberacion,
-          horaLiberacion: r.horaLiberacion,
-          creadoPor: r.creadoPor,
-          createdAt: r.createdAt?.toISOString() ?? '',
-          updatedAt: r.updatedAt?.toISOString() ?? '',
-        }));
-      } catch {
-        // SQLite falló → fallback API
-        try {
-          reqsDto = await listarRequerimientos({});
-        } catch {
-          throw new Error('No se pudieron cargar los requerimientos.');
-        }
-      }
+      const [prog, reqsDto] = await Promise.all([
+        listarProgramaciones(anio, mes),
+        listarRequerimientos({}),
+      ]);
 
       setProgramaciones(prog);
       setRequerimientos(reqsDto);
@@ -133,27 +83,6 @@ export default function RequerimientosPanelScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  // SyncIndicator: listen for sync events
-  useEffect(() => {
-    const unsubscribe = onSyncCallbacks({
-      onSyncStart: () => setSyncing(true),
-      onSyncComplete: (res) => {
-        setSyncing(false);
-        if (res.requerimientosSincronizados > 0 || res.fotosSubidas > 0) {
-          setLastSyncTime(new Date());
-          loadData();
-        }
-      },
-      onSyncError: () => setSyncing(false),
-    });
-    return unsubscribe;
-  }, [loadData]);
-
-  // SyncIndicator: count pending
-  useEffect(() => {
-    requerimientosRepo.countPending().then(c => setPendingCount(c)).catch(() => {});
-  }, [requerimientos]);
 
   if (!user) {
     return null;
@@ -199,8 +128,6 @@ export default function RequerimientosPanelScreen() {
           ]}>
           {puedeGestionar ? (
             <>
-              {!isOnline && <OfflineBanner />}
-              <SyncIndicator syncing={syncing} pendingCount={pendingCount} lastSyncTime={lastSyncTime} />
               <View style={styles.accion}>
                 <AppButton
                   label="Solicitud de Requerimiento"

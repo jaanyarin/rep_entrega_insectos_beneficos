@@ -23,26 +23,20 @@ import AppButton from '../components/AppButton';
 import AppHeader from '../components/AppHeader';
 import AppInput from '../components/AppInput';
 import ErrorBoundary from '../components/ErrorBoundary';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
 import type {RootStackParamList} from '../navigation/types';
 import {
   confirmarRecepcion,
   extractErrorMessage,
 } from '../services/ApiClient';
 import {theme} from '../theme';
-import {useAuth} from '../context/AuthContext';
-import {recepcionesRepo} from '../db/repositories';
 
 type Route = RouteProp<RootStackParamList, 'RecepcionForm'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 export default function RecepcionFormScreen() {
-  const {user} = useAuth();
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const isOnline = useOnlineStatus();
 
   const {requerimientoId} = route.params;
 
@@ -61,16 +55,7 @@ export default function RecepcionFormScreen() {
         conforme,
         observaciones: observaciones.trim() || null,
       };
-      if (isOnline) {
-        await confirmarRecepcion(requerimientoId, req);
-      } else {
-        await recepcionesRepo.createLocal(
-          req,
-          requerimientoId,
-          null,
-          user?.sub ? parseInt(user.sub, 10) : 0,
-        );
-      }
+      await confirmarRecepcion(requerimientoId, req);
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', extractErrorMessage(e));
@@ -89,7 +74,6 @@ export default function RecepcionFormScreen() {
           showBack
           onBack={navigation.goBack}
         />
-        {!isOnline && <OfflineBanner />}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

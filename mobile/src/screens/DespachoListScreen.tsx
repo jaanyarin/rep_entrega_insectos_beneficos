@@ -26,9 +26,6 @@ import {
 } from '../services/ApiClient';
 import {theme} from '../theme';
 import {formatFecha} from '../utils/programacion';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
-import {despachosRepo} from '../db/repositories';
 
 type Route = RouteProp<RootStackParamList, 'DespachoList'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -38,7 +35,6 @@ export default function DespachoListScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const isOnline = useOnlineStatus();
 
   const {requerimientoId} = route.params;
 
@@ -53,38 +49,14 @@ export default function DespachoListScreen() {
     setLoading(true);
     setError(null);
     try {
-      if (isOnline) {
-        const data = await listarDespachos(requerimientoId);
-        setDespachos(data);
-      } else {
-        // Offline path — read from local SQLite
-        try {
-          const local = await despachosRepo.findByRequerimientoLocalId(
-            requerimientoId,
-          );
-          setDespachos(
-            local.map(d => ({
-              id: d.id,
-              requerimientoId: d.requerimientoServerId ?? requerimientoId,
-              cantidadDespachada: d.cantidadDespachada,
-              papelConPostura: d.papelConPostura,
-              sobreConCascarilla: d.sobreConCascarilla,
-              observaciones: d.observaciones,
-              creadoPor: d.creadoPor ?? 0,
-              creadoPorNombre: `Usuario ${d.creadoPor ?? 0}`,
-              createdAt: d.createdAt?.toISOString() ?? '',
-            })),
-          );
-        } catch {
-          setDespachos([]);
-        }
-      }
+      const data = await listarDespachos(requerimientoId);
+      setDespachos(data);
     } catch (e) {
       setError(extractErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [requerimientoId, isOnline]);
+  }, [requerimientoId]);
 
   useEffect(() => {
     cargar();
@@ -156,7 +128,6 @@ export default function DespachoListScreen() {
             styles.content,
             {paddingBottom: 32 + insets.bottom},
           ]}>
-          {!isOnline && <OfflineBanner />}
           {renderContent()}
         </ScrollView>
         {esAdmin && (

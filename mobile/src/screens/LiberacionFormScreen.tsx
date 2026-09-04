@@ -24,8 +24,6 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
 import SelectField from '../components/SelectField';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
 import type {RootStackParamList} from '../navigation/types';
 import {
   crearLiberacion,
@@ -37,18 +35,14 @@ import {
 } from '../services/ApiClient';
 import {theme} from '../theme';
 import {cantidadDesdeTexto, horaActual} from '../utils/requerimientos';
-import {useAuth} from '../context/AuthContext';
-import {liberacionesRepo} from '../db/repositories';
 
 type Route = RouteProp<RootStackParamList, 'LiberacionForm'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 export default function LiberacionFormScreen() {
-  const {user} = useAuth();
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const isOnline = useOnlineStatus();
 
   const {requerimientoId} = route.params;
 
@@ -113,16 +107,7 @@ export default function LiberacionFormScreen() {
         horaLiberacion: hora.trim(),
         observaciones: observaciones.trim() || null,
       };
-      if (isOnline) {
-        await crearLiberacion(requerimientoId, req);
-      } else {
-        await liberacionesRepo.createLocal(
-          req,
-          requerimientoId,
-          null,
-          user?.sub ? parseInt(user.sub, 10) : 0,
-        );
-      }
+      await crearLiberacion(requerimientoId, req);
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', extractErrorMessage(e));
@@ -144,7 +129,6 @@ export default function LiberacionFormScreen() {
           showBack
           onBack={navigation.goBack}
         />
-        {!isOnline && <OfflineBanner />}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

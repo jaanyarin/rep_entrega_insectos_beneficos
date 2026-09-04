@@ -21,8 +21,6 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
 import RequerimientoStatusChip from '../components/RequerimientoStatusChip';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
 import type {RootStackParamList} from '../navigation/types';
 import {
   extractErrorMessage,
@@ -39,7 +37,6 @@ export default function DetalleRequerimientoScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const isOnline = useOnlineStatus();
 
   const {id} = route.params;
 
@@ -153,7 +150,6 @@ export default function DetalleRequerimientoScreen() {
             styles.content,
             {paddingBottom: 32 + insets.bottom},
           ]}>
-          {!isOnline && <OfflineBanner />}
           {renderContent()}
         </ScrollView>
       </SafeAreaView>

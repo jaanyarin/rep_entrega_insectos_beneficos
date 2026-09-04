@@ -26,9 +26,6 @@ import {
 } from '../services/ApiClient';
 import {theme} from '../theme';
 import {formatFecha} from '../utils/programacion';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
-import {liberacionesRepo} from '../db/repositories';
 
 type Route = RouteProp<RootStackParamList, 'LiberacionList'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -38,7 +35,6 @@ export default function LiberacionListScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const isOnline = useOnlineStatus();
 
   const {requerimientoId} = route.params;
 
@@ -52,42 +48,14 @@ export default function LiberacionListScreen() {
     setLoading(true);
     setError(null);
     try {
-      if (isOnline) {
-        const data = await listarLiberaciones(requerimientoId);
-        setLiberaciones(data);
-      } else {
-        // Offline path — read from local SQLite
-        try {
-          const local = await liberacionesRepo.findByRequerimientoLocalId(
-            requerimientoId,
-          );
-          setLiberaciones(
-            local.map(l => ({
-              id: l.id,
-              requerimientoId: l.requerimientoServerId ?? requerimientoId,
-              fundoId: l.fundoId ?? 0,
-              fundoNombre: '',
-              loteId: l.loteId ?? 0,
-              loteNombre: '',
-              cantidadLiberada: l.cantidadLiberada,
-              observaciones: l.observaciones,
-              fechaLiberacion: l.fechaLiberacion ?? '',
-              horaLiberacion: l.horaLiberacion ?? '',
-              creadoPor: l.creadoPor ?? 0,
-              creadoPorNombre: `Usuario ${l.creadoPor ?? 0}`,
-              createdAt: l.createdAt?.toISOString() ?? '',
-            })),
-          );
-        } catch {
-          setLiberaciones([]);
-        }
-      }
+      const data = await listarLiberaciones(requerimientoId);
+      setLiberaciones(data);
     } catch (e) {
       setError(extractErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [requerimientoId, isOnline]);
+  }, [requerimientoId]);
 
   useEffect(() => {
     cargar();
@@ -150,7 +118,6 @@ export default function LiberacionListScreen() {
             styles.content,
             {paddingBottom: 32 + insets.bottom},
           ]}>
-          {!isOnline && <OfflineBanner />}
           {renderContent()}
         </ScrollView>
         {puedeCrear && (

@@ -1,9 +1,7 @@
 /**
  * NuevoRequerimientoScreen — Screen 10: Formulario de Nuevo Requerimiento
- * (user). Approach: react-test-renderer + mock de Keychain + mock axios
- * (getMockApi) para los catálogos (GET /fundos, /especies, /etapas-fenologicas,
- * /plagas, /lotes?fundoId), el stock (GET /programaciones/{especieId}/stock) y
- * la creación (POST /requerimientos) con upload de fotos (POST multipart).
+ * (user). Approach: react-test-renderer + mock de Keychain + mock ApiClient
+ * (getMockApi for underlying axios) para los catálogos, stock y creación.
  *
  * Los desplegables (SelectField) abren un Modal: se abre el campo y luego se
  * elige la opción (accessibilityLabel "Opción <Campo> <Nombre>").
@@ -31,20 +29,6 @@ jest.mock('@react-navigation/native', () => {
     useNavigation: jest.fn(() => ({navigate: jest.fn(), goBack: jest.fn()})),
   };
 });
-
-jest.mock('../src/db/repositories', () => ({
-  requerimientosRepo: {
-    saveFromServer: jest.fn().mockResolvedValue(undefined),
-  },
-  catalogosRepo: {
-    getFundosLocal: jest.fn().mockResolvedValue([]),
-    getEspeciesLocal: jest.fn().mockResolvedValue([]),
-    getPlagasLocal: jest.fn().mockResolvedValue([]),
-  },
-  photosRepo: {
-    listByRequerimiento: jest.fn().mockResolvedValue([]),
-  },
-}));
 
 const TOKEN_USUARIO = makeToken({
   sub: '5',
@@ -206,19 +190,6 @@ describe('NuevoRequerimientoScreen — formulario user', () => {
     expect(api.post).toHaveBeenCalledWith(
       '/requerimientos',
       expect.objectContaining({
-        fundoId: 1,
-        loteId: 10,
-        especieId: 1,
-        etapaFenologicaId: 1,
-        cantidad: 20,
-        plagaId: 1,
-      }),
-    );
-    const {requerimientosRepo} = require('../src/db/repositories');
-    expect(requerimientosRepo.saveFromServer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 99,
-        fecha: expect.any(String),
         fundoId: 1,
         loteId: 10,
         especieId: 1,

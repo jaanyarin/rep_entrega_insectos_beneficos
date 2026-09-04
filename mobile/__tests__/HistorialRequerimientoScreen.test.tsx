@@ -3,7 +3,8 @@
  * (MOD-18 / RF-179..181). Acceso: user sanidad.
  *
  * Approach: react-test-renderer + AuthProvider + mock de Keychain +
- * mock repositories (SQLite-first) + mock useOnlineStatus.
+ * mock via getMockApi (all calls go through the mocked axios instance from jest.setup.js)
+ * + mock useOnlineStatus.
  *
  * Cubre HITO-011: muestra de fotos en el modal de detalle.
  */
@@ -18,6 +19,7 @@ import {clearToken} from '../src/services/ApiClient';
 import {
   findByLabel,
   flushPromises,
+  getMockApi,
   makeToken,
 } from '../test-utils/helpers';
 
@@ -33,36 +35,6 @@ jest.mock('../src/db/hooks/useOnlineStatus', () => ({
   useOnlineStatus: jest.fn().mockReturnValue(true),
 }));
 
-jest.mock('../src/db/repositories', () => ({
-  requerimientosRepo: {
-    listLocal: jest.fn().mockResolvedValue([]),
-    createLocal: jest.fn().mockResolvedValue(-1),
-    updateLocal: jest.fn().mockResolvedValue(undefined),
-    getByServerId: jest.fn().mockResolvedValue(null),
-    getByIdLocal: jest.fn().mockResolvedValue(null),
-    countPending: jest.fn().mockResolvedValue(0),
-  },
-  catalogosRepo: {
-    syncAllCatalogos: jest.fn().mockResolvedValue(undefined),
-    getFundosLocal: jest.fn().mockResolvedValue([]),
-    getEspeciesLocal: jest.fn().mockResolvedValue([]),
-    getEtapasFenologicasLocal: jest.fn().mockResolvedValue([]),
-    getPlagasLocal: jest.fn().mockResolvedValue([]),
-    getLotesLocal: jest.fn().mockResolvedValue([]),
-  },
-  photosRepo: {
-    saveLocal: jest.fn().mockResolvedValue({success: true, fotoId: 1}),
-    listByRequerimiento: jest.fn().mockResolvedValue([]),
-    getPendingUpload: jest.fn().mockResolvedValue([]),
-    markUploaded: jest.fn().mockResolvedValue(undefined),
-    remove: jest.fn().mockResolvedValue(undefined),
-  },
-  programacionesRepo: {
-    listLocal: jest.fn().mockResolvedValue([]),
-    syncProgramaciones: jest.fn().mockResolvedValue(undefined),
-  },
-}));
-
 const TOKEN_USUARIO = makeToken({
   sub: '5',
   groups: ['Usuario'],
@@ -72,63 +44,58 @@ const TOKEN_USUARIO = makeToken({
   passwordResetRequired: false,
 });
 
-const REQUERIMIENTOS_LOCALES = [
+const REQUERIMIENTOS_DTO = [
   {
     id: 1,
-    serverId: 1,
     fecha: '2026-08-20',
     fundoId: 1,
+    fundo: 'Fundo Norte',
     loteId: 10,
+    lote: 'Lote A',
     especieId: 1,
+    especie: 'Chrysopa sp.',
     etapaFenologicaId: null,
-    plagaId: 1,
+    etapaFenologica: null,
     cantidad: 20,
-    estado: 'ENTREGADO',
+    plagaId: 1,
+    plaga: 'Pulga',
+    estado: 'ENTREGADO' as const,
     stockDisponible: 30,
+    fechaLiberacion: null,
+    horaLiberacion: null,
     observaciones: null,
     papelConPostura: null,
     sobreConCascarilla: null,
-    fechaLiberacion: null,
-    horaLiberacion: null,
     creadoPor: 5,
-    syncStatus: 'synced',
-    createdAt: new Date('2026-08-20T10:00:00Z'),
-    updatedAt: new Date('2026-08-20T10:00:00Z'),
+    createdAt: '2026-08-20T10:00:00Z',
+    updatedAt: '2026-08-20T10:00:00Z',
   },
 ];
 
-const FUNDOS = [{id: 1, nombre: 'Fundo Norte', createdAt: '', updatedAt: ''}];
-const ESPECIES = [{id: 1, nombre: 'Chrysopa sp.', estado: true}];
-const PLAGAS = [{id: 1, nombre: 'Pulga', estado: true}];
-
-const FOTOS_LOCALES = [
+const FOTOS_DTO = [
   {
     id: 10,
-    requerimientoLocalId: 1,
-    uri: '/fotos/foto1.jpg',
-    fileName: 'foto1.jpg',
-    fileSize: 1024000,
+    requerimientoId: 1,
+    ruta: '/fotos/foto1.jpg',
+    nombreArchivo: 'foto1.jpg',
+    tamanoBytes: 1024000,
     contentType: 'image/jpeg',
     metadatos: '{"tipo":"EVIDENCIA"}',
-    syncStatus: 'uploaded',
-    serverFotoId: 10,
-    serverUrl: '/fotos/foto1.jpg',
-    createdAt: new Date('2026-08-20T10:00:00Z'),
+    creadoEn: '2026-08-20T10:00:00Z',
   },
   {
     id: 11,
-    requerimientoLocalId: 1,
-    uri: '/fotos/foto2.jpg',
-    fileName: 'foto2.jpg',
-    fileSize: 2048000,
+    requerimientoId: 1,
+    ruta: '/fotos/foto2.jpg',
+    nombreArchivo: 'foto2.jpg',
+    tamanoBytes: 2048000,
     contentType: 'image/jpeg',
     metadatos: '{"tipo":"EVIDENCIA"}',
-    syncStatus: 'uploaded',
-    serverFotoId: 11,
-    serverUrl: '/fotos/foto2.jpg',
-    createdAt: new Date('2026-08-20T10:01:00Z'),
+    creadoEn: '2026-08-20T10:01:00Z',
   },
 ];
+
+const api = getMockApi();
 
 async function renderHistorial() {
   (Keychain.getGenericPassword as jest.Mock).mockImplementation(
@@ -140,12 +107,15 @@ async function renderHistorial() {
     navigate: jest.fn(),
   });
 
-  const {requerimientosRepo, catalogosRepo, photosRepo} = require('../src/db/repositories');
-  requerimientosRepo.listLocal.mockResolvedValue(REQUERIMIENTOS_LOCALES);
-  catalogosRepo.getFundosLocal.mockResolvedValue(FUNDOS);
-  catalogosRepo.getEspeciesLocal.mockResolvedValue(ESPECIES);
-  catalogosRepo.getPlagasLocal.mockResolvedValue(PLAGAS);
-  photosRepo.listByRequerimiento.mockResolvedValue(FOTOS_LOCALES);
+  api.get.mockImplementation((url: string, _config?: any) => {
+    if (url === '/requerimientos') {
+      return Promise.resolve({data: REQUERIMIENTOS_DTO});
+    }
+    if (typeof url === 'string' && url.match(/\/requerimientos\/\d+\/fotos$/)) {
+      return Promise.resolve({data: FOTOS_DTO});
+    }
+    return Promise.resolve({data: []});
+  });
 
   let tree!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -173,12 +143,10 @@ describe('HistorialRequerimientoScreen — fotos en detalle (HITO-011)', () => {
       findByLabel(tree, 'Ver Chrysopa sp.').props.onPress();
     });
     await act(async () => {
-      await flushPromises();
+      for (let i = 0; i < 10; i++) {
+        await flushPromises();
+      }
     });
-
-    // Verificar que se consultaron las fotos locales
-    const {photosRepo} = require('../src/db/repositories');
-    expect(photosRepo.listByRequerimiento).toHaveBeenCalled();
 
     // Verificar que el título de fotos aparece
     const fotosTitle = tree.root.findAll(

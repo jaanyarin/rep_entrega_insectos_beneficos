@@ -39,11 +39,6 @@ import {
   estadoInfo,
   toISODate,
 } from '../utils/requerimientos';
-import {requerimientosRepo, catalogosRepo} from '../db/repositories';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
-import SyncIndicator from '../components/SyncIndicator';
-import {onSyncCallbacks} from '../db/sync/SyncManager';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -64,7 +59,6 @@ export default function RequerimientosListScreen() {
   const {user} = useAuth();
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
-  const isOnline = useOnlineStatus();
   const puedeGestionar = isAdminOrSuperAdmin(user);
 
   const [desdeTexto, setDesdeTexto] = useState(lunesSemanaActual);
@@ -72,9 +66,6 @@ export default function RequerimientosListScreen() {
   const [reqs, setReqs] = useState<RequerimientoDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   const cargar = useCallback(
     async (desdeISO: string | null, hastaISO: string | null) => {
@@ -84,60 +75,10 @@ export default function RequerimientosListScreen() {
       setLoading(true);
       setError(null);
       try {
-        let reqsDto: RequerimientoDto[] = [];
-
-        // Intentar SQLite-first
-        try {
-          const reqsLocales = await requerimientosRepo.listLocal({
-            fechaDesde: desdeISO ?? undefined,
-            fechaHasta: hastaISO ?? undefined,
-          });
-
-          const [fundos, especies, plagas] = await Promise.all([
-            catalogosRepo.getFundosLocal(),
-            catalogosRepo.getEspeciesLocal(),
-            catalogosRepo.getPlagasLocal(),
-          ]);
-          const fundoMap = new Map(fundos.map(f => [f.id, f.nombre]));
-          const especieMap = new Map(especies.map(e => [e.id, e.nombre]));
-          const plagaMap = new Map(plagas.map(p => [p.id, p.nombre]));
-
-          reqsDto = reqsLocales.map(r => ({
-            id: r.serverId ?? r.id,
-            fecha: r.fecha,
-            fundoId: r.fundoId,
-            fundo: fundoMap.get(r.fundoId) ?? '',
-            loteId: r.loteId,
-            lote: '',
-            especieId: r.especieId,
-            especie: especieMap.get(r.especieId) ?? '',
-            etapaFenologicaId: r.etapaFenologicaId,
-            etapaFenologica: null,
-            plagaId: r.plagaId,
-            plaga: r.plagaId ? (plagaMap.get(r.plagaId) ?? '') : null,
-            cantidad: r.cantidad,
-            estado: r.estado as never,
-            stockDisponible: r.stockDisponible ?? 0,
-            observaciones: r.observaciones,
-            papelConPostura: r.papelConPostura,
-            sobreConCascarilla: r.sobreConCascarilla,
-            fechaLiberacion: r.fechaLiberacion,
-            horaLiberacion: r.horaLiberacion,
-            creadoPor: r.creadoPor,
-            createdAt: r.createdAt?.toISOString() ?? '',
-            updatedAt: r.updatedAt?.toISOString() ?? '',
-          }));
-        } catch {
-          // SQLite falló → fallback API
-          try {
-            reqsDto = await listarRequerimientos({
-              fechaDesde: desdeISO ?? undefined,
-              fechaHasta: hastaISO ?? undefined,
-            });
-          } catch {
-            throw new Error('No se pudieron cargar las solicitudes. Verifica tu conexión.');
-          }
-        }
+        const reqsDto = await listarRequerimientos({
+          fechaDesde: desdeISO ?? undefined,
+          fechaHasta: hastaISO ?? undefined,
+        });
 
         setReqs(reqsDto);
       } catch (e) {
@@ -154,29 +95,6 @@ export default function RequerimientosListScreen() {
   useEffect(() => {
     cargar(desdeTexto || null, hastaTexto || null);
   }, [cargar]);
-
-  // SyncIndicator: listen for sync events
-  useEffect(() => {
-    const unsubscribe = onSyncCallbacks({
-      onSyncStart: () => setSyncing(true),
-      onSyncComplete: res => {
-        setSyncing(false);
-        if (res.requerimientosSincronizados > 0 || res.fotosSubidas > 0) {
-          setLastSyncTime(new Date());
-          const desdeISO = desdeTexto || lunesSemanaActual();
-          const hastaISO = hastaTexto || hoyISO();
-          cargar(desdeISO, hastaISO);
-        }
-      },
-      onSyncError: () => setSyncing(false),
-    });
-    return unsubscribe;
-  }, [cargar, desdeTexto, hastaTexto]);
-
-  // SyncIndicator: count pending
-  useEffect(() => {
-    requerimientosRepo.countPending().then(c => setPendingCount(c)).catch(() => {});
-  }, [reqs]);
 
   const aplicarFiltro = () => {
     const desdeISO = desdeTexto || lunesSemanaActual();
@@ -300,8 +218,6 @@ export default function RequerimientosListScreen() {
           ]}>
           {puedeGestionar ? (
             <>
-              {!isOnline && <OfflineBanner />}
-              <SyncIndicator syncing={syncing} pendingCount={pendingCount} lastSyncTime={lastSyncTime} />
               {renderFiltro}
               <AppButton
                 label="Nuevo"

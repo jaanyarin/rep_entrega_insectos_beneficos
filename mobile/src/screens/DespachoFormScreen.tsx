@@ -21,8 +21,6 @@ import AppButton from '../components/AppButton';
 import AppHeader from '../components/AppHeader';
 import AppInput from '../components/AppInput';
 import ErrorBoundary from '../components/ErrorBoundary';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
 import type {RootStackParamList} from '../navigation/types';
 import {
   crearDespacho,
@@ -30,18 +28,14 @@ import {
 } from '../services/ApiClient';
 import {theme} from '../theme';
 import {cantidadDesdeTexto} from '../utils/requerimientos';
-import {useAuth} from '../context/AuthContext';
-import {despachosRepo} from '../db/repositories';
 
 type Route = RouteProp<RootStackParamList, 'DespachoForm'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 export default function DespachoFormScreen() {
-  const {user} = useAuth();
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const isOnline = useOnlineStatus();
 
   const {requerimientoId} = route.params;
 
@@ -67,16 +61,7 @@ export default function DespachoFormScreen() {
           : null,
         observaciones: observaciones.trim() || null,
       };
-      if (isOnline) {
-        await crearDespacho(requerimientoId, req);
-      } else {
-        await despachosRepo.createLocal(
-          req,
-          requerimientoId,
-          null,
-          user?.sub ? parseInt(user.sub, 10) : 0,
-        );
-      }
+      await crearDespacho(requerimientoId, req);
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', extractErrorMessage(e));
@@ -95,7 +80,6 @@ export default function DespachoFormScreen() {
           showBack
           onBack={navigation.goBack}
         />
-        {!isOnline && <OfflineBanner />}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

@@ -27,9 +27,6 @@ import {
 } from '../services/ApiClient';
 import {theme} from '../theme';
 import {formatFecha} from '../utils/programacion';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
-import {recepcionesRepo} from '../db/repositories';
 
 type Route = RouteProp<RootStackParamList, 'RecepcionList'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -39,7 +36,6 @@ export default function RecepcionListScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const isOnline = useOnlineStatus();
 
   const {requerimientoId} = route.params;
 
@@ -53,37 +49,14 @@ export default function RecepcionListScreen() {
     setLoading(true);
     setError(null);
     try {
-      if (isOnline) {
-        const data = await listarRecepciones(requerimientoId);
-        setRecepciones(data);
-      } else {
-        // Offline path — read from local SQLite
-        try {
-          const local = await recepcionesRepo.findByRequerimientoLocalId(
-            requerimientoId,
-          );
-          setRecepciones(
-            local.map(r => ({
-              id: r.id,
-              requerimientoId: r.requerimientoServerId ?? requerimientoId,
-              conforme: r.conforme,
-              observaciones: r.observaciones,
-              fechaRecepcion: r.fechaRecepcion ?? '',
-              creadoPor: r.creadoPor ?? 0,
-              creadoPorNombre: `Usuario ${r.creadoPor ?? 0}`,
-              createdAt: r.createdAt?.toISOString() ?? '',
-            })),
-          );
-        } catch {
-          setRecepciones([]);
-        }
-      }
+      const data = await listarRecepciones(requerimientoId);
+      setRecepciones(data);
     } catch (e) {
       setError(extractErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [requerimientoId, isOnline]);
+  }, [requerimientoId]);
 
   useEffect(() => {
     cargar();
@@ -152,7 +125,6 @@ export default function RecepcionListScreen() {
             styles.content,
             {paddingBottom: 32 + insets.bottom},
           ]}>
-          {!isOnline && <OfflineBanner />}
           {renderContent()}
         </ScrollView>
         {puedeCrear && (

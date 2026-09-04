@@ -1,7 +1,7 @@
 /**
  * RequerimientosPanelScreen — Screen 6: Panel de Solicitudes de Requerimiento
  * (admin). Approach: react-test-renderer + AuthProvider + mock de Keychain
- * (JWT fabricado con makeToken) + mock repositories (SQLite-first) +
+ * (JWT fabricado con makeToken) + mock ApiClient (online-only) +
  * mock useOnlineStatus.
  */
 
@@ -31,38 +31,14 @@ jest.mock('../src/db/hooks/useOnlineStatus', () => ({
   useOnlineStatus: jest.fn().mockReturnValue(true),
 }));
 
-jest.mock('../src/db/repositories', () => ({
-  requerimientosRepo: {
-    listLocal: jest.fn().mockResolvedValue([]),
-    createLocal: jest.fn().mockResolvedValue(-1),
-    updateLocal: jest.fn().mockResolvedValue(undefined),
-    getByServerId: jest.fn().mockResolvedValue(null),
-    getByIdLocal: jest.fn().mockResolvedValue(null),
-    countPending: jest.fn().mockResolvedValue(0),
-  },
-  catalogosRepo: {
-    syncAllCatalogos: jest.fn().mockResolvedValue(undefined),
-    getFundosLocal: jest.fn().mockResolvedValue([]),
-    getEspeciesLocal: jest.fn().mockResolvedValue([]),
-    getEtapasFenologicasLocal: jest.fn().mockResolvedValue([]),
-    getPlagasLocal: jest.fn().mockResolvedValue([]),
-    getLotesLocal: jest.fn().mockResolvedValue([]),
-  },
-  photosRepo: {
-    saveLocal: jest.fn().mockResolvedValue({success: true, fotoId: 1}),
-    listByRequerimiento: jest.fn().mockResolvedValue([]),
-    getPendingUpload: jest.fn().mockResolvedValue([]),
-    markUploaded: jest.fn().mockResolvedValue(undefined),
-    remove: jest.fn().mockResolvedValue(undefined),
-    countByRequerimiento: jest.fn().mockResolvedValue(0),
-  },
-  programacionesRepo: {
-    listLocal: jest.fn().mockResolvedValue([]),
-    listLocalAsDto: jest.fn().mockResolvedValue([]),
-    syncProgramaciones: jest.fn().mockResolvedValue(undefined),
-    hasLocalData: jest.fn().mockResolvedValue(false),
-  },
-}));
+jest.mock('../src/services/ApiClient', () => {
+  const actual = jest.requireActual('../src/services/ApiClient');
+  return {
+    ...actual,
+    listarProgramaciones: jest.fn().mockResolvedValue([]),
+    listarRequerimientos: jest.fn().mockResolvedValue([]),
+  };
+});
 
 const TOKEN_ADMIN = makeToken({
   sub: '9',
@@ -104,28 +80,31 @@ const PROGRAMACIONES = [
 const hoy = new Date();
 const fechaISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
 
-const REQUERIMIENTOS_LOCALES = [
+const REQUERIMIENTOS_DTO = [
   {
     id: 1,
-    serverId: 1,
     fecha: fechaISO,
     fundoId: 1,
+    fundo: 'Fundo Norte',
     loteId: 10,
+    lote: 'Lote A',
     especieId: 1,
+    especie: 'Chrysopa sp.',
     etapaFenologicaId: null,
-    plagaId: null,
+    etapaFenologica: null,
     cantidad: 200,
-    estado: 'PENDIENTE',
+    plagaId: null,
+    plaga: null,
+    estado: 'PENDIENTE' as const,
     stockDisponible: 3000,
+    fechaLiberacion: null,
+    horaLiberacion: null,
     observaciones: null,
     papelConPostura: null,
     sobreConCascarilla: null,
-    fechaLiberacion: null,
-    horaLiberacion: null,
     creadoPor: null,
-    syncStatus: 'pending',
-    createdAt: new Date('2026-08-18T10:00:00Z'),
-    updatedAt: new Date('2026-08-18T10:00:00Z'),
+    createdAt: '2026-08-18T10:00:00Z',
+    updatedAt: '2026-08-18T10:00:00Z',
   },
 ];
 
@@ -133,7 +112,7 @@ const mockNavigate = jest.fn();
 
 async function renderPanel(
   token = TOKEN_ADMIN,
-  requerimientos: unknown[] = REQUERIMIENTOS_LOCALES,
+  requerimientos: unknown[] = REQUERIMIENTOS_DTO,
 ) {
   (Keychain.getGenericPassword as jest.Mock).mockImplementation(
     (options?: {service?: string}) =>
@@ -144,9 +123,9 @@ async function renderPanel(
     goBack: jest.fn(),
   });
 
-  const {requerimientosRepo, programacionesRepo} = require('../src/db/repositories');
-  requerimientosRepo.listLocal.mockResolvedValue(requerimientos);
-  programacionesRepo.listLocalAsDto.mockResolvedValue(PROGRAMACIONES);
+  const {listarRequerimientos, listarProgramaciones} = require('../src/services/ApiClient');
+  listarRequerimientos.mockResolvedValue(requerimientos);
+  listarProgramaciones.mockResolvedValue(PROGRAMACIONES);
 
   let tree!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {

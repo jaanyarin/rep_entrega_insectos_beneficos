@@ -43,7 +43,10 @@ import {useRequerimientosCatalogos} from '../hooks/useRequerimientosCatalogos';
 import {useAuth} from '../context/AuthContext';
 import type {RootStackParamList} from '../navigation/types';
 import {
+  actualizarRequerimiento,
+  crearRequerimiento,
   extractErrorMessage,
+  obtenerRequerimiento,
   type EstadoRequerimiento,
   type PlagaDto,
 } from '../services/ApiClient';
@@ -55,9 +58,6 @@ import {
   esEstadoEntregado,
   hoyISO,
 } from '../utils/requerimientos';
-import {requerimientosRepo} from '../db/repositories';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
 
 type Route = RouteProp<RootStackParamList, 'RequerimientoForm'>;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -67,7 +67,6 @@ export default function RequerimientoFormScreen() {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const isOnline = useOnlineStatus();
 
   const id = route.params?.id;
   const modo: 'crear' | 'editar' = id != null ? 'editar' : 'crear';
@@ -91,8 +90,6 @@ export default function RequerimientoFormScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [avisoActa, setAvisoActa] = useState<string | null>(null);
-  // Trackea si el registro cargó desde SQLite local o desde API
-  const [dataSource, setDataSource] = useState<'local' | 'api'>('local');
 
   // Fecha por defecto (creación): hoy.
   useEffect(() => {
@@ -121,45 +118,11 @@ export default function RequerimientoFormScreen() {
       setSobreTexto(r.sobreConCascarilla != null ? String(r.sobreConCascarilla) : '');
     };
 
-    // Paso 1: intentar SQLite (puede fallar en release APK)
-    let foundLocal = false;
     try {
-      let local = await requerimientosRepo.getByServerId(targetId);
-      if (!local && targetId < 0) {
-        local = await requerimientosRepo.getByIdLocal(targetId);
-      }
-      if (local) {
-        fillFromDto({
-          fecha: local.fecha,
-          fundoId: local.fundoId,
-          loteId: local.loteId,
-          especieId: local.especieId,
-          cantidad: local.cantidad,
-          plagaId: local.plagaId,
-          estado: local.estado as EstadoRequerimiento,
-          fechaLiberacion: local.fechaLiberacion,
-          horaLiberacion: local.horaLiberacion,
-          observaciones: local.observaciones,
-          papelConPostura: local.papelConPostura,
-          sobreConCascarilla: local.sobreConCascarilla,
-        });
-        foundLocal = true;
-        setDataSource('local');
-      }
-    } catch {
-      // SQLite falló (release APK) — continuar con fallback API
-    }
-
-    // Paso 2: si no se encontró localmente, intentar API
-    if (!foundLocal) {
-      try {
-        const {obtenerRequerimiento} = await import('../services/ApiClient');
-        const r = await obtenerRequerimiento(targetId);
-        fillFromDto(r);
-        setDataSource('api');
-      } catch (e) {
-        setError(extractErrorMessage(e));
-      }
+      const r = await obtenerRequerimiento(targetId);
+      fillFromDto(r);
+    } catch (e) {
+      setError(extractErrorMessage(e));
     }
 
     setLoading(false);
@@ -209,24 +172,7 @@ export default function RequerimientoFormScreen() {
     setAvisoActa(null);
     try {
       if (modo === 'crear') {
-        // Offline-first: guardar en SQLite + outbox
-        await requerimientosRepo.createLocal(
-          {
-            fecha: isoFecha ?? hoyISO(),
-            fundoId: fundoId!,
-            loteId: loteId!,
-            especieId: especieId!,
-            etapaFenologicaId: null,
-            cantidad: cantidadNum,
-            plagaId,
-            observaciones: observaciones.trim() || null,
-          },
-          Number(user?.sub) || 0,
-        );
-      } else if (dataSource === 'api' && isOnline) {
-        // Los datos vinieron del servidor → actualizar vía API PUT
-        const {actualizarRequerimiento} = await import('../services/ApiClient');
-        await actualizarRequerimiento(id!, {
+        await crearRequerimiento({
           fecha: isoFecha ?? hoyISO(),
           fundoId: fundoId!,
           loteId: loteId!,
@@ -234,21 +180,10 @@ export default function RequerimientoFormScreen() {
           etapaFenologicaId: null,
           cantidad: cantidadNum,
           plagaId,
-          estado,
-          papelConPostura: papelNum > 0 ? papelNum : null,
-          sobreConCascarilla: sobreNum > 0 ? sobreNum : null,
-          fechaLiberacion: isoFechaLiberacion,
-          horaLiberacion: horaLiberacion.trim() || null,
           observaciones: observaciones.trim() || null,
         });
       } else {
-        // Los datos vinieron de SQLite → actualizar localmente + outbox
-        let localId = id!;
-        const local = await requerimientosRepo.getByServerId(id!);
-        if (local) {
-          localId = local.id;
-        }
-        await requerimientosRepo.updateLocal(localId, {
+        await actualizarRequerimiento(id!, {
           fecha: isoFecha ?? hoyISO(),
           fundoId: fundoId!,
           loteId: loteId!,
@@ -307,7 +242,6 @@ export default function RequerimientoFormScreen() {
           showBack
           onBack={navigation.goBack}
         />
-        {!isOnline && <OfflineBanner />}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

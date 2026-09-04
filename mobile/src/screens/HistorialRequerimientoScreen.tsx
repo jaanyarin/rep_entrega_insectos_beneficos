@@ -35,6 +35,7 @@ import {useAuth} from '../context/AuthContext';
 import type {RootStackParamList} from '../navigation/types';
 import {
   extractErrorMessage,
+  listarFotosRequerimiento,
   listarRequerimientos,
   type FotoRequerimientoDto,
   type RequerimientoDto,
@@ -42,11 +43,6 @@ import {
 import {theme} from '../theme';
 import {formatFecha} from '../utils/programacion';
 import {esRangoValido, toISODate} from '../utils/requerimientos';
-import {requerimientosRepo, photosRepo, catalogosRepo} from '../db/repositories';
-import {useOnlineStatus} from '../db/hooks/useOnlineStatus';
-import OfflineBanner from '../components/OfflineBanner';
-import SyncIndicator from '../components/SyncIndicator';
-import {onSyncCallbacks} from '../db/sync/SyncManager';
 
 /** Lunes de la semana en curso (ISO date). */
 function lunesSemanaActual(): string {
@@ -68,15 +64,12 @@ type Navigation = NativeStackNavigationProp<RootStackParamList>;
 function VerModal({
   req,
   onClose,
-  requerimientoLocalId,
 }: {
   req: RequerimientoDto | null;
   onClose: () => void;
-  requerimientoLocalId?: number;
 }) {
   const [fotosModal, setFotosModal] = useState<FotoRequerimientoDto[]>([]);
   const [loadingFotos, setLoadingFotos] = useState(false);
-  const isOnline = useOnlineStatus();
 
   useEffect(() => {
     if (!req) {
@@ -87,32 +80,8 @@ function VerModal({
     (async () => {
       setLoadingFotos(true);
       try {
-        // SQLite-first: buscar fotos locales
-        if (requerimientoLocalId) {
-          const fotosLocales = await photosRepo.listByRequerimiento(requerimientoLocalId);
-          if (activo) {
-            const fotosDto: FotoRequerimientoDto[] = fotosLocales.map(f => ({
-              id: f.serverFotoId ?? f.id,
-              ruta: f.serverUrl ?? f.uri,
-              requerimientoId: req.id,
-              nombreArchivo: f.fileName,
-              tamanoBytes: f.fileSize ?? 0,
-              contentType: f.contentType ?? 'image/jpeg',
-              metadatos: f.metadatos,
-              creadoEn: f.createdAt?.toISOString() ?? '',
-            }));
-            setFotosModal(fotosDto);
-          }
-        } else if (isOnline) {
-          // Fallback: fotos del servidor
-          try {
-            const {listarFotosRequerimiento} = await import('../services/ApiClient');
-            const fotos = await listarFotosRequerimiento(req.id);
-            if (activo) { setFotosModal(fotos); }
-          } catch {
-            if (activo) { setFotosModal([]); }
-          }
-        }
+        const fotos = await listarFotosRequerimiento(req.id);
+        if (activo) { setFotosModal(fotos); }
       } catch {
         if (activo) { setFotosModal([]); }
       } finally {
@@ -122,7 +91,7 @@ function VerModal({
     return () => {
       activo = false;
     };
-  }, [req, requerimientoLocalId, isOnline]);
+  }, [req]);
 
   if (!req) {
     return null;
@@ -195,7 +164,6 @@ export default function HistorialRequerimientoScreen() {
   const {user} = useAuth();
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
-  const isOnline = useOnlineStatus();
 
   const [desdeTexto, setDesdeTexto] = useState(lunesSemanaActual);
   const [hastaTexto, setHastaTexto] = useState(hoy);
@@ -203,10 +171,6 @@ export default function HistorialRequerimientoScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ver, setVer] = useState<RequerimientoDto | null>(null);
-  const [verLocalId, setVerLocalId] = useState<number | undefined>(undefined);
-  const [syncing, setSyncing] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   const cargar = useCallback(
     async (desdeISO: string | null, hastaISO: string | null) => {
@@ -216,64 +180,11 @@ export default function HistorialRequerimientoScreen() {
       setLoading(true);
       setError(null);
       try {
-        let reqsDto: RequerimientoDto[] = [];
-
-        // Intentar SQLite-first
-        try {
-          const reqsLocales = await requerimientosRepo.listLocal({
-            fechaDesde: desdeISO ?? undefined,
-            fechaHasta: hastaISO ?? undefined,
-            creadoPor: Number(user?.sub) || 0,
-          });
-
-          const [fundos, especies, plagas] = await Promise.all([
-            catalogosRepo.getFundosLocal(),
-            catalogosRepo.getEspeciesLocal(),
-            catalogosRepo.getPlagasLocal(),
-          ]);
-          const fundoMap = new Map(fundos.map(f => [f.id, f.nombre]));
-          const especieMap = new Map(especies.map(e => [e.id, e.nombre]));
-          const plagaMap = new Map(plagas.map(p => [p.id, p.nombre]));
-
-          reqsDto = reqsLocales.map(r => ({
-            id: r.serverId ?? r.id,
-            fecha: r.fecha,
-            fundoId: r.fundoId,
-            fundo: fundoMap.get(r.fundoId) ?? '',
-            loteId: r.loteId,
-            lote: '',
-            especieId: r.especieId,
-            especie: especieMap.get(r.especieId) ?? '',
-            etapaFenologicaId: r.etapaFenologicaId,
-            etapaFenologica: null,
-            plagaId: r.plagaId,
-            plaga: r.plagaId ? (plagaMap.get(r.plagaId) ?? '') : null,
-            cantidad: r.cantidad,
-            estado: r.estado as never,
-            stockDisponible: r.stockDisponible ?? 0,
-            observaciones: r.observaciones,
-            papelConPostura: r.papelConPostura,
-            sobreConCascarilla: r.sobreConCascarilla,
-            fechaLiberacion: r.fechaLiberacion,
-            horaLiberacion: r.horaLiberacion,
-            creadoPor: r.creadoPor,
-            createdAt: r.createdAt?.toISOString() ?? '',
-            updatedAt: r.updatedAt?.toISOString() ?? '',
-            _localId: r.id,
-          } as RequerimientoDto & {_localId: number}));
-        } catch {
-          // SQLite falló (op-sqlite no disponible en release APK) → fallback API
-          try {
-            reqsDto = await listarRequerimientos({
-              fechaDesde: desdeISO ?? undefined,
-              fechaHasta: hastaISO ?? undefined,
-              creadoPor: Number(user?.sub) || 0,
-            });
-          } catch {
-            // API también falló → mostrar error
-            throw new Error('No se pudieron cargar los requerimientos. Verifica tu conexión.');
-          }
-        }
+        const reqsDto = await listarRequerimientos({
+          fechaDesde: desdeISO ?? undefined,
+          fechaHasta: hastaISO ?? undefined,
+          creadoPor: Number(user?.sub) || 0,
+        });
 
         setReqs(reqsDto);
       } catch (e) {
@@ -290,29 +201,6 @@ export default function HistorialRequerimientoScreen() {
   useEffect(() => {
     cargar(desdeTexto || null, hastaTexto || null);
   }, [cargar]);
-
-  // SyncIndicator: listen for sync events
-  useEffect(() => {
-    const unsubscribe = onSyncCallbacks({
-      onSyncStart: () => setSyncing(true),
-      onSyncComplete: res => {
-        setSyncing(false);
-        if (res.requerimientosSincronizados > 0 || res.fotosSubidas > 0) {
-          setLastSyncTime(new Date());
-          const desdeISO = desdeTexto || lunesSemanaActual();
-          const hastaISO = hastaTexto || hoy();
-          cargar(desdeISO, hastaISO);
-        }
-      },
-      onSyncError: () => setSyncing(false),
-    });
-    return unsubscribe;
-  }, [cargar, desdeTexto, hastaTexto]);
-
-  // SyncIndicator: count pending
-  useEffect(() => {
-    requerimientosRepo.countPending().then(c => setPendingCount(c)).catch(() => {});
-  }, [reqs]);
 
   const aplicarFiltro = () => {
     const desdeISO = desdeTexto || lunesSemanaActual();
@@ -405,7 +293,6 @@ export default function HistorialRequerimientoScreen() {
                 icon="eye-outline"
                 onPress={() => {
                   setVer(r);
-                  setVerLocalId((r as any)._localId);
                 }}
                 accessibilityLabel={`Ver ${r.especie}`}
               />
@@ -450,12 +337,10 @@ export default function HistorialRequerimientoScreen() {
             styles.content,
             {paddingBottom: 32 + insets.bottom},
           ]}>
-          {!isOnline && <OfflineBanner />}
-          <SyncIndicator syncing={syncing} pendingCount={pendingCount} lastSyncTime={lastSyncTime} />
           {renderFiltro}
           {renderContenido()}
         </ScrollView>
-        <VerModal req={ver} onClose={() => { setVer(null); setVerLocalId(undefined); }} requerimientoLocalId={verLocalId} />
+        <VerModal req={ver} onClose={() => setVer(null)} />
       </SafeAreaView>
     </ErrorBoundary>
   );
