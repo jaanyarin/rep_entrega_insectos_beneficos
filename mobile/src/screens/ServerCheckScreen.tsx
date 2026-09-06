@@ -6,13 +6,11 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {
   api,
   BUILT_IN_API_URL,
-  getToken,
   loadApiUrl,
   normalizeApiUrl,
   resetApiUrl,
   setApiUrl,
 } from '../services/ApiClient';
-import {isTokenExpired} from '../utils/token';
 import type {RootStackParamList} from '../navigation/types';
 import AppInput from '../components/AppInput';
 import AppButton from '../components/AppButton';
@@ -21,23 +19,12 @@ import LoadingState from '../components/LoadingState';
 import {theme} from '../theme';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
-
 type Status = 'checking' | 'error' | 'ready';
 
 /**
- * Pantalla inicial del flujo no autenticado (modelo reutilizable §7.2):
- * prueba `GET /auth/roles` contra la URL guardada (timeout 5 s). Si falla,
- * muestra el formulario para ingresar/guardar la URL de la API y reintentar.
- *
- * Soporte offline (HITO-013): si ya existe un JWT válido en Keychain,
- * esta pantalla se salta automáticamente (AuthContext ya restauró la sesión).
- * Solo se muestra cuando no hay JWT o está expirado (necesita red para login).
- *
- * HITO-003: tema Vanguard (§18 card radius 16/shadow z2, tokens), SafeArea y
- * V6: back físico interceptado (pantalla raíz del stack anónimo → NO cierra
- * la app). El bug 3 (doble toque) se resuelve en LoginScreen: su ScrollView
- * sí lleva `keyboardShouldPersistTaps="handled"`; en esta pantalla no aplica
- * porque no tiene ScrollView.
+ * Pantalla inicial del flujo no autenticado.
+ * Comprueba el backend antes de permitir el acceso al login. La aplicación
+ * opera exclusivamente contra la API; no existe bypass de conectividad.
  */
 export default function ServerCheckScreen() {
   const navigation = useNavigation<Navigation>();
@@ -52,7 +39,6 @@ export default function ServerCheckScreen() {
       setErrorMsg('');
       try {
         const url = urlToTest ?? (await loadApiUrl());
-        // Timeout corto (5 s) para no bloquear el primer flujo (ADR-A003).
         await api.get('/auth/roles', {timeout: 5000, baseURL: url});
         setStatus('ready');
         navigation.replace('Login');
@@ -68,23 +54,23 @@ export default function ServerCheckScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const existingToken = await getToken();
-        if (!cancelled && existingToken && !isTokenExpired(existingToken, 60)) {
-          return; // JWT válido → AuthContext ya restauró la sesión
-        }
-      } catch {
-        // No-op — continuamos con el probe normal
-      }
-      if (!cancelled) {
         const savedUrl = await loadApiUrl();
-        setApiUrlInput(savedUrl);
-        probe(savedUrl);
+        if (!cancelled) {
+          setApiUrlInput(savedUrl);
+          await probe(savedUrl);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setStatus('error');
+          setErrorMsg(describeError(err));
+        }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [probe]);
 
-  // V6: back físico en raíz del stack anónimo → interceptar (no cerrar).
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => sub.remove();
@@ -115,9 +101,7 @@ export default function ServerCheckScreen() {
           <Text style={styles.title}>Verificando servidor</Text>
 
           {status === 'checking' ? (
-            <>
-              <LoadingState message="Comprobando la conexión con el servidor…" />
-            </>
+            <LoadingState message="Comprobando la conexión con el servidor…" />
           ) : (
             <>
               <Text style={styles.subtitle}>
@@ -128,7 +112,7 @@ export default function ServerCheckScreen() {
 
               <AppInput
                 label="URL de la API"
-                placeholder="10.13.18.93 (solo su IP de la laptop)"
+                placeholder="10.13.18.93"
                 value={apiUrl}
                 onChangeText={setApiUrlInput}
                 autoCapitalize="none"
@@ -138,8 +122,8 @@ export default function ServerCheckScreen() {
               />
 
               <Text style={styles.hint}>
-                Escriba solo la IP (ej. 10.13.18.93). App completa
-                http://IP:6101/api/v1 automáticamente.
+                Escriba la IP o URL del servidor. La aplicación completa
+                http://IP:6101/api/v1 cuando corresponda.
               </Text>
 
               <AppButton
