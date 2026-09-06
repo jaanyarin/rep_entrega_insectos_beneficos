@@ -1,11 +1,10 @@
 /**
- * Smoke test: verificación de que la app puede arrancar sin crash fatal.
+ * Smoke test de arranque del árbol real de la aplicación.
  *
- * Cubre el hallazgo crítico del diagnóstico 2026-09-03:
- * "InsectosBeneficios has not been registered" → import chain failure.
- *
- * Verifica que la cadena de imports (App → SyncManager → repositories → database)
- * no lanza excepciones fatales y que el componente App se puede renderizar.
+ * El objetivo es detectar regresiones en la cadena de imports que pueden
+ * impedir que AppRegistry.registerComponent llegue a ejecutarse.
+ * No se mockea RootNavigator: el test debe cargar la navegación y sus screens
+ * reales, igual que el bundle de producción.
  */
 
 import React from 'react';
@@ -17,35 +16,13 @@ jest.mock('react-native-keychain', () => ({
   resetGenericPassword: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock('@react-native-community/netinfo', () => ({
-  __esModule: true,
-  default: {
-    fetch: jest.fn().mockResolvedValue({isConnected: true}),
-    addEventListener: jest.fn().mockReturnValue(() => {}),
-  },
-}));
-
-jest.mock('../src/db/hooks/useOnlineStatus', () => ({
-  useOnlineStatus: jest.fn().mockReturnValue(true),
-}));
-
-jest.mock('../src/components/SyncToast', () => {
-  const {View} = require('react-native');
-  return {__esModule: true, default: () => <View testID="sync-toast" />};
-});
-
-jest.mock('../src/navigation/RootNavigator', () => {
-  const {View} = require('react-native');
-  return {__esModule: true, default: () => <View testID="root-nav" />};
-});
-
 jest.mock('../src/context/AuthContext', () => ({
   AuthProvider: ({children}: {children: React.ReactNode}) => children,
-  useAuth: () => ({user: null, loading: false}),
+  useAuth: () => ({user: null, loading: true, error: null}),
 }));
 
 describe('AppLaunch smoke test', () => {
-  test('App component can be imported and rendered without fatal exceptions', async () => {
+  test('carga App y RootNavigator reales sin excepción fatal', async () => {
     const App = require('../App').default;
     expect(App).toBeDefined();
 
@@ -53,6 +30,7 @@ describe('AppLaunch smoke test', () => {
     await act(async () => {
       tree = ReactTestRenderer.create(<App />);
     });
+
     expect(tree!).toBeTruthy();
   });
 });
