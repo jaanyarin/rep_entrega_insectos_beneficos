@@ -26,10 +26,6 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-jest.mock('../src/db/hooks/useOnlineStatus', () => ({
-  useOnlineStatus: jest.fn().mockReturnValue(true),
-}));
-
 jest.mock('../src/services/ApiClient', () => {
   const actual = jest.requireActual('../src/services/ApiClient');
   return {

@@ -31,10 +31,6 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-jest.mock('../src/db/hooks/useOnlineStatus', () => ({
-  useOnlineStatus: jest.fn().mockReturnValue(true),
-}));
-
 const TOKEN_USUARIO = makeToken({
   sub: '5',
   groups: ['Usuario'],

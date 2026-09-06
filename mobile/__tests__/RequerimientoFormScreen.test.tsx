@@ -95,10 +95,6 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-jest.mock('../src/db/hooks/useOnlineStatus', () => ({
-  useOnlineStatus: jest.fn().mockReturnValue(true),
-}));
-
 const REQUERIMIENTO_DTO = {
   id: 5,
   fecha: '2026-08-10',
