@@ -18,7 +18,6 @@ import {
   type AuthUser,
 } from '../services/ApiClient';
 
-
 interface AuthContextType {
   /** Usuario decodificado del JWT (null = sin sesión). */
   user: AuthUser | null;
@@ -49,19 +48,20 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Restauración de sesión al arrancar + suscripción a 401 global.
-  // Soporte offline: si el JWT existe y NO está expirado, restaura la sesión
-  // sin verificar con el servidor (permite uso offline inmediato).
+  // Restauración de sesión al arrancar. El uso de la sesión persistida no
+  // implica soporte offline: cualquier operación posterior requiere API.
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const token = await getToken();
         if (mounted && token) {
-          // Restaurar sesión siempre que exista un token (incluso expirado).
-          // Esto permite uso offline: cuando el usuario vuelva online e intente
-          // una llamada API, el interceptor 401 manejará la expiración.
-          setUser(parseToken(token));
+          const parsed = parseToken(token);
+          if (parsed) {
+            setUser(parsed);
+          } else {
+            await clearToken();
+          }
         }
       } catch {
         // Sin sesión persistida: flujo normal de login.
@@ -98,13 +98,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     async (newPassword: string, contrasenaActual?: string) => {
       setError(null);
       if (!user) {
-        setError('Sesión no iniciada');
         return;
       }
       try {
         const data = await changePassword(newPassword, contrasenaActual);
-        // El backend emite un JWT FRESCO (sin passwordResetRequired):
-        // se persiste y se refresca el user para salir del flujo de reset.
         await setToken(data.token);
         setUser(parseToken(data.token));
       } catch (err) {
@@ -117,6 +114,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   const logout = useCallback(() => {
     clearToken().catch(() => {});
     setUser(null);
+    setError(null);
   }, []);
 
   const value = useMemo(
@@ -127,10 +125,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth debe usarse dentro de AuthProvider');
+export function useAuth(): AuthContextType {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth debe utilizarse dentro de AuthProvider');
   }
-  return ctx;
+  return context;
 }
